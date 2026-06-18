@@ -6,7 +6,7 @@ pages_build_output_dir = ".vercel/output/static"
 [[d1_databases]]
 binding = "DB"
 database_name = "zzgcopilot-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "f51cd6bd-fcb0-47ce-90ca-32209552c7bf"
 
 [[r2_buckets]]
 binding = "R2"
