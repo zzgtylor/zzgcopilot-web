@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Required for Cloudflare Pages deployment
-  experimental: {
-    runtime: 'edge',
-  },
+  // Cloudflare Pages deployment - edge runtime is set per-route
   images: {
     remotePatterns: [
       {
@@ -11,7 +8,7 @@ const nextConfig = {
         hostname: '*.r2.cloudflarestorage.com',
       },
       {
-        protocol: 'https', 
+        protocol: 'https',
         hostname: '*.zzgcopilot.com',
       },
     ],
