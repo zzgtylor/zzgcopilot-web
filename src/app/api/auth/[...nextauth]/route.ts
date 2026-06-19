@@ -1,24 +1,27 @@
 import NextAuth from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import { getRequestContext } from '@cloudflare/next-on-pages'
+import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 
 export const runtime = 'edge'
 
-const handler = NextAuth({
+const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    CredentialsProvider({
+    Credentials({
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null
 
         try {
-          const ctx = getRequestContext()
-          const db: D1Database = ctx.env.DB
+          // Access D1 via the Cloudflare env binding (injected by OpenNext)
+          const db: D1Database = (globalThis as any).__env__?.DB
+          if (!db) {
+            console.error('D1 binding not available')
+            return null
+          }
 
           const user = await db
             .prepare('SELECT * FROM users WHERE email = ? AND is_active = 1')
@@ -27,11 +30,14 @@ const handler = NextAuth({
 
           if (!user) return null
 
-          const isValid = await bcrypt.compare(credentials.password, user.password_hash)
+          const isValid = await bcrypt.compare(
+            credentials.password as string,
+            user.password_hash
+          )
           if (!isValid) return null
 
           return {
-            id: user.id,
+            id: String(user.id),
             email: user.email,
             name: user.name,
             role: user.role,
@@ -53,7 +59,7 @@ const handler = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = token.role
+        ;(session.user as any).role = token.role
         ;(session.user as any).id = token.id
       }
       return session
@@ -65,8 +71,9 @@ const handler = NextAuth({
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
 })
 
-export { handler as GET, handler as POST }
+export { handlers as GET, handlers as POST }
+export { auth, signIn, signOut }
