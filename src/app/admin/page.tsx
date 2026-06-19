@@ -9,7 +9,6 @@ import {
   BarChart3, Settings, LogOut, ChevronDown, ChevronUp, Loader2
 } from 'lucide-react'
 
-export const runtime = 'edge'
 
 interface Post {
   id: string
@@ -51,7 +50,7 @@ export default function AdminPage() {
   // Auth check
   useEffect(() => {
     if (status === 'loading') return
-    if (!session || (session.user.role !== 'admin' && session.user.role !== 'editor')) {
+    if (!session || ((session.user as any).role !== 'admin' && (session.user as any).role !== 'editor')) {
       router.push('/login')
     }
   }, [session, status, router])
@@ -84,7 +83,7 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    if (session?.user.role === 'admin' || session?.user.role === 'editor') {
+    if ((session?.user as any)?.role === 'admin' || (session?.user as any)?.role === 'editor') {
       fetchData()
     }
   }, [session, fetchData])
@@ -127,7 +126,7 @@ export default function AdminPage() {
       })
       
       if (res.ok) {
-        setSaveMsg('保存成功！')
+        setSaveMsg('ä¿å­æåï¼')
         fetchData()
         setTimeout(() => {
           setActiveTab('posts')
@@ -135,17 +134,17 @@ export default function AdminPage() {
         }, 1500)
       } else {
         const d = await res.json()
-        setSaveMsg(d.error || '保存失败')
+        setSaveMsg(d.error || 'ä¿å­å¤±è´¥')
       }
     } catch {
-      setSaveMsg('保存失败，请重试')
+      setSaveMsg('ä¿å­å¤±è´¥ï¼è¯·éè¯')
     } finally {
       setSaving(false)
     }
   }
 
   async function deletePost(id: string) {
-    if (!confirm('确定删除这篇文章？此操作不可撤销。')) return
+    if (!confirm('ç¡®å®å é¤è¿ç¯æç« ï¼æ­¤æä½ä¸å¯æ¤éã')) return
     const res = await fetch(`/api/admin/posts?id=${id}`, { method: 'DELETE' })
     if (res.ok) {
       setPosts(prev => prev.filter(p => p.id !== id))
@@ -166,11 +165,11 @@ export default function AdminPage() {
   }
 
   const navItems = [
-    { id: 'dashboard', label: '仪表板', icon: LayoutDashboard },
-    { id: 'posts', label: '文章管理', icon: FileText },
-    { id: 'media', label: '媒体库', icon: Image },
-    { id: 'comments', label: '评论管理', icon: MessageSquare },
-    ...(session?.user.role === 'admin' ? [{ id: 'users', label: '用户管理', icon: Users }] : []),
+    { id: 'dashboard', label: 'ä»ªè¡¨æ¿', icon: LayoutDashboard },
+    { id: 'posts', label: 'æç« ç®¡ç', icon: FileText },
+    { id: 'media', label: 'åªä½åº', icon: Image },
+    { id: 'comments', label: 'è¯è®ºç®¡ç', icon: MessageSquare },
+    ...((session?.user as any)?.role === 'admin' ? [{ id: 'users', label: 'ç¨æ·ç®¡ç', icon: Users }] : []),
   ]
 
   return (
@@ -179,7 +178,7 @@ export default function AdminPage() {
       <aside className="w-64 bg-gray-900 text-white flex-shrink-0 flex flex-col">
         <div className="p-6 border-b border-gray-700">
           <h1 className="text-xl font-bold">ZZGCopilot</h1>
-          <p className="text-gray-400 text-sm mt-1">后台管理系统</p>
+          <p className="text-gray-400 text-sm mt-1">åå°ç®¡çç³»ç»</p>
         </div>
         
         <nav className="flex-1 p-4">
@@ -208,11 +207,11 @@ export default function AdminPage() {
             </div>
             <div>
               <div className="text-sm font-medium">{session?.user.name}</div>
-              <div className="text-xs text-gray-400">{session?.user.role}</div>
+              <div className="text-xs text-gray-400">{(session?.user as any)?.role}</div>
             </div>
           </div>
           <a href="/" className="w-full flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-white text-sm">
-            <Eye className="w-4 h-4" /> 查看网站
+            <Eye className="w-4 h-4" /> æ¥çç½ç«
           </a>
         </div>
       </aside>
@@ -222,17 +221,17 @@ export default function AdminPage() {
         {/* Header */}
         <header className="bg-white border-b px-8 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold">
-            {activeTab === 'dashboard' && '仪表板'}
-            {activeTab === 'posts' && '文章管理'}
-            {activeTab === 'new-post' && '新建文章'}
-            {activeTab === 'edit-post' && '编辑文章'}
-            {activeTab === 'media' && '媒体库'}
-            {activeTab === 'comments' && '评论管理'}
-            {activeTab === 'users' && '用户管理'}
+            {activeTab === 'dashboard' && 'ä»ªè¡¨æ¿'}
+            {activeTab === 'posts' && 'æç« ç®¡ç'}
+            {activeTab === 'new-post' && 'æ°å»ºæç« '}
+            {activeTab === 'edit-post' && 'ç¼è¾æç« '}
+            {activeTab === 'media' && 'åªä½åº'}
+            {activeTab === 'comments' && 'è¯è®ºç®¡ç'}
+            {activeTab === 'users' && 'ç¨æ·ç®¡ç'}
           </h2>
           {(activeTab === 'posts') && (
             <button onClick={startNewPost} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm">
-              <Plus className="w-4 h-4" /> 新建文章
+              <Plus className="w-4 h-4" /> æ°å»ºæç« 
             </button>
           )}
         </header>
@@ -243,9 +242,9 @@ export default function AdminPage() {
             <div>
               <div className="grid grid-cols-3 gap-6 mb-8">
                 {[
-                  { label: '文章总数', value: stats.posts, icon: FileText, color: 'blue' },
-                  { label: '注册用户', value: stats.users, icon: Users, color: 'green' },
-                  { label: '评论总数', value: stats.comments, icon: MessageSquare, color: 'purple' },
+                  { label: 'æç« æ»æ°', value: stats.posts, icon: FileText, color: 'blue' },
+                  { label: 'æ³¨åç¨æ·', value: stats.users, icon: Users, color: 'green' },
+                  { label: 'è¯è®ºæ»æ°', value: stats.comments, icon: MessageSquare, color: 'purple' },
                 ].map(stat => (
                   <div key={stat.label} className="bg-white rounded-2xl p-6 border">
                     <div className={`w-12 h-12 bg-${stat.color}-100 rounded-xl flex items-center justify-center mb-4`}>
@@ -258,19 +257,19 @@ export default function AdminPage() {
               </div>
               
               <div className="bg-white rounded-2xl border p-6">
-                <h3 className="font-semibold mb-4">最近文章</h3>
+                <h3 className="font-semibold mb-4">æè¿æç« </h3>
                 <div className="space-y-3">
                   {posts.slice(0, 5).map(post => (
                     <div key={post.id} className="flex items-center justify-between py-2 border-b last:border-0">
                       <div>
                         <div className="font-medium text-sm">{post.title}</div>
-                        <div className="text-xs text-gray-400">{post.author_name} · {post.view_count} 浏览</div>
+                        <div className="text-xs text-gray-400">{post.author_name} Â· {post.view_count} æµè§</div>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         post.status === 'published' ? 'bg-green-100 text-green-700' : 
                         post.status === 'draft' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {post.status === 'published' ? '已发布' : post.status === 'draft' ? '草稿' : '归档'}
+                        {post.status === 'published' ? 'å·²åå¸' : post.status === 'draft' ? 'èç¨¿' : 'å½æ¡£'}
                       </span>
                     </div>
                   ))}
@@ -285,11 +284,11 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">标题</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">状态</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">分类</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">浏览</th>
-                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">操作</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æ é¢</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">ç¶æ</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">åç±»</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æµè§</th>
+                    <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æä½</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -304,10 +303,10 @@ export default function AdminPage() {
                           post.status === 'published' ? 'bg-green-100 text-green-700' : 
                           post.status === 'draft' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
                         }`}>
-                          {post.status === 'published' ? '已发布' : post.status === 'draft' ? '草稿' : '归档'}
+                          {post.status === 'published' ? 'å·²åå¸' : post.status === 'draft' ? 'èç¨¿' : 'å½æ¡£'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{post.category_name || '—'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{post.category_name || 'â'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{post.view_count}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -317,7 +316,7 @@ export default function AdminPage() {
                           <a href={`/tutorials/${post.slug}`} target="_blank" className="p-1.5 hover:bg-gray-100 rounded-lg">
                             <Eye className="w-4 h-4 text-gray-600" />
                           </a>
-                          {session?.user.role === 'admin' && (
+                          {(session?.user as any)?.role === 'admin' && (
                             <button onClick={() => deletePost(post.id)} className="p-1.5 hover:bg-red-50 rounded-lg">
                               <Trash2 className="w-4 h-4 text-red-500" />
                             </button>
@@ -327,7 +326,7 @@ export default function AdminPage() {
                     </tr>
                   ))}
                   {posts.length === 0 && (
-                    <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">暂无文章，点击右上角新建</td></tr>
+                    <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">ææ æç« ï¼ç¹å»å³ä¸è§æ°å»º</td></tr>
                   )}
                 </tbody>
               </table>
@@ -338,7 +337,7 @@ export default function AdminPage() {
           {(activeTab === 'new-post' || activeTab === 'edit-post') && (
             <div className="max-w-4xl">
               {saveMsg && (
-                <div className={`mb-4 p-3 rounded-xl text-sm ${saveMsg.includes('成功') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                <div className={`mb-4 p-3 rounded-xl text-sm ${saveMsg.includes('æå') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                   {saveMsg}
                 </div>
               )}
@@ -347,12 +346,12 @@ export default function AdminPage() {
                 {/* Main content */}
                 <div className="col-span-2 space-y-4">
                   <div className="bg-white rounded-2xl border p-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">标题 *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">æ é¢ *</label>
                     <input
                       type="text"
                       value={postForm.title}
                       onChange={(e) => autoSlug(e.target.value)}
-                      placeholder="文章标题"
+                      placeholder="æç« æ é¢"
                       className="w-full border rounded-xl px-4 py-3 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     
@@ -365,59 +364,59 @@ export default function AdminPage() {
                       className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     
-                    <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">摘要</label>
+                    <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">æè¦</label>
                     <textarea
                       value={postForm.excerpt}
                       onChange={(e) => setPostForm(prev => ({ ...prev, excerpt: e.target.value }))}
-                      placeholder="文章摘要（可选）"
+                      placeholder="æç« æè¦ï¼å¯éï¼"
                       rows={2}
                       className="w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     />
                   </div>
                   
                   <div className="bg-white rounded-2xl border p-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">正文内容（Markdown）*</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">æ­£æåå®¹ï¼Markdownï¼*</label>
                     <textarea
                       value={postForm.content}
                       onChange={(e) => setPostForm(prev => ({ ...prev, content: e.target.value }))}
-                      placeholder="# 文章标题
+                      placeholder="# æç« æ é¢
 
-## 章节标题
+## ç« èæ é¢
 
-正文内容，支持 **Markdown** 格式..."
+æ­£æåå®¹ï¼æ¯æ **Markdown** æ ¼å¼..."
                       rows={20}
                       className="w-full border rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                     />
-                    <p className="text-xs text-gray-400 mt-1">支持 Markdown 语法，包括代码块、表格、图片等</p>
+                    <p className="text-xs text-gray-400 mt-1">æ¯æ Markdown è¯­æ³ï¼åæ¬ä»£ç åãè¡¨æ ¼ãå¾çç­</p>
                   </div>
                 </div>
                 
                 {/* Sidebar */}
                 <div className="space-y-4">
                   <div className="bg-white rounded-2xl border p-5">
-                    <h3 className="font-medium mb-4">发布设置</h3>
+                    <h3 className="font-medium mb-4">åå¸è®¾ç½®</h3>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">状态</label>
+                        <label className="block text-xs text-gray-500 mb-1">ç¶æ</label>
                         <select
                           value={postForm.status}
                           onChange={(e) => setPostForm(prev => ({ ...prev, status: e.target.value }))}
                           className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="draft">草稿</option>
-                          <option value="published">立即发布</option>
-                          <option value="archived">归档</option>
+                          <option value="draft">èç¨¿</option>
+                          <option value="published">ç«å³åå¸</option>
+                          <option value="archived">å½æ¡£</option>
                         </select>
                       </div>
                       
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">分类</label>
+                        <label className="block text-xs text-gray-500 mb-1">åç±»</label>
                         <select
                           value={postForm.category_id}
                           onChange={(e) => setPostForm(prev => ({ ...prev, category_id: e.target.value }))}
                           className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">选择分类</option>
+                          <option value="">éæ©åç±»</option>
                           {categories.map((cat: any) => (
                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                           ))}
@@ -425,18 +424,18 @@ export default function AdminPage() {
                       </div>
                       
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">标签（逗号分隔）</label>
+                        <label className="block text-xs text-gray-500 mb-1">æ ç­¾ï¼éå·åéï¼</label>
                         <input
                           type="text"
                           value={postForm.tags}
                           onChange={(e) => setPostForm(prev => ({ ...prev, tags: e.target.value }))}
-                          placeholder="AI, 编程, 教程"
+                          placeholder="AI, ç¼ç¨, æç¨"
                           className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">封面图片 URL</label>
+                        <label className="block text-xs text-gray-500 mb-1">å°é¢å¾ç URL</label>
                         <input
                           type="url"
                           value={postForm.cover_image}
@@ -454,13 +453,13 @@ export default function AdminPage() {
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition text-sm"
                       >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        {saving ? '保存中...' : '保存'}
+                        {saving ? 'ä¿å­ä¸­...' : 'ä¿å­'}
                       </button>
                       <button
                         onClick={() => setActiveTab('posts')}
                         className="px-4 py-2.5 border rounded-xl hover:bg-gray-50 text-sm"
                       >
-                        取消
+                        åæ¶
                       </button>
                     </div>
                   </div>
@@ -468,8 +467,8 @@ export default function AdminPage() {
                   {/* Preview */}
                   {postForm.cover_image && (
                     <div className="bg-white rounded-2xl border p-4">
-                      <p className="text-xs text-gray-500 mb-2">封面预览</p>
-                      <img src={postForm.cover_image} alt="封面" className="w-full rounded-xl aspect-video object-cover" />
+                      <p className="text-xs text-gray-500 mb-2">å°é¢é¢è§</p>
+                      <img src={postForm.cover_image} alt="å°é¢" className="w-full rounded-xl aspect-video object-cover" />
                     </div>
                   )}
                 </div>
@@ -481,7 +480,7 @@ export default function AdminPage() {
           {activeTab === 'media' && (
             <div>
               <div className="bg-white rounded-2xl border p-6 mb-6">
-                <h3 className="font-medium mb-4">上传文件</h3>
+                <h3 className="font-medium mb-4">ä¸ä¼ æä»¶</h3>
                 <MediaUploader />
               </div>
               <MediaGallery />
@@ -489,7 +488,7 @@ export default function AdminPage() {
           )}
 
           {activeTab === 'comments' && <CommentsManager />}
-          {activeTab === 'users' && session?.user.role === 'admin' && <UsersManager />}
+          {activeTab === 'users' && (session?.user as any)?.role === 'admin' && <UsersManager />}
         </div>
       </main>
     </div>
@@ -511,12 +510,12 @@ function MediaUploader() {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       const data = await res.json()
       if (res.ok) {
-        setMsg(`上传成功！URL: ${data.url}`)
+        setMsg(`ä¸ä¼ æåï¼URL: ${data.url}`)
       } else {
-        setMsg(data.error || '上传失败')
+        setMsg(data.error || 'ä¸ä¼ å¤±è´¥')
       }
     } catch {
-      setMsg('上传失败')
+      setMsg('ä¸ä¼ å¤±è´¥')
     } finally {
       setUploading(false)
     }
@@ -528,13 +527,13 @@ function MediaUploader() {
         {uploading ? <Loader2 className="w-8 h-8 text-blue-600 animate-spin" /> : (
           <>
             <Upload className="w-8 h-8 text-gray-400 mb-2" />
-            <span className="text-sm text-gray-500">点击或拖拽上传图片/视频</span>
-            <span className="text-xs text-gray-400 mt-1">支持 JPG、PNG、GIF、WebP、MP4（最大50MB）</span>
+            <span className="text-sm text-gray-500">ç¹å»æææ½ä¸ä¼ å¾ç/è§é¢</span>
+            <span className="text-xs text-gray-400 mt-1">æ¯æ JPGãPNGãGIFãWebPãMP4ï¼æå¤§50MBï¼</span>
           </>
         )}
         <input type="file" className="hidden" onChange={handleUpload} accept="image/*,video/*" />
       </label>
-      {msg && <p className={`mt-2 text-sm ${msg.includes('成功') ? 'text-green-600' : 'text-red-600'}`}>{msg}</p>}
+      {msg && <p className={`mt-2 text-sm ${msg.includes('æå') ? 'text-green-600' : 'text-red-600'}`}>{msg}</p>}
     </div>
   )
 }
@@ -560,7 +559,7 @@ function MediaGallery() {
             <img src={m.url} alt={m.original_name} className="w-full aspect-video object-cover" />
           ) : (
             <div className="aspect-video bg-gray-100 flex items-center justify-center">
-              <span className="text-xs text-gray-400">视频</span>
+              <span className="text-xs text-gray-400">è§é¢</span>
             </div>
           )}
           <div className="p-2">
@@ -569,7 +568,7 @@ function MediaGallery() {
               onClick={() => navigator.clipboard.writeText(m.url)}
               className="text-xs text-blue-600 hover:underline mt-1"
             >
-              复制链接
+              å¤å¶é¾æ¥
             </button>
           </div>
         </div>
@@ -591,7 +590,7 @@ function CommentsManager() {
   }, [])
   
   async function deleteComment(id: string) {
-    if (!confirm('确定删除？')) return
+    if (!confirm('ç¡®å®å é¤ï¼')) return
     await fetch(`/api/comments?id=${id}`, { method: 'DELETE' })
     setComments(prev => prev.filter(c => c.id !== id))
   }
@@ -601,18 +600,18 @@ function CommentsManager() {
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">评论内容</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">作者</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">文章</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">时间</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">操作</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">è¯è®ºåå®¹</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">ä½è</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æç« </th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æ¶é´</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æä½</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {loading ? (
             <tr><td colSpan={5} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin text-blue-600 mx-auto" /></td></tr>
           ) : comments.length === 0 ? (
-            <tr><td colSpan={5} className="text-center py-8 text-gray-400">暂无评论</td></tr>
+            <tr><td colSpan={5} className="text-center py-8 text-gray-400">ææ è¯è®º</td></tr>
           ) : comments.map((c: any) => (
             <tr key={c.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 text-sm max-w-xs"><p className="truncate">{c.content}</p></td>
@@ -648,10 +647,10 @@ function UsersManager() {
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">用户</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">邮箱</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">角色</th>
-            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">注册时间</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">ç¨æ·</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">é®ç®±</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">è§è²</th>
+            <th className="text-left px-6 py-4 text-sm font-medium text-gray-600">æ³¨åæ¶é´</th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -663,7 +662,7 @@ function UsersManager() {
               <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
               <td className="px-6 py-4">
                 <span className={`text-xs px-2 py-1 rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-700' : u.role === 'editor' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {u.role === 'admin' ? '管理员' : u.role === 'editor' ? '编辑' : '普通用户'}
+                  {u.role === 'admin' ? 'ç®¡çå' : u.role === 'editor' ? 'ç¼è¾' : 'æ®éç¨æ·'}
                 </span>
               </td>
               <td className="px-6 py-4 text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
