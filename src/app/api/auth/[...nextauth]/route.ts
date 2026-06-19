@@ -2,9 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 
-export const runtime = 'edge'
-
-const { handlers, auth, signIn, signOut } = NextAuth({
+const { handlers } = NextAuth({
   providers: [
     Credentials({
       name: 'credentials',
@@ -12,11 +10,10 @@ const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials, request) {
+      async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
         try {
-          // Access D1 via the Cloudflare env binding (injected by OpenNext)
           const db: D1Database = (globalThis as any).__env__?.DB
           if (!db) {
             console.error('D1 binding not available')
@@ -75,5 +72,4 @@ const { handlers, auth, signIn, signOut } = NextAuth({
   },
 })
 
-export { handlers as GET, handlers as POST }
-export { auth, signIn, signOut }
+export const { GET, POST } = handlers
