@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Cloudflare Pages deployment - edge runtime is set per-route
+  // Required for OpenNext / Cloudflare Pages deployment
   images: {
     remotePatterns: [
       {
@@ -13,6 +13,6 @@ const nextConfig = {
       },
     ],
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
