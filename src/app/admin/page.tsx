@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, MessageSquare, Users, Image, 
   Plus, Edit, Trash2, Eye, EyeOff, Save, X, Upload, 
   BarChart3, Settings, LogOut, ChevronDown, ChevronUp, Loader2
-} from 'lucide-react'
+} from 'lucide-react
 
 
 interface Post {
@@ -133,7 +133,7 @@ export default function AdminPage() {
           setSaveMsg('')
         }, 1500)
       } else {
-        const d = await res.json()
+        const d = await res.json() as any
         setSaveMsg(d.error || 'ä¿å­å¤±è´¥')
       }
     } catch {
