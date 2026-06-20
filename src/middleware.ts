@@ -1,24 +1,11 @@
-import { auth } from './auth'
-import { NextResponse } from 'next/server'
+import NextAuth from 'next-auth'
+import { authConfig } from './auth.config'
 
-export default auth(function middleware(req) {
-  const token = req.auth
-  const path = req.nextUrl.pathname
-
-  // Admin-only routes
-  if (path.startsWith('/admin')) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
-    const role = (token.user as any)?.role
-    if (role !== 'admin' && role !== 'editor') {
-      return NextResponse.redirect(new URL('/', req.url))
-    }
-  }
-
-  return NextResponse.next()
-})
+// Use the Edge-compatible config (no Credentials provider / crypto / jose)
+// so the middleware can run in the Edge Runtime without bundling Node.js APIs.
+// Route protection is handled by the `authorized` callback in auth.config.ts.
+export default NextAuth(authConfig).auth
 
 export const config = {
-  matcher: ['/admin/:path*'],
+    matcher: ['/admin/:path*'],
 }
