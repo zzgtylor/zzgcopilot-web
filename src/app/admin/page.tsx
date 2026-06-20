@@ -508,7 +508,7 @@ function MediaUploader() {
     formData.append('file', file)
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const data = await res.json()
+      const data = await res.json() as any
       if (res.ok) {
         setMsg(`ä¸ä¼ æåï¼URL: ${data.url}`)
       } else {
