@@ -1,20 +1,42 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
+import { authConfig } from './auth.config'
+
+const PBKDF2_ITERATIONS = 310000
 
 /**
-   * Compare a plain-text password against a stored hash.
-   * Supports two formats:
-   *   1. PBKDF2 format: "pbkdf2:iterations:salt:hash" (Web Crypto, Edge-compatible)
-   *   2. Legacy bcrypt hashes starting with "$2" – returns false so you can migrate users.
+   * Hash a plain-text password using PBKDF2 (Web Crypto, Edge-compatible).
+   * Returns a string in the format: "pbkdf2:<iterations>:<hex-salt>:<hex-hash>"
    */
-async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
-    // Legacy bcrypt hash – cannot verify in Edge Runtime, deny login
-  if (storedHash.startsWith('$2')) {
-        console.warn('Legacy bcrypt hash detected. Please re-hash this password with PBKDF2.')
-        return false
-  }
+export async function hashPassword(password: string): Promise<string> {
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const keyMaterial = await crypto.subtle.importKey(
+          'raw',
+          new TextEncoder().encode(password),
+          'PBKDF2',
+          false,
+          ['deriveBits']
+        )
+    const derivedBits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERATIONS },
+          keyMaterial,
+          256
+        )
+    return `pbkdf2:${PBKDF2_ITERATIONS}:${bufferToHex(salt.buffer)}:${bufferToHex(derivedBits)}`
+}
 
-  // PBKDF2 format: "pbkdf2:<iterations>:<hex-salt>:<hex-hash>"
+/**
+ * Verify a plain-text password against a stored hash.
+ * Supports PBKDF2 format. Legacy bcrypt hashes ("$2...") are rejected so
+ * that affected users are forced to reset their password.
+ */
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+    if (!storedHash) return false
+    if (storedHash.startsWith('$2')) {
+          console.warn('Legacy bcrypt hash detected. Please re-hash this password with PBKDF2.')
+          return false
+    }
+
   const parts = storedHash.split(':')
     if (parts.length === 4 && parts[0] === 'pbkdf2') {
           const iterations = parseInt(parts[1], 10)
@@ -33,8 +55,7 @@ async function verifyPassword(password: string, storedHash: string): Promise<boo
                   keyMaterial,
                   256
                 )
-          const actualHash = bufferToHex(derivedBits)
-          return actualHash === expectedHash
+          return bufferToHex(derivedBits) === expectedHash
     }
 
   return false
@@ -54,7 +75,8 @@ function bufferToHex(buffer: ArrayBuffer): string {
       .join('')
 }
 
-export const { auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
+    ...authConfig,
     providers: [
           Credentials({
                   name: 'credentials',
@@ -98,28 +120,4 @@ export const { auth, signIn, signOut } = NextAuth({
                   },
           }),
         ],
-    callbacks: {
-          async jwt({ token, user }) {
-                  if (user) {
-                            token.role = (user as any).role
-                            token.id = user.id
-                  }
-                  return token
-          },
-          async session({ session, token }) {
-                  if (session.user) {
-                            ;(session.user as any).role = token.role
-                            ;(session.user as any).id = token.id
-                  }
-                  return session
-          },
-    },
-    pages: {
-          signIn: '/login',
-          error: '/login',
-    },
-    session: {
-          strategy: 'jwt',
-          maxAge: 30 * 24 * 60 * 60,
-    },
 })
