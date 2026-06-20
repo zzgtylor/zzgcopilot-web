@@ -64,15 +64,15 @@ export default function AdminPage() {
       ])
       
       if (postsRes.ok) {
-        const d = await postsRes.json()
+        const d = await postsRes.json() as any
         setPosts(d.posts || [])
       }
       if (statsRes.ok) {
-        const d = await statsRes.json()
+        const d = await statsRes.json() as any
         setStats(d)
       }
       if (catsRes.ok) {
-        const d = await catsRes.json()
+        const d = await catsRes.json() as any
         setCategories(d.categories || [])
       }
     } catch (err) {
