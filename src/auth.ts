@@ -1,6 +1,4 @@
 import NextAuth from 'next-auth'
-import Credentials from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
 
 export const { auth, signIn, signOut } = NextAuth({
   providers: [
@@ -27,6 +25,7 @@ export const { auth, signIn, signOut } = NextAuth({
 
           if (!user) return null
 
+                    const bcrypt = await import('bcryptjs')
           const isValid = await bcrypt.compare(
             credentials.password as string,
             user.password_hash
