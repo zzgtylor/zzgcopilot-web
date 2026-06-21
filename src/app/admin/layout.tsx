@@ -34,3 +34,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                       <div className="px-4 py-4 border-t border-gray-700">
                                 <p className="text-xs text-gray-400 truncate">{session.user.email}</p>
                                 <form action="/api/auth/signout" method="POST">
+                                <button type="submit" className="mt-2 text-xs text-gray-400 hover:text-white transition">退出登录</button>
+                              </form>
+                      </div>
+              </aside>
+              <main className="ml-56 min-h-screen">
+                      {children}
+              </main>
+      </div>
+  )
+}
