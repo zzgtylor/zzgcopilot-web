@@ -1,13 +1,13 @@
-// @ts-nocheck
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import type { CSSProperties } from 'react'
 
 export const metadata: Metadata = {
   title: 'Word 从入门到精通 - ZZGCopilot',
   description: '系统学习 Microsoft Word，掌握文档排版、样式设计、表格图片处理等核心技能，从零基础到高效办公。',
 }
 
-const s = {
+const s: Record<string, CSSProperties> = {
   page: { minHeight: '100vh', background: '#f0f4f8', fontFamily: "'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif" },
   header: { background: 'linear-gradient(135deg,#1a56db 0%,#1e429f 100%)', color: '#fff', padding: '0', boxShadow: '0 2px 12px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 100 },
   headerInner: { maxWidth: 1200, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
@@ -62,7 +62,26 @@ const s = {
   footer: { borderTop: '1px solid #e5e7eb', background: '#fff', padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 13 },
 }
 
-const chapters = [
+type Section = {
+  title: string
+  content: string
+  tip?: string
+  warn?: string
+}
+
+type Chapter = {
+  id: string
+  num: string
+  title: string
+  icon: string
+  level: string
+  iconBg: string
+  levelBg: string
+  levelColor: string
+  sections: Section[]
+}
+
+const chapters: Chapter[] = [
   {
     id: 'ch1', num: '第一章', title: '认识 Word 界面', icon: '🖥️', level: '入门',
     iconBg: '#dcfce7', levelBg: '#dcfce7', levelColor: '#166534',
