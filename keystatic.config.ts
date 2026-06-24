@@ -7,8 +7,7 @@ import { config, fields, collection } from '@keystatic/core'
 
 export default config({
   storage: {
-    kind: 'github',
-    repo: 'zzgtylor/zzgcopilot-web',
+    kind: 'local',
   },
   collections: {
     wordChapters: collection({
