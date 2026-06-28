@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   avatar_url TEXT,
   role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin', 'editor')),
+  is_active INTEGER DEFAULT 1,
   bio TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -90,6 +91,13 @@ CREATE TABLE IF NOT EXISTS media (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Site copy and safe UI controls for non-technical editors
+CREATE TABLE IF NOT EXISTS site_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category_id);
@@ -117,3 +125,24 @@ INSERT OR IGNORE INTO categories (name, slug, description, sort_order) VALUES
   ('进阶技巧', 'advanced', '深入讲解的进阶内容', 2),
   ('实战项目', 'projects', '真实项目案例分析', 3),
   ('工具推荐', 'tools', '开发工具和资源推荐', 4);
+
+-- Default editable site settings
+INSERT OR IGNORE INTO site_settings (key, value) VALUES
+  ('siteName', 'ZZGCopilot'),
+  ('navTutorialsLabel', '教程'),
+  ('navLoginLabel', '登录'),
+  ('navRegisterLabel', '注册'),
+  ('heroTitle', '学习编程，从这里开始'),
+  ('heroSubtitle', '高质量的编程教程、技术文章和实用指南'),
+  ('primaryCtaLabel', '浏览教程'),
+  ('primaryCtaHref', '/tutorials'),
+  ('secondaryCtaLabel', '免费注册'),
+  ('secondaryCtaHref', '/register'),
+  ('latestTitle', '最新教程'),
+  ('emptyTitle', '暂无教程'),
+  ('emptyActionLabel', '管理员发布第一篇文章'),
+  ('footerText', 'ZZGCopilot. 保留所有权利。'),
+  ('themeColor', '#2563eb'),
+  ('heroTone', 'blue'),
+  ('showRegisterCta', 'true'),
+  ('showLatestTutorials', 'true');

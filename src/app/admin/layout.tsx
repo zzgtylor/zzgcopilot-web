@@ -19,6 +19,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                                 <Link href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white text-sm transition">
                                             <span>📊</span> 仪表盘
                                 </Link>
+                                <Link href="/admin/site-settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white text-sm transition">
+                                            <span>🎛️</span> 站点设置
+                                </Link>
                                 <Link href="/admin/posts" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white text-sm transition">
                                             <span>📝</span> 文章管理
                                 </Link>

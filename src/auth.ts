@@ -95,11 +95,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                                 }
 
                               const user = await db
-                                  .prepare('SELECT * FROM users WHERE email = ? AND is_active = 1')
+                                  .prepare('SELECT * FROM users WHERE email = ?')
                                   .bind(credentials.email)
                                   .first<any>()
 
                               if (!user) return null
+                              if (user.is_active === 0) return null
 
                               const isValid = await verifyPassword(
                                             credentials.password as string,
