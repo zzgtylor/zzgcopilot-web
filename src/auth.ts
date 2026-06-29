@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { authConfig } from './auth.config'
+import { getDb } from '@/lib/cloudflare-db'
 
 const PBKDF2_ITERATIONS = 310000
 
@@ -88,7 +89,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                             if (!credentials?.email || !credentials?.password) return null
 
                     try {
-                                const db: D1Database = (globalThis as any).__env__?.DB
+                                const db = await getDb()
                                 if (!db) {
                                               console.error('D1 binding not available')
                                               return null

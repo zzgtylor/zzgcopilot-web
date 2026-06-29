@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getDb } from '@/lib/cloudflare-db'
 
 
 
 export async function GET(request: NextRequest) {
   try {
-      const db: D1Database = (globalThis as any).__env__?.DB
+      const db = await getDb()
           if (!db) return NextResponse.json({ posts: [], categories: [] })
 
               const { searchParams } = new URL(request.url)

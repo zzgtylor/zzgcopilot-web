@@ -1,3 +1,5 @@
+import { getDb } from '@/lib/cloudflare-db'
+
 export type SiteSettings = {
   siteName: string
   navTutorialsLabel: string
@@ -42,15 +44,16 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
 const SETTINGS_KEYS = Object.keys(DEFAULT_SITE_SETTINGS) as Array<keyof SiteSettings>
 
-export function getRequestDb(): D1Database | undefined {
-  return (globalThis as any).__env__?.DB
+export async function getRequestDb(): Promise<D1Database | undefined> {
+  return getDb()
 }
 
-export async function getSiteSettings(db = getRequestDb()): Promise<SiteSettings> {
-  if (!db) return DEFAULT_SITE_SETTINGS
+export async function getSiteSettings(db?: D1Database): Promise<SiteSettings> {
+  const requestDb = db || (await getRequestDb())
+  if (!requestDb) return DEFAULT_SITE_SETTINGS
 
   try {
-    const result = await db.prepare('SELECT key, value FROM site_settings').all<{ key: string; value: string }>()
+    const result = await requestDb.prepare('SELECT key, value FROM site_settings').all<{ key: string; value: string }>()
     const rows = result.results || []
     const fromDb = rows.reduce<Record<string, string>>((acc, row) => {
       acc[row.key] = row.value
@@ -66,17 +69,18 @@ export async function getSiteSettings(db = getRequestDb()): Promise<SiteSettings
   }
 }
 
-export async function saveSiteSettings(settings: Partial<SiteSettings>, db = getRequestDb()) {
-  if (!db) throw new Error('DB unavailable')
+export async function saveSiteSettings(settings: Partial<SiteSettings>, db?: D1Database) {
+  const requestDb = db || (await getRequestDb())
+  if (!requestDb) throw new Error('DB unavailable')
 
-  await ensureSiteSettingsTable(db)
+  await ensureSiteSettingsTable(requestDb)
   const normalized = normalizeSiteSettings({
     ...DEFAULT_SITE_SETTINGS,
     ...settings,
   })
 
   for (const key of SETTINGS_KEYS) {
-    await db
+    await requestDb
       .prepare(
         `INSERT INTO site_settings (key, value, updated_at)
          VALUES (?, ?, datetime('now'))

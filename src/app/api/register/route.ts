@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hashPassword } from '@/auth'
+import { getDb } from '@/lib/cloudflare-db'
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
                   return NextResponse.json({ error: '密码至少需要8位字符' }, { status: 400 })
           }
 
-      const db: D1Database = (globalThis as any).__env__?.DB
+      const db = await getDb()
           if (!db) {
                   return NextResponse.json({ error: '服务暂时不可用' }, { status: 503 })
           }

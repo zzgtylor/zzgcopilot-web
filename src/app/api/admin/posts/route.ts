@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
+import { getDb } from '@/lib/cloudflare-db'
 
 
 
@@ -7,7 +8,7 @@ export async function GET() {
   try {
       const session = await auth()
           if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-              const db: D1Database = (globalThis as any).__env__?.DB
+              const db = await getDb()
                   if (!db) return NextResponse.json({ posts: [] })
                       const result = await db.prepare(`SELECT p.id, p.title, p.slug, p.status, p.view_count, p.created_at,
                             u.name as author_name, c.name as category_name FROM posts p
@@ -22,7 +23,7 @@ export async function GET() {
                                                       try {
                                                           const session = await auth()
                                                               if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                                                                  const db: D1Database = (globalThis as any).__env__?.DB
+                                                                  const db = await getDb()
                                                                       if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
                                                                           const body = await request.json() as any
                                                                               const { title, slug, content, excerpt, cover_image, category_id, status, tags } = body
@@ -39,7 +40,7 @@ export async function GET() {
                                                                                                                 try {
                                                                                                                     const session = await auth()
                                                                                                                         if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                                                                                                                            const db: D1Database = (globalThis as any).__env__?.DB
+                                                                                                                            const db = await getDb()
                                                                                                                                 if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
                                                                                                                                     const body = await request.json() as any
                                                                                                                                         const { id, title, slug, content, excerpt, cover_image, category_id, status, tags } = body
@@ -54,7 +55,7 @@ export async function GET() {
                                                                                                                                                                 try {
                                                                                                                                                                     const session = await auth()
                                                                                                                                                                         if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                                                                                                                                                                            const db: D1Database = (globalThis as any).__env__?.DB
+                                                                                                                                                                            const db = await getDb()
                                                                                                                                                                                 if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
                                                                                                                                                                                     const { searchParams } = new URL(request.url)
                                                                                                                                                                                         const id = searchParams.get('id')
