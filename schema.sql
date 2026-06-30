@@ -115,7 +115,7 @@ VALUES (
   'admin-user-001',
   'Admin',
   'admin@zzgcopilot.com',
-  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj3oW9gSC0Ge',
+  'pbkdf2:100000:e80f0c266ff2c78b950252edeb44cd1e:5ebad26386b846da73245270eafe49eceacb61bcbfe17692cede4c3771fc44fe',
   'admin'
 );
 
