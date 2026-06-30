@@ -1,4 +1,4 @@
-const PBKDF2_ITERATIONS = 310000
+const PBKDF2_ITERATIONS = 100000
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16))
