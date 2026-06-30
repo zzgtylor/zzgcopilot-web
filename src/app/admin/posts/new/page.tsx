@@ -1,6 +1,127 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+
+// Convert editor HTML to Markdown so stored content stays compatible with react-markdown
+function htmlToMarkdown(html) {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  function walk(node) {
+    let out = ''
+    node.childNodes.forEach((n) => {
+      if (n.nodeType === 3) { out += n.textContent; return }
+      if (n.nodeType !== 1) return
+      const tag = n.tagName.toLowerCase()
+      const inner = walk(n)
+      switch (tag) {
+        case 'h1': out += '\n# ' + inner + '\n\n'; break
+        case 'h2': out += '\n## ' + inner + '\n\n'; break
+        case 'h3': out += '\n### ' + inner + '\n\n'; break
+        case 'strong': case 'b': out += '**' + inner + '**'; break
+        case 'em': case 'i': out += '*' + inner + '*'; break
+        case 'code': out += '\`' + inner + '\`'; break
+        case 'pre': out += '\n\`\`\`\n' + n.textContent + '\n\`\`\`\n\n'; break
+        case 'a': out += '[' + inner + '](' + (n.getAttribute('href') || '') + ')'; break
+        case 'img': out += '![' + (n.getAttribute('alt') || '') + '](' + (n.getAttribute('src') || '') + ')'; break
+        case 'blockquote': out += '\n> ' + inner.trim().replace(/\n/g, '\n> ') + '\n\n'; break
+        case 'ul': out += '\n' + Array.from(n.children).map((li) => '- ' + walk(li).trim()).join('\n') + '\n\n'; break
+        case 'ol': out += '\n' + Array.from(n.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n\n'; break
+        case 'br': out += '\n'; break
+        case 'p': case 'div': out += inner + '\n\n'; break
+        default: out += inner
+      }
+    })
+    return out
+  }
+  return walk(div).replace(/\n{3,}/g, '\n\n').trim()
+}
+
+// Minimal Markdown to HTML for loading existing content into the editor
+function markdownToHtml(md) {
+  if (!md) return ''
+  return md.split(/\n{2,}/).map((block) => {
+    if (/^### /.test(block)) return '<h3>' + block.slice(4) + '</h3>'
+    if (/^## /.test(block)) return '<h2>' + block.slice(3) + '</h2>'
+    if (/^# /.test(block)) return '<h1>' + block.slice(2) + '</h1>'
+    if (/^> /.test(block)) return '<blockquote>' + block.replace(/^> /gm, '') + '</blockquote>'
+    if (/^\`\`\`/.test(block)) return '<pre>' + block.replace(/^\`\`\`\w*\n?|\n?\`\`\`$/g, '') + '</pre>'
+    if (/^- /.test(block)) return '<ul>' + block.split('\n').map((l) => '<li>' + l.replace(/^- /, '') + '</li>').join('') + '</ul>'
+    if (/^\d+\. /.test(block)) return '<ol>' + block.split('\n').map((l) => '<li>' + l.replace(/^\d+\. /, '') + '</li>').join('') + '</ol>'
+    let h = block.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/\`(.+?)\`/g, '<code>$1</code>')
+    return '<p>' + h.replace(/\n/g, '<br>') + '</p>'
+  }).join('')
+}
+
+function ToolbarBtn({ onClick, title, children }) {
+  return (
+    <button type="button" title={title} onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      className="px-2.5 py-1.5 rounded hover:bg-gray-100 text-gray-700 text-sm min-w-[32px]">
+      {children}
+    </button>
+  )
+}
+
+function RichEditor({ value, onChange, onImage }) {
+  const ref = useRef(null)
+  const [mode, setMode] = useState('rich')
+
+  useEffect(() => {
+    if (mode === 'rich' && ref.current && !ref.current.innerHTML) {
+      ref.current.innerHTML = markdownToHtml(value)
+    }
+  }, [mode])
+
+  const cmd = (c, v) => { document.execCommand(c, false, v); sync() }
+  const sync = () => { if (ref.current) onChange(htmlToMarkdown(ref.current.innerHTML)) }
+
+  const insertLink = () => { const url = prompt('链接地址 URL:'); if (url) cmd('createLink', url) }
+  const insertImage = async () => {
+    const url = await onImage()
+    if (url) { cmd('insertHTML', '<img src="' + url + '" alt="" style="max-width:100%" />') }
+  }
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="flex flex-wrap items-center gap-0.5 border-b bg-gray-50 px-2 py-1.5">
+        {mode === 'rich' ? (
+          <>
+            <select onChange={(e) => { cmd('formatBlock', e.target.value); e.target.value = '' }} defaultValue=""
+              className="text-sm border rounded px-2 py-1 mr-1 bg-white">
+              <option value="" disabled>段落样式</option>
+              <option value="p">正文</option>
+              <option value="h1">标题 1</option>
+              <option value="h2">标题 2</option>
+              <option value="h3">标题 3</option>
+            </select>
+            <ToolbarBtn title="加粗" onClick={() => cmd('bold')}><b>B</b></ToolbarBtn>
+            <ToolbarBtn title="斜体" onClick={() => cmd('italic')}><i>I</i></ToolbarBtn>
+            <ToolbarBtn title="下划线" onClick={() => cmd('underline')}><u>U</u></ToolbarBtn>
+            <span className="w-px h-5 bg-gray-300 mx-1" />
+            <ToolbarBtn title="无序列表" onClick={() => cmd('insertUnorderedList')}>• 列表</ToolbarBtn>
+            <ToolbarBtn title="有序列表" onClick={() => cmd('insertOrderedList')}>1. 列表</ToolbarBtn>
+            <ToolbarBtn title="引用" onClick={() => cmd('formatBlock', 'blockquote')}>❝</ToolbarBtn>
+            <span className="w-px h-5 bg-gray-300 mx-1" />
+            <ToolbarBtn title="链接" onClick={insertLink}>🔗</ToolbarBtn>
+            <ToolbarBtn title="图片" onClick={insertImage}>🖼️</ToolbarBtn>
+            <ToolbarBtn title="清除格式" onClick={() => cmd('removeFormat')}>✕格式</ToolbarBtn>
+          </>
+        ) : <span className="text-sm text-gray-500 px-1">Markdown 源码模式</span>}
+        <button type="button" onClick={() => { if (mode === 'rich') sync(); setMode(mode === 'rich' ? 'source' : 'rich'); if (mode === 'source' && ref.current) ref.current.innerHTML = markdownToHtml(value) }}
+          className="ml-auto text-xs px-2.5 py-1 rounded border bg-white text-gray-600 hover:bg-gray-100">
+          {mode === 'rich' ? '<> 源码' : '✎ 可视化'}
+        </button>
+      </div>
+      {mode === 'rich' ? (
+        <div ref={ref} contentEditable suppressContentEditableWarning onInput={sync}
+          className="prose max-w-none px-4 py-3 min-h-[320px] focus:outline-none text-sm leading-relaxed"
+          style={{ wordBreak: 'break-word' }} />
+      ) : (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={16}
+          className="w-full px-4 py-3 text-sm font-mono resize-y focus:outline-none" />
+      )}
+    </div>
+  )
+}
 
 export default function NewPostPage() {
   const router = useRouter()
@@ -23,6 +144,22 @@ export default function NewPostPage() {
   }, [form.title])
 
   const set = (k) => (e) => setForm(f => ({...f, [k]: e.target.value}))
+
+  async function uploadFile() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'; input.accept = 'image/*'
+      input.onchange = async () => {
+        const file = input.files?.[0]
+        if (!file) return resolve('')
+        const fd = new FormData(); fd.append('file', file)
+        const r = await fetch('/api/upload', { method: 'POST', body: fd }).catch(() => null)
+        const d = r ? await r.json() : {}
+        resolve(d.url || '')
+      }
+      input.click()
+    })
+  }
 
   async function uploadImage(e) {
     const file = e.target.files?.[0]
@@ -76,8 +213,8 @@ export default function NewPostPage() {
           </div>
         </div>
         <div className="bg-white border rounded-2xl p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">正文 *（Markdown）</label>
-          <textarea required value={form.content} onChange={set('content')} rows={16} className="w-full px-4 py-2.5 border rounded-lg text-sm font-mono resize-y" />
+          <label className="block text-sm font-medium text-gray-700 mb-2">正文 *</label>
+          <RichEditor value={form.content} onChange={(v) => setForm(f => ({...f, content: v}))} onImage={uploadFile} />
         </div>
         <div className="bg-white border rounded-2xl p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
