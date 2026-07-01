@@ -193,6 +193,14 @@ export default function SiteSettingsPage() {
             </div>
             <Field label="页脚文字" value={form.footerText} onChange={(value) => update('footerText', value)} />
           </SettingsSection>
+
+          <SettingsSection icon={<Search className="h-4 w-4" />} title="SEO 默认值">
+            <Field label="默认页面标题" value={form.seoDefaultTitle} onChange={(value) => update('seoDefaultTitle', value)} />
+            <Field label="默认描述" value={form.seoDefaultDescription} onChange={(value) => update('seoDefaultDescription', value)} multiline />
+            <Field label="默认分享图片链接" value={form.seoDefaultOgImage} onChange={(value) => update('seoDefaultOgImage', value)} icon={<LinkIcon className="h-4 w-4" />} />
+          </SettingsSection>
+
+          <HomeBlocksEditor />
         </div>
 
         <aside className="sticky top-6 h-fit rounded-lg border bg-white p-4">
