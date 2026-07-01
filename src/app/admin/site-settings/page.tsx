@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Eye, LayoutPanelTop, LinkIcon, Palette, RotateCcw, Save, Type } from 'lucide-react'
+import { Eye, LayoutPanelTop, LinkIcon, Palette, RotateCcw, Save, Search, Type } from 'lucide-react'
+import HomeBlocksEditor from '@/components/admin/HomeBlocksEditor'
 
 const DEFAULT_FORM = {
   siteName: 'ZZGCopilot',
@@ -22,6 +23,9 @@ const DEFAULT_FORM = {
   heroTone: 'blue',
   showRegisterCta: 'true',
   showLatestTutorials: 'true',
+  seoDefaultTitle: 'ZZGCopilot - 教程网站',
+  seoDefaultDescription: '分享编程教程、技术文章和实用指南',
+  seoDefaultOgImage: '',
 }
 
 const heroTones = [
