@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS posts (
   view_count INTEGER DEFAULT 0,
   reading_time INTEGER DEFAULT 0,
   tags TEXT DEFAULT '[]',
+  meta_title TEXT,
+  meta_description TEXT,
+  og_image TEXT,
   published_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -145,4 +148,7 @@ INSERT OR IGNORE INTO site_settings (key, value) VALUES
   ('themeColor', '#2563eb'),
   ('heroTone', 'blue'),
   ('showRegisterCta', 'true'),
-  ('showLatestTutorials', 'true');
+  ('showLatestTutorials', 'true'),
+('seoDefaultTitle', 'ZZGCopilot - 教程网站'),
+('seoDefaultDescription', '分享编程教程、技术文章和实用指南'),
+('seoDefaultOgImage', '');
