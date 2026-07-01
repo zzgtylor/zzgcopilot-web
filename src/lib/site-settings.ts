@@ -19,6 +19,9 @@ export type SiteSettings = {
   heroTone: 'blue' | 'emerald' | 'slate' | 'rose'
   showRegisterCta: string
   showLatestTutorials: string
+  seoDefaultTitle: string
+  seoDefaultDescription: string
+  seoDefaultOgImage: string
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -40,6 +43,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   heroTone: 'blue',
   showRegisterCta: 'true',
   showLatestTutorials: 'true',
+  seoDefaultTitle: 'ZZGCopilot - 教程网站',
+  seoDefaultDescription: '分享编程教程、技术文章和实用指南',
+  seoDefaultOgImage: '',
 }
 
 const SETTINGS_KEYS = Object.keys(DEFAULT_SITE_SETTINGS) as Array<keyof SiteSettings>
@@ -93,7 +99,7 @@ export async function saveSiteSettings(settings: Partial<SiteSettings>, db?: D1D
   return normalized
 }
 
-async function ensureSiteSettingsTable(db: D1Database) {
+export async function ensureSiteSettingsTable(db: D1Database) {
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS site_settings (
