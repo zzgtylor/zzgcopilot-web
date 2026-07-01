@@ -76,7 +76,12 @@ export default function AdminPostsPage() {
                 <tr key={post.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <p className="font-medium text-gray-900">{post.title}</p>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5">/{post.slug}</p>
+                    <p className="text-xs text-gray-400 font-mono mt-0.5">
+                /{post.slug}
+                {post.status === 'published' && (
+                  <a href={`/tutorials/${post.slug}`} target="_blank" rel="noreferrer" className="ml-2 text-blue-500 hover:underline">查看 ↗</a>
+                )}
+              </p>
                   </td>
                   <td className="px-4 py-4 text-gray-600">{post.category_name || '未分类'}</td>
                   <td className="px-4 py-4">
@@ -87,7 +92,8 @@ export default function AdminPostsPage() {
                   <td className="px-4 py-4 text-gray-600">{post.view_count ?? 0}</td>
                   <td className="px-4 py-4 text-gray-400">{post.created_at?.split('T')[0]}</td>
                   <td className="px-4 py-4 text-right">
-                    <button onClick={() => remove(post.id, post.title)} className="text-red-500 hover:text-red-700 text-sm">删除</button>
+                    <Link href={`/admin/posts/${post.id}/edit`} className="text-blue-600 hover:text-blue-800 text-sm mr-4">编辑</Link>
+                  <button onClick={() => remove(post.id, post.title)} className="text-red-500 hover:text-red-700 text-sm">删除</button>
                   </td>
                 </tr>
               ))}
