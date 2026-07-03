@@ -1,5 +1,13 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/_next/static/*"]
+  "exclude": [
+    "/_next/static/*",
+    "/uploads/*",
+    "/support.js",
+    "/word-tutorial-ui.html",
+    "/Word教程网站.dc.html",
+    "/.thumbnail",
+    "/favicon.ico"
+  ]
 }
