@@ -18,13 +18,14 @@ export default function middleware(request: NextRequest) {
         pathname.startsWith('/uploads') ||
         pathname === '/support.js' ||
         pathname === '/Word教程网站.dc.html' ||
+        pathname === '/word-tutorial-ui.html' ||
         pathname === '/.thumbnail' ||
         pathname === '/favicon.ico'
     ) {
         return NextResponse.next()
     }
 
-    return NextResponse.rewrite(new URL('/Word教程网站.dc.html', request.url))
+    return NextResponse.rewrite(new URL('/word-tutorial-ui.html', request.url))
 }
 
 export const config = {
