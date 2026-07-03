@@ -12,20 +12,7 @@ export default function middleware(request: NextRequest) {
 
     if (pathname.startsWith('/admin')) return authMiddleware(request)
 
-    if (
-        pathname.startsWith('/api') ||
-        pathname.startsWith('/_next') ||
-        pathname.startsWith('/uploads') ||
-        pathname === '/support.js' ||
-        pathname === '/Word教程网站.dc.html' ||
-        pathname === '/word-tutorial-ui.html' ||
-        pathname === '/.thumbnail' ||
-        pathname === '/favicon.ico'
-    ) {
-        return NextResponse.next()
-    }
-
-    return NextResponse.rewrite(new URL('/word-tutorial-ui.html', request.url))
+    return NextResponse.next()
 }
 
 export const config = {

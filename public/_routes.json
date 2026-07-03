@@ -2,10 +2,9 @@
   "version": 1,
   "include": ["/*"],
   "exclude": [
-    "/",
-    "/index.html",
     "/_next/static/*",
     "/uploads/*",
+    "/word-tutorial/*",
     "/support.js",
     "/word-tutorial-ui.html",
     "/Word教程网站.dc.html",
