@@ -6,7 +6,7 @@
           "dev": "next dev",
           "build": "next build",
           "start": "next start",
-          "pages:build": "opennextjs-cloudflare build && mv .open-next/worker.js .open-next/_worker.js && cp -R .open-next/assets/. .open-next/",
+          "pages:build": "opennextjs-cloudflare build && node scripts/pages-postbuild.mjs",
           "preview": "npm run pages:build && opennextjs-cloudflare preview",
           "deploy": "npm run pages:build && wrangler pages deploy"
   },
