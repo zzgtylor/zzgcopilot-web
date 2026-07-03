@@ -25,26 +25,26 @@ export type SiteSettings = {
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
-  siteName: 'ZZGCopilot',
-  navTutorialsLabel: '教程',
+  siteName: 'ZZGCopilot Word 教程',
+  navTutorialsLabel: 'Word 目录',
   navLoginLabel: '登录',
   navRegisterLabel: '注册',
-  heroTitle: '学习编程，从这里开始',
-  heroSubtitle: '高质量的编程教程、技术文章和实用指南',
-  primaryCtaLabel: '浏览教程',
-  primaryCtaHref: '/tutorials',
+  heroTitle: '一套真正能照着做的 Word 使用教程',
+  heroSubtitle: '从界面认识、文字编辑到专业排版、目录编号、表格图片和协作审阅，系统掌握 Microsoft Word。',
+  primaryCtaLabel: '进入 Word 教程',
+  primaryCtaHref: '/tutorials/word',
   secondaryCtaLabel: '免费注册',
   secondaryCtaHref: '/register',
-  latestTitle: '最新教程',
-  emptyTitle: '暂无教程',
-  emptyActionLabel: '管理员发布第一篇文章',
-  footerText: 'ZZGCopilot. 保留所有权利。',
+  latestTitle: 'Word 教程更新',
+  emptyTitle: 'Word 教程正在整理',
+  emptyActionLabel: '进入静态完整教程',
+  footerText: 'ZZGCopilot Word 使用教程。',
   themeColor: '#2563eb',
   heroTone: 'blue',
-  showRegisterCta: 'true',
-  showLatestTutorials: 'true',
-  seoDefaultTitle: 'ZZGCopilot - 教程网站',
-  seoDefaultDescription: '分享编程教程、技术文章和实用指南',
+  showRegisterCta: 'false',
+  showLatestTutorials: 'false',
+  seoDefaultTitle: 'ZZGCopilot Word 教程',
+  seoDefaultDescription: 'Microsoft Word 从入门到精通教程，覆盖文档编辑、格式排版、样式目录、表格图片、协作审阅与高效办公。',
   seoDefaultOgImage: '',
 }
 
@@ -137,6 +137,9 @@ function normalizeSiteSettings(settings: Record<string, string>): SiteSettings {
     heroTone,
     showRegisterCta: settings.showRegisterCta === 'false' ? 'false' : 'true',
     showLatestTutorials: settings.showLatestTutorials === 'false' ? 'false' : 'true',
+    seoDefaultTitle: clean(settings.seoDefaultTitle, DEFAULT_SITE_SETTINGS.seoDefaultTitle),
+    seoDefaultDescription: clean(settings.seoDefaultDescription, DEFAULT_SITE_SETTINGS.seoDefaultDescription),
+    seoDefaultOgImage: cleanOptionalUrl(settings.seoDefaultOgImage),
   }
 }
 
@@ -152,4 +155,11 @@ function cleanPath(value: string | undefined, fallback: string) {
     return trimmed
   }
   return fallback
+}
+
+function cleanOptionalUrl(value: string | undefined) {
+  const trimmed = (value || '').trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) return trimmed
+  return ''
 }

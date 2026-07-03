@@ -45,6 +45,8 @@ const s: Record<string, CSSProperties> = {
   chapterTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 2 },
   chapterNum: { fontSize: 12, color: '#9ca3af' },
   levelBadge: { padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700 },
+  chapterActions: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  chapterReadLink: { padding: '6px 12px', borderRadius: 10, background: '#eff6ff', color: '#1a56db', textDecoration: 'none', fontSize: 12, fontWeight: 700 },
   sectionDiv: { padding: '24px 32px', borderBottom: '1px solid #f9fafb' },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: '#1f2937', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
   sectionNum: { width: 26, height: 26, borderRadius: '50%', background: '#f3f4f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#6b7280', flexShrink: 0 },
@@ -356,9 +358,12 @@ export default function WordTutorialPage() {
                     <h2 style={s.chapterTitle}>{chapter.title}</h2>
                   </div>
                 </div>
-                <span style={{...s.levelBadge, background:chapter.levelBg, color:chapter.levelColor}}>
-                  {chapter.level}
-                </span>
+                <div style={s.chapterActions}>
+                  <span style={{...s.levelBadge, background:chapter.levelBg, color:chapter.levelColor}}>
+                    {chapter.level}
+                  </span>
+                  <Link href={`/tutorials/word/${chapter.id}`} style={s.chapterReadLink}>阅读全文</Link>
+                </div>
               </div>
               <div>
                 {chapter.sections.map((sec, si) => (
@@ -380,7 +385,7 @@ export default function WordTutorialPage() {
             <h2 style={s.ctaTitle}>🎉 恭喜完成全部学习！</h2>
             <p style={s.ctaDesc}>你已系统掌握 Word 从入门到精通的所有核心技能。现在打开 Word，动手实践这些技巧，你会发现工作效率大幅提升！</p>
             <div style={s.ctaBtns}>
-              <Link href="/" style={s.ctaBtn1}>浏览更多教程</Link>
+              <Link href="/tutorials/word/ch1" style={s.ctaBtn1}>从第一章开始</Link>
               <a href="#ch1" style={s.ctaBtn2}>重新阅读</a>
             </div>
           </div>

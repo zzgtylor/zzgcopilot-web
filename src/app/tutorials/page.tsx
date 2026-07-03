@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
-export default function ExcelPage() {
+export default function TutorialsPage() {
   redirect('/tutorials/word')
 }
