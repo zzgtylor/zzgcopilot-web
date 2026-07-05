@@ -15,6 +15,8 @@ export default function middleware(request: NextRequest) {
     if (
         pathname === '/' ||
         pathname === '/index.html' ||
+        pathname === '/login' ||
+        pathname === '/register' ||
         pathname.startsWith('/api') ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/uploads') ||
