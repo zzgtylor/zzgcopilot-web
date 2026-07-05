@@ -2,8 +2,6 @@
   "version": 1,
   "include": ["/*"],
   "exclude": [
-    "/",
-    "/index.html",
     "/_next/static/*",
     "/uploads/*",
     "/word-tutorial/*",
