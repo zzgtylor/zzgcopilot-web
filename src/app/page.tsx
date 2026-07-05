@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, BookOpen, FileText, Layers, Search, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpen, FileText, Search, Sparkles } from 'lucide-react'
 
 const featuredPosts = [
   {
@@ -10,30 +10,6 @@ const featuredPosts = [
     meta: '完整教程',
     accent: 'bg-blue-700',
   },
-  {
-    href: '/tutorials/word',
-    title: 'Word 分章节阅读版',
-    desc: '按章节查看旧版结构化内容，适合快速跳到某一章继续学习。',
-    category: '章节目录',
-    meta: '8 章内容',
-    accent: 'bg-emerald-600',
-  },
-  {
-    href: '/tutorials/excel',
-    title: 'Excel 教程',
-    desc: '保留 Excel 教程入口，后续可以继续扩展表格、函数和数据处理文章。',
-    category: 'Excel 教程',
-    meta: '待扩展',
-    accent: 'bg-amber-500',
-  },
-]
-
-const recentPosts = [
-  { href: '/word-tutorial/#basics', title: 'Word 入门基础', tag: '基础' },
-  { href: '/word-tutorial/#format', title: 'Word 排版教程', tag: '排版' },
-  { href: '/word-tutorial/#thesis', title: '论文与报告排版', tag: '场景' },
-  { href: '/word-tutorial/#workplace', title: '职场文档实战', tag: '办公' },
-  { href: '/word-tutorial/#faq', title: 'Word 常见问题', tag: '问答' },
 ]
 
 export default function HomePage() {
@@ -64,7 +40,7 @@ export default function HomePage() {
               文章列表
             </h1>
             <p className="text-lg leading-8 text-stone-600">
-              首页先展示教程文章入口。你提供的新 Word 教程已经放在列表第一项，点击后进入完整 Word 教程页面。
+              首页只展示一个 Word 教程文章入口，点击后进入完整 Word 教程页面。
             </p>
           </div>
         </div>
@@ -75,7 +51,7 @@ export default function HomePage() {
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-black">推荐教程</h2>
-              <p className="mt-1 text-sm text-stone-600">从这里进入不同文章与教程页面。</p>
+              <p className="mt-1 text-sm text-stone-600">当前博客首页保留一个 Word 教程入口。</p>
             </div>
             <Search className="h-5 w-5 text-stone-400" />
           </div>
@@ -108,30 +84,11 @@ export default function HomePage() {
         </div>
 
         <aside className="space-y-5">
-          <div className="border border-stone-200 bg-white p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <Layers className="h-5 w-5 text-blue-700" />
-              <h2 className="font-black">Word 教程目录</h2>
-            </div>
-            <div className="space-y-2">
-              {recentPosts.map((post) => (
-                <Link
-                  key={post.href}
-                  href={post.href}
-                  className="flex items-center justify-between border-b border-stone-100 py-3 text-sm last:border-b-0 hover:text-blue-700"
-                >
-                  <span className="font-medium">{post.title}</span>
-                  <span className="text-xs text-stone-500">{post.tag}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-
           <div className="border border-stone-200 bg-[#1f2937] p-5 text-white">
             <FileText className="mb-4 h-6 w-6 text-sky-300" />
-            <h2 className="text-lg font-black">页面结构已调整</h2>
+            <h2 className="text-lg font-black">博客首页</h2>
             <p className="mt-2 text-sm leading-6 text-stone-200">
-              首页是文章列表页，Word 教程作为列表中的独立页面入口，不再直接占用首页。
+              首页作为文章列表页，只呈现一个 Word 教程入口，不再直接显示旧版教程正文。
             </p>
           </div>
         </aside>
