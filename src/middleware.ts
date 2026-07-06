@@ -13,6 +13,7 @@ export default function middleware(request: NextRequest) {
     if (pathname.startsWith('/admin')) return authMiddleware(request)
 
     if (
+        pathname === '/' ||
         pathname === '/tyler-home.html' ||
         pathname === '/index.html' ||
         pathname === '/login' ||
