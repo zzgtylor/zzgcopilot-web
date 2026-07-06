@@ -20,7 +20,6 @@ export default function middleware(request: NextRequest) {
         pathname.startsWith('/api') ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/uploads') ||
-        pathname.startsWith('/word-home') ||
         pathname.startsWith('/word-tutorial') ||
         pathname === '/Word教程网站.html' ||
         pathname === '/Word教程网站.dc.html' ||
