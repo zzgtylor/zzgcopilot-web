@@ -1,139 +1,123 @@
 import Link from 'next/link'
-import { ArrowRight, BookOpen, Search } from 'lucide-react'
-
-const topics = ['排版基础', '论文报告', '目录页码', '职场文档']
+import { Search } from 'lucide-react'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#f8f9fa] text-[#211e19]">
-      <header className="border-b border-[#211e19]/10 bg-white">
-        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-5 px-5 py-4 sm:px-8">
-          <Link href="/" className="font-serif text-3xl font-black leading-none text-[#211e19]">
-            Tyler博客
+    <div className="min-h-screen overflow-x-hidden bg-[#f8f9fa] text-[#211e19]">
+      {/* NAV */}
+      <nav className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 bg-white px-5 py-4 sm:px-8">
+        <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl font-bold text-[#211e19] sm:text-3xl">
+          Tyler博客
+        </Link>
+
+        <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 whitespace-nowrap text-[13.5px] font-medium text-[#4a443b] md:flex">
+          <Link href="/" className="font-bold text-[#11567f]">
+            首页
           </Link>
-
-          <nav className="hidden items-center gap-7 text-sm font-medium text-[#5f584f] md:flex">
-            <Link href="/" className="text-[#11567f]">
-              首页
-            </Link>
-            <Link href="/word-tutorial/" className="hover:text-[#11567f]">
-              教程
-            </Link>
-            <Link href="/word-tutorial/" className="hover:text-[#11567f]">
-              模板下载
-            </Link>
-            <Link href="/word-tutorial/" className="hover:text-[#11567f]">
-              关于我们
-            </Link>
-          </nav>
-
-          <Link
-            href="/word-tutorial/"
-            className="hidden h-10 items-center gap-2 rounded-sm bg-[#11567f] px-4 text-sm font-semibold text-white transition hover:bg-[#0d2a45] sm:inline-flex"
-          >
-            <BookOpen className="h-4 w-4" />
-            Word 教程
+          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+            免费资源
+          </Link>
+          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+            教程
+          </Link>
+          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+            模板下载
+          </Link>
+          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+            关于我们
           </Link>
         </div>
-      </header>
 
-      <section className="mx-auto grid max-w-[1180px] gap-9 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_300px] lg:py-10">
-        <div>
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-[#11567f]">
-                Tyler Blog
-              </p>
-              <h1 className="font-serif text-3xl font-black leading-tight text-[#1a160f] sm:text-4xl">
-                最新教程
-              </h1>
-            </div>
-            <span className="hidden text-sm text-[#8a8174] sm:block">Word 专题更新</span>
-          </div>
+        <div className="flex shrink-0 items-center gap-3.5">
+          <label className="relative hidden sm:block">
+            <input
+              type="search"
+              aria-label="搜索教程"
+              placeholder="搜索教程…"
+              className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[#11567f]"
+            />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a39a8a]" />
+          </label>
 
           <Link
             href="/word-tutorial/"
-            className="group grid overflow-hidden rounded-md border border-[#211e19]/10 bg-white shadow-[0_10px_35px_rgba(25,22,17,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(25,22,17,0.14)] md:grid-cols-[minmax(260px,390px)_1fr]"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[#11567f] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[#142844]"
           >
-            <div className="relative min-h-[230px] bg-[#eef2f4] md:min-h-[330px]">
-              <img
-                src="/uploads/tmp-final-base.jpg"
-                alt="Word 教程封面"
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
-              <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-[#11567f] shadow-sm">
-                Word
-              </span>
-            </div>
+            从零开始学习 →
+          </Link>
+        </div>
+      </nav>
 
-            <article className="flex min-h-[300px] flex-col justify-between gap-8 p-6 sm:p-8">
-              <div>
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#11567f]/20 bg-[#11567f]/5 px-3 py-1 text-xs font-bold text-[#11567f]">
-                  <BookOpen className="h-4 w-4" />
-                  入门基础 · 完整教程
-                </div>
-                <h2 className="max-w-2xl font-serif text-3xl font-black leading-tight text-[#1a160f] sm:text-4xl">
-                  Word 软件使用全攻略教程
-                </h2>
-                <p className="mt-5 max-w-2xl text-base leading-8 text-[#4a443b]">
-                  从基础编辑、格式排版、样式目录到页眉页脚、目录页码和职场文档，一次把
-                  Word 常用流程讲清楚。
-                </p>
-              </div>
+      {/* 主体：网格 + 侧边栏 */}
+      <div className="mx-auto grid max-w-[1480px] items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
+        {/* 左：主内容区 */}
+        <main>
+          <div className="mb-[26px] flex flex-wrap items-baseline justify-between gap-2.5">
+            <h1 className="font-serif text-2xl font-bold text-[#1a160f]">最新教程</h1>
+          </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#211e19]/10 pt-5">
-                <div className="flex flex-wrap gap-2">
-                  {topics.map((topic) => (
-                    <span
-                      className="rounded-full bg-[#f1f3f4] px-3 py-1 text-xs font-medium text-[#5f584f]"
-                      key={topic}
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-                <span className="inline-flex items-center gap-2 text-sm font-bold text-[#11567f]">
-                  阅读全文
-                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <Link
+              href="/word-tutorial/"
+              className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
+            >
+              <div className="relative h-[150px] bg-[#f5f5f7]">
+                <img
+                  src="/uploads/tmp-final-base.jpg"
+                  alt="Word软件使用全攻略教程"
+                  className="h-full w-full object-cover"
+                  loading="eager"
+                />
+                <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
+                  入门基础
                 </span>
               </div>
-            </article>
-          </Link>
+
+              <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
+                <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">
+                  Word软件使用全攻略教程
+                </h3>
+                <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
+                  <span className="whitespace-nowrap font-mono">2026-07-03</span>
+                  <span className="whitespace-nowrap">20 分钟</span>
+                </div>
+              </div>
+            </Link>
+          </div>
+
+          {/* 分页（装饰性，当前仅一篇教程，暂不可点） */}
+          <div className="mt-12 flex items-center justify-center gap-2 font-mono text-[13px]">
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">
+              ← 上一页
+            </span>
+            <span className="cursor-default select-none rounded border border-[#11567f] bg-[#11567f] px-3.5 py-2 text-white">
+              1
+            </span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">
+              2
+            </span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">
+              3
+            </span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">
+              下一页 →
+            </span>
+          </div>
+        </main>
+
+        {/* 右：侧边栏（预留位，暂无内容） */}
+        <aside className="sticky top-[88px] hidden flex-col gap-7 lg:flex" />
+      </div>
+
+      {/* FOOTER */}
+      <footer className="border-t border-[#211e19]/10 bg-white px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
+        <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4">
+          <span className="text-[13px] text-[#797266]">Tyler博客</span>
+          <span className="font-mono text-xs text-[#a39a8a]">
+            本站内容独立编写整理，非 Microsoft 官方文档
+          </span>
         </div>
-
-        <aside className="space-y-6">
-          <div className="border border-[#211e19]/10 bg-white p-5">
-            <label className="relative block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9185]" />
-              <input
-                aria-label="搜索教程"
-                className="h-10 w-full rounded-sm border border-[#211e19]/15 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-[#11567f]"
-                placeholder="搜索教程..."
-                type="search"
-              />
-            </label>
-          </div>
-
-          <div className="border border-[#211e19]/10 bg-white p-6">
-            <h2 className="font-serif text-xl font-black text-[#1a160f]">教程目录</h2>
-            <div className="mt-5 space-y-3 text-sm text-[#4a443b]">
-              {['Word 入门', '页面设置', '样式与目录', '页眉页脚', '图片表格', '打印导出'].map(
-                (item) => (
-                  <Link
-                    href="/word-tutorial/"
-                    className="flex items-center justify-between border-b border-[#211e19]/10 pb-3 transition last:border-b-0 last:pb-0 hover:text-[#11567f]"
-                    key={item}
-                  >
-                    <span>{item}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                )
-              )}
-            </div>
-          </div>
-        </aside>
-      </section>
-    </main>
+      </footer>
+    </div>
   )
 }
