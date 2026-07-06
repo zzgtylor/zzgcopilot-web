@@ -12,8 +12,11 @@ export default function middleware(request: NextRequest) {
 
     if (pathname.startsWith('/admin')) return authMiddleware(request)
 
+    if (pathname === '/') {
+        return NextResponse.rewrite(new URL('/index.html', request.url))
+    }
+
     if (
-        pathname === '/' ||
         pathname === '/index.html' ||
         pathname === '/login' ||
         pathname === '/register' ||
