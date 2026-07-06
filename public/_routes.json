@@ -4,6 +4,7 @@
   "exclude": [
     "/_next/static/*",
     "/uploads/*",
+    "/word-tutorial",
     "/word-tutorial/*",
     "/favicon.ico"
   ]
