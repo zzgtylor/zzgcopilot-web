@@ -4,6 +4,7 @@
   "exclude": [
     "/_next/static/*",
     "/uploads/*",
+    "/word-home/*",
     "/word-tutorial/*",
     "/Word教程网站.html",
     "/Word教程网站.dc.html",
