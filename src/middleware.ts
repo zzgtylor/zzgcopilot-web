@@ -12,6 +12,10 @@ export default function middleware(request: NextRequest) {
 
     if (pathname.startsWith('/admin')) return authMiddleware(request)
 
+    if (pathname === '/tutorials/word' || pathname.startsWith('/tutorials/word/')) {
+        return NextResponse.redirect(new URL('/word-tutorial', request.url))
+    }
+
     if (
         pathname === '/' ||
         pathname === '/tyler-home.html' ||
