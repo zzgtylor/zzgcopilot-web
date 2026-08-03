@@ -6,7 +6,7 @@ pages_build_output_dir = ".open-next"
 [[d1_databases]]
 binding = "DB"
 database_name = "zzgcopilot-db"
-database_id = "f51cd6bd-fcb0-47ce-90ca-32209552c7bf"
+database_id = "6306be87-8b34-4573-8bc6-9202dd660785"
 
 [[r2_buckets]]
 binding = "R2"

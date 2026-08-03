@@ -2,64 +2,165 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getDb } from '@/lib/cloudflare-db'
 
-
+function normalizedStatus(value: unknown) {
+  return value === 'published' ? 'published' : 'draft'
+}
 
 export async function GET(request: NextRequest) {
   try {
-      const session = await auth()
-          if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-              const db = await getDb()
-                  if (!db) return NextResponse.json({ posts: [] })
-                      const result = await db.prepare(`SELECT p.id, p.title, p.slug, p.status, p.view_count, p.created_at,
-                            u.name as author_name, c.name as category_name FROM posts p
-                                  LEFT JOIN users u ON p.author_id = u.id
-                                        LEFT JOIN categories c ON p.category_id = c.id
-                                              ORDER BY p.created_at DESC LIMIT 100`).all()
-                                                  return NextResponse.json({ posts: result.results || [] })
-                                                    } catch (e) { return NextResponse.json({ posts: [] }) }
-                                                    }
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-                                                    export async function POST(request: NextRequest) {
-                                                      try {
-                                                          const session = await auth()
-                                                              if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                                                                  const db = await getDb()
-                                                                      if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
-                                                                          const body = await request.json() as any
-                                                                              const { title, slug, content, excerpt, cover_image, category_id, status, tags, meta_title, meta_description, og_image } = body
-                                                                                  const userId = (session.user as any).id
-                                                                                      await db.prepare(`INSERT INTO posts (title, slug, content, excerpt, cover_image, category_id, author_id, status, tags)
-                                                                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-                                                                                                  .bind(title, slug, content, excerpt || '', cover_image || '', category_id || null, userId, status || 'draft', JSON.stringify(tags || []), meta_title || null, meta_description || null, og_image || null)
-                                                                                                        .run()
-                                                                                                            return NextResponse.json({ success: true })
-                                                                                                              } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }
-                                                                                                              }
+    const db = await getDb()
+    if (!db) return NextResponse.json({ posts: [] })
 
-                                                                                                              export async function PUT(request: NextRequest) {
-                                                                                                                try {
-                                                                                                                    const session = await auth()
-                                                                                                                        if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                                                                                                                            const db = await getDb()
-                                                                                                                                if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
-                                                                                                                                    const body = await request.json() as any
-                                                                                                                                        const { id, title, slug, content, excerpt, cover_image, category_id, status, tags, meta_title, meta_description, og_image } = body
-                                                                                                                                            await db.prepare(`UPDATE posts SET title=?, slug=?, content=?, excerpt=?, cover_image=?, category_id=?, status=?, tags=?, meta_title=?, meta_description=?, og_image=?, updated_at=datetime('now') WHERE id=?`)
-                                                                                                                                                  .bind(title, slug, content, excerpt || '', cover_image || '', category_id || null, status, JSON.stringify(tags || []), meta_title || null, meta_description || null, og_image || null, id)
-                                                                                                                                                        .run()
-                                                                                                                                                            return NextResponse.json({ success: true })
-                                                                                                                                                              } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }
-                                                                                                                                                              }
+    const id = new URL(request.url).searchParams.get('id')
+    if (id) {
+      const post = await db
+        .prepare(
+          `SELECT p.*, u.name AS author_name, c.name AS category_name
+           FROM posts p
+           LEFT JOIN users u ON p.author_id = u.id
+           LEFT JOIN categories c ON p.category_id = c.id
+           WHERE p.id = ?`
+        )
+        .bind(id)
+        .first()
+      return NextResponse.json({ post: post || null })
+    }
 
-                                                                                                                                                              export async function DELETE(request: NextRequest) {
-                                                                                                                                                                try {
-                                                                                                                                                                    const session = await auth()
-                                                                                                                                                                        if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-                                                                                                                                                                            const db = await getDb()
-                                                                                                                                                                                if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
-                                                                                                                                                                                    const { searchParams } = new URL(request.url)
-                                                                                                                                                                                        const id = searchParams.get('id')
-                                                                                                                                                                                            await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run()
-                                                                                                                                                                                                return NextResponse.json({ success: true })
-                                                                                                                                                                                                  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }
-                                                                                                                                                                                                  }
+    const result = await db
+      .prepare(
+        `SELECT p.id, p.title, p.slug, p.status, p.view_count, p.created_at,
+                u.name AS author_name, c.name AS category_name
+         FROM posts p
+         LEFT JOIN users u ON p.author_id = u.id
+         LEFT JOIN categories c ON p.category_id = c.id
+         ORDER BY p.created_at DESC
+         LIMIT 100`
+      )
+      .all()
+
+    return NextResponse.json({ posts: result.results || [] })
+  } catch {
+    return NextResponse.json({ posts: [] })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const db = await getDb()
+    if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
+
+    const body = (await request.json()) as any
+    const { title, slug, content, excerpt, cover_image, category_id, tags, meta_title, meta_description, og_image } = body
+    const status = normalizedStatus(body.status)
+    const userId = (session.user as any).id
+
+    if (!title || !slug || !content || !userId) {
+      return NextResponse.json({ error: '标题、URL Slug 和正文不能为空' }, { status: 400 })
+    }
+
+    await db
+      .prepare(
+        `INSERT INTO posts (
+          title, slug, content, excerpt, cover_image, category_id, author_id, status, tags,
+          meta_title, meta_description, og_image, published_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END)`
+      )
+      .bind(
+        title,
+        slug,
+        content,
+        excerpt || '',
+        cover_image || '',
+        category_id || null,
+        userId,
+        status,
+        JSON.stringify(tags || []),
+        meta_title || null,
+        meta_description || null,
+        og_image || null,
+        status
+      )
+      .run()
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const db = await getDb()
+    if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
+
+    const body = (await request.json()) as any
+    const { id, title, slug, content, excerpt, cover_image, category_id, tags, meta_title, meta_description, og_image } = body
+    const status = normalizedStatus(body.status)
+
+    if (!id || !title || !slug || !content) {
+      return NextResponse.json({ error: '文章信息不完整' }, { status: 400 })
+    }
+
+    await db
+      .prepare(
+        `UPDATE posts
+         SET title = ?, slug = ?, content = ?, excerpt = ?, cover_image = ?, category_id = ?,
+             status = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?,
+             published_at = CASE
+               WHEN ? = 'published' AND published_at IS NULL THEN datetime('now')
+               WHEN ? <> 'published' THEN NULL
+               ELSE published_at
+             END,
+             updated_at = datetime('now')
+         WHERE id = ?`
+      )
+      .bind(
+        title,
+        slug,
+        content,
+        excerpt || '',
+        cover_image || '',
+        category_id || null,
+        status,
+        JSON.stringify(tags || []),
+        meta_title || null,
+        meta_description || null,
+        og_image || null,
+        status,
+        status,
+        id
+      )
+      .run()
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const db = await getDb()
+    if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
+
+    const id = new URL(request.url).searchParams.get('id')
+    if (!id) return NextResponse.json({ error: '缺少文章 ID' }, { status: 400 })
+
+    await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run()
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || '删除失败' }, { status: 500 })
+  }
+}
