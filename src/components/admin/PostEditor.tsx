@@ -1,121 +1,31 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ExternalLink, Image as ImageIcon, Loader2, Upload } from 'lucide-react'
-
-function htmlToMarkdown(html: string) {
-  const div = document.createElement('div')
-  div.innerHTML = html
-  function walk(node: Node): string {
-    let out = ''
-    node.childNodes.forEach((n) => {
-      if (n.nodeType === 3) { out += n.textContent; return }
-      if (n.nodeType !== 1) return
-      const el = n as HTMLElement
-      const tag = el.tagName.toLowerCase()
-      const inner = walk(el)
-      switch (tag) {
-        case 'h1': out += '\n# ' + inner + '\n\n'; break
-        case 'h2': out += '\n## ' + inner + '\n\n'; break
-        case 'h3': out += '\n### ' + inner + '\n\n'; break
-        case 'strong': case 'b': out += '**' + inner + '**'; break
-        case 'em': case 'i': out += '*' + inner + '*'; break
-        case 'code': out += '`' + inner + '`'; break
-        case 'pre': out += '\n```\n' + el.textContent + '\n```\n\n'; break
-        case 'a': out += '[' + inner + '](' + (el.getAttribute('href') || '') + ')'; break
-        case 'img': out += '![' + (el.getAttribute('alt') || '') + '](' + (el.getAttribute('src') || '') + ')'; break
-        case 'blockquote': out += '\n> ' + inner.trim().replace(/\n/g, '\n> ') + '\n\n'; break
-        case 'ul': out += '\n' + Array.from(el.children).map((li) => '- ' + walk(li).trim()).join('\n') + '\n\n'; break
-        case 'ol': out += '\n' + Array.from(el.children).map((li, i) => (i + 1) + '. ' + walk(li).trim()).join('\n') + '\n\n'; break
-        case 'br': out += '\n'; break
-        case 'p': case 'div': out += inner + '\n\n'; break
-        default: out += inner
-      }
-    })
-    return out
-  }
-  return walk(div).replace(/\n{3,}/g, '\n\n').trim()
-}
-
-function markdownToHtml(md: string) {
-  if (!md) return ''
-  return md.split(/\n{2,}/).map((block) => {
-    if (/^### /.test(block)) return '<h3>' + block.slice(4) + '</h3>'
-    if (/^## /.test(block)) return '<h2>' + block.slice(3) + '</h2>'
-    if (/^# /.test(block)) return '<h1>' + block.slice(2) + '</h1>'
-    if (/^> /.test(block)) return '<blockquote>' + block.replace(/^> /gm, '') + '</blockquote>'
-    if (/^```/.test(block)) return '<pre>' + block.replace(/^```\w*\n?|\n?```$/g, '') + '</pre>'
-    if (/^- /.test(block)) return '<ul>' + block.split('\n').map((l) => '<li>' + l.replace(/^- /, '') + '</li>').join('') + '</ul>'
-    if (/^\d+\./.test(block)) return '<ol>' + block.split('\n').map((l) => '<li>' + l.replace(/^\d+\.\s/, '') + '</li>').join('') + '</ol>'
-    let h = block.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/`(.+?)`/g, '<code>$1</code>')
-    return '<p>' + h.replace(/\n/g, '<br>') + '</p>'
-  }).join('')
-}
-
-function ToolbarBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
-  return (
-    <button type="button" title={title} onMouseDown={(e) => { e.preventDefault(); onClick() }}
-      className="px-2.5 py-1.5 rounded hover:bg-gray-100 text-gray-700 text-sm min-w-[32px]">
-      {children}
-    </button>
-  )
-}
-
-function RichEditor({ value, onChange, onImage }: { value: string; onChange: (v: string) => void; onImage: () => Promise<string> }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [mode, setMode] = useState<'rich' | 'source'>('rich')
-  const loadedRef = useRef(false)
-  useEffect(() => {
-    if (mode === 'rich' && ref.current && !loadedRef.current) {
-      ref.current.innerHTML = markdownToHtml(value)
-      loadedRef.current = true
-    }
-  }, [mode, value])
-  const cmd = (c: string, v?: string) => { document.execCommand(c, false, v); sync() }
-  const sync = () => { if (ref.current) onChange(htmlToMarkdown(ref.current.innerHTML)) }
-  const insertLink = () => { const url = prompt('链接地址 URL:'); if (url) cmd('createLink', url) }
-  const insertImage = async () => { const url = await onImage(); if (url) { const alt = prompt('请填写图片替代文字（说明图片内容）：') || ''; cmd('insertHTML', '<img src="' + url + '" alt="' + alt.replace(/["<>]/g, '') + '" style="max-width:100%" />') } }
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="flex flex-wrap items-center gap-0.5 border-b bg-gray-50 px-2 py-1.5">
-        {mode === 'rich' ? (
-          <>
-            <select onChange={(e) => { cmd('formatBlock', e.target.value); e.target.value = '' }} defaultValue="" className="text-sm border rounded px-2 py-1 mr-1 bg-white">
-              <option value="" disabled>段落样式</option>
-              <option value="p">正文</option><option value="h1">标题 1</option><option value="h2">标题 2</option><option value="h3">标题 3</option>
-            </select>
-            <ToolbarBtn title="加粗" onClick={() => cmd('bold')}><b>B</b></ToolbarBtn>
-            <ToolbarBtn title="斜体" onClick={() => cmd('italic')}><i>I</i></ToolbarBtn>
-            <ToolbarBtn title="下划线" onClick={() => cmd('underline')}><u>U</u></ToolbarBtn>
-            <span className="w-px h-5 bg-gray-300 mx-1" />
-            <ToolbarBtn title="无序列表" onClick={() => cmd('insertUnorderedList')}>• 列表</ToolbarBtn>
-            <ToolbarBtn title="有序列表" onClick={() => cmd('insertOrderedList')}>1. 列表</ToolbarBtn>
-            <ToolbarBtn title="引用" onClick={() => cmd('formatBlock', 'blockquote')}>❝</ToolbarBtn>
-            <span className="w-px h-5 bg-gray-300 mx-1" />
-            <ToolbarBtn title="链接" onClick={insertLink}>🔗</ToolbarBtn>
-            <ToolbarBtn title="图片" onClick={insertImage}>🖼️</ToolbarBtn>
-            <ToolbarBtn title="清除格式" onClick={() => cmd('removeFormat')}>✕格式</ToolbarBtn>
-          </>
-        ) : <span className="text-sm text-gray-500 px-1">Markdown 源码模式</span>}
-        <button type="button" onClick={() => { if (mode === 'rich') sync(); setMode(mode === 'rich' ? 'source' : 'rich'); if (mode === 'source' && ref.current) ref.current.innerHTML = markdownToHtml(value) }}
-          className="ml-auto text-xs px-2.5 py-1 rounded border bg-white text-gray-600 hover:bg-gray-100">
-          {mode === 'rich' ? '<> 源码' : '✎ 可视化'}
-        </button>
-      </div>
-      {mode === 'rich' ? (
-        <div ref={ref} contentEditable suppressContentEditableWarning onInput={sync}
-          className="prose max-w-none px-4 py-3 min-h-[320px] focus:outline-none text-sm leading-relaxed" style={{ wordBreak: 'break-word' }} />
-      ) : (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={16} className="w-full px-4 py-3 text-sm font-mono resize-y focus:outline-none" />
-      )}
-    </div>
-  )
-}
+import { ChevronDown, ExternalLink, Loader2, Upload } from 'lucide-react'
+import StructuredEditor from '@/components/admin/StructuredEditor'
 
 type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; scheduled_at: string; cover_image: string; tags: string[]; meta_title: string; meta_description: string; og_image: string }
 type Category = { id: string; name: string }
 type MediaItem = { id: string; original_name: string; url: string; size: number }
-type Revision = { id: string; title: string; status: string; scheduled_at?: string; excerpt?: string; content?: string; created_at: string }
+type Revision = { id: string; title: string; status: string; scheduled_at?: string; excerpt?: string; content?: string; created_at: string; created_by_name?: string }
+
+function lineDiff(before: string, after: string) {
+  const left = before.split('\n').slice(0, 500)
+  const right = after.split('\n').slice(0, 500)
+  const matrix = Array.from({ length: left.length + 1 }, () => new Uint16Array(right.length + 1))
+  for (let i = left.length - 1; i >= 0; i -= 1) for (let j = right.length - 1; j >= 0; j -= 1) matrix[i][j] = left[i] === right[j] ? matrix[i + 1][j + 1] + 1 : Math.max(matrix[i + 1][j], matrix[i][j + 1])
+  const output: { kind: 'same' | 'add' | 'remove'; text: string }[] = []; let i = 0; let j = 0
+  while (i < left.length || j < right.length) {
+    if (i < left.length && j < right.length && left[i] === right[j]) { output.push({ kind: 'same', text: left[i] }); i += 1; j += 1 }
+    else if (j < right.length && (i === left.length || matrix[i][j + 1] >= matrix[i + 1][j])) { output.push({ kind: 'add', text: right[j] }); j += 1 }
+    else { output.push({ kind: 'remove', text: left[i] }); i += 1 }
+  }
+  return output
+}
+
+function RevisionDiff({ before, after }: { before: string; after: string }) {
+  return <div className="max-h-[62vh] overflow-auto rounded-lg border bg-gray-50 font-mono text-xs leading-6">{lineDiff(before, after).map((line, index) => <div key={index} className={line.kind === 'add' ? 'bg-green-100 text-green-900' : line.kind === 'remove' ? 'bg-red-100 text-red-900 line-through' : 'text-gray-600'}><span className="inline-block w-8 select-none pr-2 text-right text-gray-400">{line.kind === 'add' ? '+' : line.kind === 'remove' ? '−' : ' '}</span><span className="whitespace-pre-wrap break-words">{line.text || ' '}</span></div>)}</div>
+}
 
 function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const [items, setItems] = useState<MediaItem[]>([])
@@ -318,7 +228,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
 
           <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-3 flex items-center justify-between"><label className="text-sm font-semibold text-gray-800">正文内容</label><span className="text-xs text-gray-400">{wordCount + chineseCount} 字 · 约 {readingMinutes} 分钟阅读</span></div>
-            <RichEditor value={form.content} onChange={(v) => setForm(f => ({ ...f, content: v }))} onImage={uploadFile} />
+            <StructuredEditor value={form.content} onChange={(v) => setForm(f => ({ ...f, content: v }))} onImage={uploadFile} />
           </div>
 
           <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
@@ -351,7 +261,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
             </div>
           </section>
 
-          {isEdit && <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">版本记录</h2><p className="mt-1 text-xs text-gray-500">手动保存保留版本，最多 20 个；可先比较再恢复。</p></div><div className="divide-y">{revisions.length ? revisions.map(revision => <div key={revision.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm text-gray-700">{revision.title}</p><p className="text-xs text-gray-400">{String(revision.created_at).replace('T', ' ').slice(0, 16)}</p></div><div className="flex gap-3"><button type="button" onClick={() => setRevisionPreview(revision)} className="text-sm text-gray-600 hover:underline">比较</button><button type="button" onClick={() => restoreRevision(revision.id)} className="text-sm text-blue-600 hover:underline">恢复</button></div></div>) : <p className="px-5 py-4 text-sm text-gray-400">还没有可恢复的历史版本。</p>}</div></section>}
+          {isEdit && <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">版本记录</h2><p className="mt-1 text-xs text-gray-500">手动保存保留版本，最多 20 个；可高亮比较再恢复。</p></div><div className="divide-y">{revisions.length ? revisions.map(revision => <div key={revision.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm text-gray-700">{revision.title}</p><p className="text-xs text-gray-400">{String(revision.created_at).replace('T', ' ').slice(0, 16)}{revision.created_by_name ? ` · ${revision.created_by_name}` : ''}</p></div><div className="flex gap-3"><button type="button" onClick={() => setRevisionPreview(revision)} className="text-sm text-gray-600 hover:underline">比较</button><button type="button" onClick={() => restoreRevision(revision.id)} className="text-sm text-blue-600 hover:underline">恢复</button></div></div>) : <p className="px-5 py-4 text-sm text-gray-400">还没有可恢复的历史版本。</p>}</div></section>}
 
           <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">文章目录</h2><p className="mt-1 text-xs text-gray-500">根据正文中的一级至三级标题生成</p></div><div className="p-5">{outline.length ? <ul className="space-y-2 text-sm text-gray-600">{outline.map((heading, index) => <li key={index} className={heading.startsWith('###') ? 'pl-6' : heading.startsWith('##') ? 'pl-3' : ''}>{heading.replace(/^#{1,3}\s+/, '')}</li>)}</ul> : <p className="text-sm text-gray-400">正文中还没有标题。</p>}</div></section>
 
@@ -374,7 +284,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
         </aside>
       </form>
       {mediaPickerOpen && <MediaPicker onSelect={(url) => setForm(f => ({ ...f, cover_image: url }))} onClose={() => setMediaPickerOpen(false)} />}
-      {revisionPreview && <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 p-4"><div className="max-h-[85vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><div><h2 className="font-semibold text-gray-900">版本比较</h2><p className="text-xs text-gray-500">左侧为历史版本，右侧为当前内容</p></div><button type="button" onClick={() => setRevisionPreview(null)} className="rounded border px-3 py-1.5 text-sm">关闭</button></div><div className="grid gap-4 md:grid-cols-2"><div><p className="mb-2 text-sm font-medium text-gray-700">历史版本</p><pre className="max-h-[60vh] whitespace-pre-wrap rounded-lg border bg-red-50 p-4 text-xs leading-6">{revisionPreview.content || ''}</pre></div><div><p className="mb-2 text-sm font-medium text-gray-700">当前版本</p><pre className="max-h-[60vh] whitespace-pre-wrap rounded-lg border bg-green-50 p-4 text-xs leading-6">{form.content}</pre></div></div></div></div>}
+      {revisionPreview && <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 p-4"><div className="max-h-[88vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><div><h2 className="font-semibold text-gray-900">版本差异</h2><p className="text-xs text-gray-500">绿色为当前新增，红色删除线为历史版本中已删除</p></div><button type="button" onClick={() => setRevisionPreview(null)} className="rounded border px-3 py-1.5 text-sm">关闭</button></div><RevisionDiff before={revisionPreview.content || ''} after={form.content}/></div></div>}
     </div>
   )
 }

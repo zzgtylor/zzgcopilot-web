@@ -3,6 +3,8 @@ import Credentials from 'next-auth/providers/credentials'
 import { authConfig } from './auth.config'
 import { getDb } from '@/lib/cloudflare-db'
 import { verifyPassword } from '@/lib/passwords'
+import { sha256, verifyTotp } from '@/lib/totp'
+import { writeAuditLog } from '@/lib/audit'
 
 const MAX_FAILED_LOGINS = 5
 const LOCK_MINUTES = 15
@@ -42,6 +44,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                   credentials: {
                             email: { label: 'Email', type: 'email' },
                             password: { label: 'Password', type: 'password' },
+                            otp: { label: 'Two-factor code', type: 'text' },
                   },
                   async authorize(credentials, request) {
                             if (!credentials?.email || !credentials?.password) return null
@@ -77,13 +80,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                                     return null
                                 }
 
+                              if (Number(user.two_factor_enabled)) {
+                                  const otp = String(credentials.otp || '').trim().toUpperCase()
+                                  let secondFactorValid = await verifyTotp(String(user.two_factor_secret || ''), otp)
+                                  if (!secondFactorValid && otp) {
+                                      const recoveryHashes = (() => { try { return JSON.parse(String(user.recovery_codes || '[]')) as string[] } catch { return [] } })()
+                                      const recoveryHash = await sha256(otp)
+                                      const recoveryIndex = recoveryHashes.indexOf(recoveryHash)
+                                      if (recoveryIndex >= 0) {
+                                          recoveryHashes.splice(recoveryIndex, 1)
+                                          await db.prepare('UPDATE users SET recovery_codes = ? WHERE id = ?').bind(JSON.stringify(recoveryHashes), user.id).run()
+                                          secondFactorValid = true
+                                      }
+                                  }
+                                  if (!secondFactorValid) {
+                                      await recordLoginFailure(db, attemptKey)
+                                      return null
+                                  }
+                              }
+
                               await db.prepare('DELETE FROM auth_attempts WHERE key = ?').bind(attemptKey).run()
+                              await db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").bind(user.id).run()
+                              await writeAuditLog(db, { userId: String(user.id), action: 'auth.login', targetType: 'user', targetId: String(user.id), summary: '账号登录成功', request })
 
                               return {
                                             id: String(user.id),
                                             email: user.email,
                                             name: user.name,
                                             role: user.role,
+                                            authVersion: Number(user.auth_version || 0),
                               }
                     } catch (e) {
                                 console.error('Auth error:', e)

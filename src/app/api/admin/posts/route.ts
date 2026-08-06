@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/cloudflare-db'
 import { publishDuePosts, scheduledAt } from '@/lib/post-scheduling'
 import { requireAdminRole } from '@/lib/admin-auth'
+import { writeAuditLog } from '@/lib/audit'
 
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' }
 
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
         .bind(id)
         .first()
       if (searchParams.get('revisions') === '1') {
-        const revisions = await db.prepare('SELECT id, title, status, scheduled_at, excerpt, content, created_at FROM post_revisions WHERE post_id = ? ORDER BY created_at DESC LIMIT 20').bind(id).all()
+        const revisions = await db.prepare('SELECT r.id, r.title, r.status, r.scheduled_at, r.excerpt, r.content, r.created_at, u.name AS created_by_name FROM post_revisions r LEFT JOIN users u ON r.created_by = u.id WHERE r.post_id = ? ORDER BY r.created_at DESC LIMIT 20').bind(id).all()
         return NextResponse.json({ post: post || null, revisions: revisions.results || [] }, { headers: noStore })
       }
       return NextResponse.json({ post: post || null }, { headers: noStore })
@@ -155,6 +156,7 @@ export async function POST(request: NextRequest) {
       .run()
 
     const post = await db.prepare('SELECT id, updated_at FROM posts WHERE slug = ?').bind(slug).first<{ id: string; updated_at: string }>()
+    await writeAuditLog(db, { userId: access.userId, action: status === 'published' ? 'post.publish' : wantsSchedule ? 'post.schedule' : 'post.create_draft', targetType: 'post', targetId: post?.id, summary: `${status === 'published' ? '发布' : wantsSchedule ? '定时发布' : '创建草稿'}：${String(title).slice(0, 120)}`, request })
     return NextResponse.json({ success: true, id: post?.id, updated_at: post?.updated_at })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
@@ -226,6 +228,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '文章已在其他窗口被修改，请刷新后再保存。', conflict: true }, { status: 409 })
     }
     const updated = await db.prepare('SELECT updated_at FROM posts WHERE id = ?').bind(id).first<{ updated_at: string }>()
+    await writeAuditLog(db, { userId: access.userId, action: status === 'published' ? 'post.update_published' : wantsSchedule ? 'post.schedule' : 'post.update_draft', targetType: 'post', targetId: id, summary: `保存文章：${String(title).slice(0, 120)}`, request })
     return NextResponse.json({ success: true, updated_at: updated?.updated_at })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
@@ -244,6 +247,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: '缺少文章 ID' }, { status: 400 })
 
     await db.prepare("UPDATE posts SET status = 'archived', updated_at = datetime('now') WHERE id = ?").bind(id).run()
+    await writeAuditLog(db, { userId: access.userId, action: 'post.trash', targetType: 'post', targetId: id, summary: '将文章移入回收站', request })
     return NextResponse.json({ success: true, status: 'archived' })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '删除失败' }, { status: 500 })
@@ -261,6 +265,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ids, action, revisionId } = (await request.json()) as { id?: string; ids?: string[]; action?: string; revisionId?: string }
     if (action === 'restore' && id) {
       await db.prepare("UPDATE posts SET status = 'draft', updated_at = datetime('now') WHERE id = ? AND status = 'archived'").bind(id).run()
+      await writeAuditLog(db, { userId: access.userId, action: 'post.restore', targetType: 'post', targetId: id, summary: '从回收站恢复文章', request })
       return NextResponse.json({ success: true, status: 'draft' })
     }
     if (action === 'restoreRevision' && id && revisionId) {
@@ -273,6 +278,7 @@ export async function PATCH(request: NextRequest) {
       await db.prepare(
         `UPDATE posts SET title = ?, slug = ?, excerpt = ?, content = ?, cover_image = ?, category_id = ?, status = ?, scheduled_at = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?, updated_at = datetime('now') WHERE id = ?`
       ).bind(revision.title, revision.slug, revision.excerpt || '', revision.content, revision.cover_image || '', revision.category_id || null, revision.status, revision.scheduled_at || null, revision.tags || '[]', revision.meta_title || null, revision.meta_description || null, revision.og_image || null, id).run()
+      await writeAuditLog(db, { userId: access.userId, action: 'post.revision_restore', targetType: 'post', targetId: id, summary: `恢复历史版本：${String(revision.title).slice(0, 120)}`, metadata: { revisionId }, request })
       return NextResponse.json({ success: true })
     }
 
@@ -286,6 +292,7 @@ export async function PATCH(request: NextRequest) {
         published_at = CASE WHEN ? = 'published' AND published_at IS NULL THEN datetime('now') WHEN ? <> 'published' THEN NULL ELSE published_at END,
         updated_at = datetime('now') WHERE id IN (${placeholders})`
     ).bind(nextStatus, nextStatus, nextStatus, ...selected).run()
+    await writeAuditLog(db, { userId: access.userId, action: `post.bulk_${action}`, targetType: 'post', summary: `批量处理 ${selected.length} 篇文章`, metadata: { ids: selected }, request })
     return NextResponse.json({ success: true, status: nextStatus, count: selected.length })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '恢复失败' }, { status: 500 })

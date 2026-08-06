@@ -42,7 +42,11 @@ export async function verifyPassword(password: string, storedHash: string): Prom
       keyMaterial,
       256
     )
-    return bufferToHex(derivedBits) === expectedHash
+    const expected = hexToBuffer(expectedHash)
+    if (derivedBits.byteLength !== expected.byteLength) return false
+    const expectedBuffer = new Uint8Array(expected).buffer
+    const subtle = crypto.subtle as SubtleCrypto & { timingSafeEqual(left: BufferSource, right: BufferSource): boolean }
+    return subtle.timingSafeEqual(derivedBits, expectedBuffer)
   }
 
   return false
