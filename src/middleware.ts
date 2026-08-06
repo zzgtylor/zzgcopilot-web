@@ -10,7 +10,7 @@ const authMiddleware = NextAuth(authConfig).auth
 export default function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if (pathname.startsWith('/admin')) return authMiddleware(request)
+    if (pathname.startsWith('/admin')) return (authMiddleware as any)(request)
 
     if (pathname === '/sitemap.xml') return NextResponse.rewrite(new URL('/api/sitemap', request.url))
 
