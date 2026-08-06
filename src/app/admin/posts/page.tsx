@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 type Post = { id: string; title: string; slug: string; status: 'draft' | 'published' | 'archived'; review_status?: string; review_note?: string; scheduled_at?: string | null; tags?: string[]; category_name?: string; author_name?: string; view_count?: number; created_at?: string; updated_at?: string }
@@ -28,8 +28,10 @@ export default function AdminPostsPage() {
   const [categories, setCategories] = useState<Option[]>([])
   const [authors, setAuthors] = useState<Option[]>([])
   const [capabilities, setCapabilities] = useState({ manageAll: false, publish: true })
+  const loadSequence = useRef(0)
 
   function load() {
+    const sequence = ++loadSequence.current
     setLoading(true)
     setError('')
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
@@ -43,9 +45,9 @@ export default function AdminPostsPage() {
     if (quality) params.set('quality', quality)
     fetch('/api/admin/posts?' + params)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then((d: any) => { setPosts(d.posts || []); setTotal(d.total || 0); setSelected([]); if (d.capabilities) setCapabilities(d.capabilities) })
-      .catch(() => setError('加载失败，请刷新后重试。'))
-      .finally(() => setLoading(false))
+      .then((d: any) => { if (sequence !== loadSequence.current) return; setPosts(d.posts || []); setTotal(d.total || 0); setSelected([]); if (d.capabilities) setCapabilities(d.capabilities) })
+      .catch(() => { if (sequence === loadSequence.current) setError('加载失败，请刷新后重试。') })
+      .finally(() => { if (sequence === loadSequence.current) setLoading(false) })
   }
 
   useEffect(() => { load() }, [page, filter, search, categoryId, authorId, dateFrom, dateTo, sort, quality])
