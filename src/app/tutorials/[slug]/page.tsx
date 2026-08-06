@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getDb } from '@/lib/cloudflare-db'
 import { getSiteSettings } from '@/lib/site-settings'
+import { auth } from '@/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,12 +28,12 @@ type Post = {
   og_image?: string
 }
 
-async function getPost(slug: string): Promise<Post | null> {
+async function getPost(slug: string, includeUnpublished = false): Promise<Post | null> {
   const db = await getDb()
   if (!db) return null
   const post = await db
     .prepare(
-      "SELECT p.*, u.name as author_name, c.name as category_name, c.slug as category_slug FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ? AND p.status = 'published'"
+      `SELECT p.*, u.name as author_name, c.name as category_name, c.slug as category_slug FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ? ${includeUnpublished ? "AND p.status != 'archived'" : "AND p.status = 'published'"}`
     )
     .bind(slug)
     .first<Post>()
@@ -84,14 +85,16 @@ function formatDate(iso: string | null) {
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = await getPost(slug)
+  const session = await auth()
+  const post = await getPost(slug, Boolean(session?.user))
   if (!post) notFound()
 
-  incrementViewCount(post.id)
+  if (post.status === 'published') incrementViewCount(post.id)
 
   return (
     <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-3xl px-6 py-12">
+        {post.status !== 'published' && <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">草稿预览：只有已登录后台的管理员能看到，发布后才会显示在首页。</p>}
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← 返回首页</Link>
 
         <header className="mt-6 mb-8">
