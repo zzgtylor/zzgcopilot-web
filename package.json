@@ -8,7 +8,8 @@
           "start": "next start",
           "pages:build": "opennextjs-cloudflare build && node scripts/pages-postbuild.mjs",
           "preview": "npm run pages:build && opennextjs-cloudflare preview",
-          "deploy": "npm run pages:build && wrangler pages deploy"
+    "deploy": "npm run pages:build && wrangler pages deploy",
+    "backup:cloudflare": "bash scripts/backup-cloudflare.sh"
   },
   "dependencies": {
           "next": "15.5.18",
