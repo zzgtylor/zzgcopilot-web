@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { getDb } from '@/lib/cloudflare-db'
 import { getSiteSettings } from '@/lib/site-settings'
 import { auth } from '@/auth'
+import { publishDuePosts } from '@/lib/post-scheduling'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,7 @@ type Post = {
 async function getPost(slug: string, includeUnpublished = false): Promise<Post | null> {
   const db = await getDb()
   if (!db) return null
+  await publishDuePosts(db)
   const post = await db
     .prepare(
       `SELECT p.*, u.name as author_name, c.name as category_name, c.slug as category_slug FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ? ${includeUnpublished ? "AND p.status != 'archived'" : "AND p.status = 'published'"}`

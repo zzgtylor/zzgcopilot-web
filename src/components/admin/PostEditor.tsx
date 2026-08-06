@@ -112,9 +112,10 @@ function RichEditor({ value, onChange, onImage }: { value: string; onChange: (v:
   )
 }
 
-type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; cover_image: string; tags: string[]; meta_title?: string; meta_description?: string }
+type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; scheduled_at: string; cover_image: string; tags: string[]; meta_title?: string; meta_description?: string }
 type Category = { id: string; name: string }
 type MediaItem = { id: string; original_name: string; url: string; size: number }
+type Revision = { id: string; title: string; status: string; scheduled_at?: string; created_at: string }
 
 function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const [items, setItems] = useState<MediaItem[]>([])
@@ -154,7 +155,8 @@ function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; o
 export default function PostEditor({ postId }: { postId?: string }) {
   const router = useRouter()
   const isEdit = Boolean(postId)
-  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', cover_image: '', tags: [], meta_title: '', meta_description: '' })
+  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', scheduled_at: '', cover_image: '', tags: [], meta_title: '', meta_description: '' })
+  const [revisions, setRevisions] = useState<Revision[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(isEdit)
@@ -173,12 +175,13 @@ export default function PostEditor({ postId }: { postId?: string }) {
 
   useEffect(() => {
     if (!isEdit) return
-    fetch('/api/admin/posts?id=' + encodeURIComponent(postId!)).then(r => r.json())
+    fetch('/api/admin/posts?id=' + encodeURIComponent(postId!) + '&revisions=1').then(r => r.json())
       .then((d: any) => {
         if (d.post) {
           let tags: string[] = []
           try { tags = Array.isArray(d.post.tags) ? d.post.tags : JSON.parse(d.post.tags || '[]') } catch { tags = [] }
-          setForm({ id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.status || 'draft', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '' })
+          setForm({ id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '' })
+          setRevisions(d.revisions || [])
         }
         else setError(d.error || '加载文章失败')
       }).catch(() => setError('加载文章失败')).finally(() => setLoading(false))
@@ -227,7 +230,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
       return false
     }
     setSaving(true); setError('')
-    const payload = { ...form, id: currentPostId || undefined, status: automatic ? 'draft' : form.status, slug: form.slug || Date.now().toString() }
+    const payload = { ...form, id: currentPostId || undefined, status: automatic ? 'draft' : form.status, scheduled_at: automatic ? '' : form.status === 'scheduled' ? form.scheduled_at : '', save_revision: !automatic, slug: form.slug || Date.now().toString() }
     const r = currentPostId
       ? await fetch('/api/admin/posts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
       : await fetch('/api/admin/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
@@ -255,7 +258,14 @@ export default function PostEditor({ postId }: { postId?: string }) {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => { void save(true) }, 10000)
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
-  }, [form.title, form.slug, form.excerpt, form.content, form.category_id, form.cover_image, form.meta_title, form.meta_description])
+  }, [form.title, form.slug, form.excerpt, form.content, form.category_id, form.cover_image, form.tags, form.meta_title, form.meta_description])
+
+  async function restoreRevision(revisionId: string) {
+    if (!currentPostId || !confirm('恢复这个版本？系统会先保留当前内容，便于再次恢复。')) return
+    const r = await fetch('/api/admin/posts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: currentPostId, revisionId, action: 'restoreRevision' }) }).catch(() => null)
+    if (!r?.ok) { setError('版本恢复失败'); return }
+    window.location.reload()
+  }
 
   if (loading) return <div className="p-8 text-sm text-gray-400">加载中...</div>
 
@@ -303,15 +313,17 @@ export default function PostEditor({ postId }: { postId?: string }) {
           <section className="rounded-xl border bg-white shadow-sm">
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">发布</h2></div>
             <div className="space-y-4 p-5">
-              <div className="rounded-lg bg-gray-50 p-3 text-sm"><p className="font-medium text-gray-700">状态</p><div className="mt-2 grid grid-cols-2 gap-2">
-                {([['draft', '存为草稿'], ['published', '立即发布']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setForm(f => ({ ...f, status: value }))} className={'rounded-md border px-2 py-2 text-xs font-medium transition ' + (form.status === value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-600 hover:bg-gray-50')}>{label}</button>)}
-              </div></div>
-              <p className="text-xs leading-5 text-gray-500">“立即发布”的文章会自动显示在首页；草稿仅在后台可见。{lastSavedAt ? ` 已自动保存 ${lastSavedAt}` : ' 输入后会自动保存为草稿。'}</p>
+              <div className="rounded-lg bg-gray-50 p-3 text-sm"><p className="font-medium text-gray-700">状态</p><div className="mt-2 grid grid-cols-3 gap-2">
+                {([['draft', '草稿'], ['published', '立即发布'], ['scheduled', '定时发布']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setForm(f => ({ ...f, status: value }))} className={'rounded-md border px-2 py-2 text-xs font-medium transition ' + (form.status === value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-600 hover:bg-gray-50')}>{label}</button>)}
+              </div>{form.status === 'scheduled' && <label className="mt-3 block text-xs text-gray-600">发布时间<input type="datetime-local" value={form.scheduled_at} onChange={set('scheduled_at')} className="mt-1 w-full rounded-md border bg-white px-2 py-2 text-sm" /></label>}</div>
+              <p className="text-xs leading-5 text-gray-500">立即发布会显示在首页；定时发布到点后自动公开；草稿仅在后台可见。{lastSavedAt ? ` 已自动保存 ${lastSavedAt}` : ' 输入后会自动保存为草稿。'}</p>
               <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? '保存中…' : form.status === 'published' ? '发布文章' : '保存草稿'}
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? '保存中…' : form.status === 'published' ? '发布文章' : form.status === 'scheduled' ? '设定发布时间' : '保存草稿'}
               </button>
             </div>
           </section>
+
+          {isEdit && <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">版本记录</h2><p className="mt-1 text-xs text-gray-500">每次手动保存都会保留一个版本，最多 20 个。</p></div><div className="divide-y">{revisions.length ? revisions.map(revision => <div key={revision.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm text-gray-700">{revision.title}</p><p className="text-xs text-gray-400">{String(revision.created_at).replace('T', ' ').slice(0, 16)}</p></div><button type="button" onClick={() => restoreRevision(revision.id)} className="shrink-0 text-sm text-blue-600 hover:underline">恢复</button></div>) : <p className="px-5 py-4 text-sm text-gray-400">还没有可恢复的历史版本。</p>}</div></section>}
 
           <section className="rounded-xl border bg-white shadow-sm">
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">分类</h2></div>
