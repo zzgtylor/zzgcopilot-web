@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/cloudflare-db'
+import { publishDuePosts } from '@/lib/post-scheduling'
 
 
 
@@ -7,6 +8,7 @@ export async function GET(request: NextRequest) {
   try {
       const db = await getDb()
           if (!db) return NextResponse.json({ posts: [], categories: [] })
+              await publishDuePosts(db)
 
               const { searchParams } = new URL(request.url)
                   const limit = parseInt(searchParams.get('limit') || '20')

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { getDb } from '@/lib/cloudflare-db'
+import { publishDuePosts } from '@/lib/post-scheduling'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,7 @@ async function getLatestPosts(): Promise<PostCard[]> {
   if (!db) return []
 
   try {
+    await publishDuePosts(db)
     const result = await db
       .prepare(
         `SELECT p.id, p.title, p.slug, p.cover_image, p.reading_time, p.created_at, p.published_at,

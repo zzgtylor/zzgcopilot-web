@@ -5,15 +5,18 @@ import Link from 'next/link'
 export default function AdminPage() {
   const [stats, setStats] = useState(null)
   const [posts, setPosts] = useState([])
+  const [checks, setChecks] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       fetch('/api/admin/stats').then(r => r.ok ? r.json() : null).catch(() => null),
       fetch('/api/admin/posts').then(r => r.ok ? r.json() : {posts: []}).catch(() => ({posts: []})),
-    ]).then(([s, p]) => {
+      fetch('/api/admin/publishing-health').then(r => r.ok ? r.json() : {checks: []}).catch(() => ({checks: []})),
+    ]).then(([s, p, h]) => {
       setStats(s)
       setPosts((p?.posts || []).slice(0, 10))
+      setChecks(h?.checks || [])
       setLoading(false)
     })
   }, [])
@@ -26,6 +29,11 @@ export default function AdminPage() {
           <p className="text-gray-500 text-sm mt-1">欢迎回来，管理员</p>
         </div>
         <Link href="/admin/posts/new" className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">+ 发布文章</Link>
+      </div>
+
+      <div className="mb-8 rounded-2xl border bg-white">
+        <div className="flex items-center justify-between border-b px-6 py-4"><div><h2 className="font-semibold text-gray-900">发布检查</h2><p className="mt-0.5 text-xs text-gray-500">发布质量、搜索展示与定时文章状态</p></div><Link href="/admin/posts" className="text-sm text-blue-600 hover:underline">管理文章</Link></div>
+        <div className="grid gap-px bg-gray-100 sm:grid-cols-2 lg:grid-cols-4">{loading ? <div className="col-span-full bg-white px-6 py-8 text-center text-sm text-gray-400">检查中…</div> : checks.map((check) => <div key={check.key} className="bg-white px-5 py-4"><p className={'text-2xl font-bold ' + (check.count ? 'text-amber-600' : 'text-green-600')}>{check.count}</p><p className="mt-1 text-sm font-medium text-gray-800">{check.label}</p><p className="mt-1 text-xs leading-5 text-gray-400">{check.hint}</p></div>)}</div>
       </div>
 
       <div className="grid grid-cols-3 gap-5 mb-8">

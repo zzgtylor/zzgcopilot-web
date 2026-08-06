@@ -46,8 +46,29 @@ CREATE TABLE IF NOT EXISTS posts (
   meta_description TEXT,
   og_image TEXT,
   published_at TEXT,
+  scheduled_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Restorable manual versions for articles
+CREATE TABLE IF NOT EXISTS post_revisions (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  excerpt TEXT,
+  content TEXT NOT NULL,
+  cover_image TEXT,
+  category_id TEXT,
+  status TEXT NOT NULL,
+  scheduled_at TEXT,
+  tags TEXT DEFAULT '[]',
+  meta_title TEXT,
+  meta_description TEXT,
+  og_image TEXT,
+  created_by TEXT REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Comments
@@ -107,6 +128,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category_id);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
+CREATE INDEX IF NOT EXISTS idx_posts_scheduled ON posts(scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_post_revisions_post ON post_revisions(post_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_author ON comments(author_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);

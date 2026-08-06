@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getDb } from '@/lib/cloudflare-db'
+import { publishDuePosts, scheduledAt } from '@/lib/post-scheduling'
 
 function normalizedStatus(value: unknown) {
   return value === 'published' || value === 'archived' ? value : 'draft'
@@ -19,8 +20,10 @@ export async function GET(request: NextRequest) {
 
     const db = await getDb()
     if (!db) return NextResponse.json({ posts: [] })
+    await publishDuePosts(db)
 
-    const id = new URL(request.url).searchParams.get('id')
+    const searchParams = new URL(request.url).searchParams
+    const id = searchParams.get('id')
     if (id) {
       const post = await db
         .prepare(
@@ -32,10 +35,13 @@ export async function GET(request: NextRequest) {
         )
         .bind(id)
         .first()
+      if (searchParams.get('revisions') === '1') {
+        const revisions = await db.prepare('SELECT id, title, status, scheduled_at, created_at FROM post_revisions WHERE post_id = ? ORDER BY created_at DESC LIMIT 20').bind(id).all()
+        return NextResponse.json({ post: post || null, revisions: revisions.results || [] })
+      }
       return NextResponse.json({ post: post || null })
     }
 
-    const { searchParams } = new URL(request.url)
     const query = (searchParams.get('q') || '').trim().slice(0, 100)
     const status = searchParams.get('status')
     const page = Math.max(1, Number(searchParams.get('page')) || 1)
@@ -55,7 +61,7 @@ export async function GET(request: NextRequest) {
     const count = await db.prepare(`SELECT COUNT(*) AS total FROM posts p ${where}`).bind(...bindings).first<{ total: number }>()
     const result = await db
       .prepare(
-        `SELECT p.id, p.title, p.slug, p.status, p.tags, p.view_count, p.created_at,
+        `SELECT p.id, p.title, p.slug, p.status, p.scheduled_at, p.tags, p.view_count, p.created_at,
                 u.name AS author_name, c.name AS category_name
          FROM posts p
          LEFT JOIN users u ON p.author_id = u.id
@@ -87,19 +93,22 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as any
     const { title, slug, content, excerpt, cover_image, category_id, tags, meta_title, meta_description, og_image } = body
-    const status = normalizedStatus(body.status)
+    const schedule = scheduledAt(body.scheduled_at)
+    const wantsSchedule = body.status === 'scheduled'
+    const status = wantsSchedule ? 'draft' : normalizedStatus(body.status)
     const userId = (session.user as any).id
 
-    if (!title || !slug || !userId || (status === 'published' && !content)) {
-      return NextResponse.json({ error: status === 'published' ? '标题、URL Slug 和正文不能为空' : '草稿至少需要标题和 URL Slug' }, { status: 400 })
+    if (!title || !slug || !userId || ((status === 'published' || wantsSchedule) && !content)) {
+      return NextResponse.json({ error: status === 'published' || wantsSchedule ? '发布文章需要标题、URL Slug 和正文' : '草稿至少需要标题和 URL Slug' }, { status: 400 })
     }
+    if (wantsSchedule && (!schedule || new Date(schedule).getTime() <= Date.now())) return NextResponse.json({ error: '请选择未来的发布时间' }, { status: 400 })
 
     await db
       .prepare(
         `INSERT INTO posts (
           title, slug, content, excerpt, cover_image, category_id, author_id, status, tags,
-          meta_title, meta_description, og_image, published_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END)`
+          meta_title, meta_description, og_image, published_at, scheduled_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END, ?)`
       )
       .bind(
         title,
@@ -115,6 +124,7 @@ export async function POST(request: NextRequest) {
         meta_description || null,
         og_image || null,
         status
+        , wantsSchedule ? schedule : null
       )
       .run()
 
@@ -135,17 +145,28 @@ export async function PUT(request: NextRequest) {
 
     const body = (await request.json()) as any
     const { id, title, slug, content, excerpt, cover_image, category_id, tags, meta_title, meta_description, og_image } = body
-    const status = normalizedStatus(body.status)
+    const schedule = scheduledAt(body.scheduled_at)
+    const wantsSchedule = body.status === 'scheduled'
+    const status = wantsSchedule ? 'draft' : normalizedStatus(body.status)
 
-    if (!id || !title || !slug || (status === 'published' && !content)) {
+    if (!id || !title || !slug || ((status === 'published' || wantsSchedule) && !content)) {
       return NextResponse.json({ error: '文章信息不完整' }, { status: 400 })
+    }
+    if (wantsSchedule && (!schedule || new Date(schedule).getTime() <= Date.now())) return NextResponse.json({ error: '请选择未来的发布时间' }, { status: 400 })
+
+    if (body.save_revision) {
+      await db.prepare(
+        `INSERT INTO post_revisions (post_id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, created_by)
+         SELECT id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, ? FROM posts WHERE id = ?`
+      ).bind((session.user as any).id || null, id).run()
+      await db.prepare('DELETE FROM post_revisions WHERE post_id = ? AND id NOT IN (SELECT id FROM post_revisions WHERE post_id = ? ORDER BY created_at DESC LIMIT 20)').bind(id, id).run()
     }
 
     await db
       .prepare(
         `UPDATE posts
          SET title = ?, slug = ?, content = ?, excerpt = ?, cover_image = ?, category_id = ?,
-             status = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?,
+             status = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?, scheduled_at = ?,
              published_at = CASE
                WHEN ? = 'published' AND published_at IS NULL THEN datetime('now')
                WHEN ? <> 'published' THEN NULL
@@ -166,6 +187,7 @@ export async function PUT(request: NextRequest) {
         meta_title || null,
         meta_description || null,
         og_image || null,
+        wantsSchedule ? schedule : null,
         status,
         status,
         id
@@ -204,10 +226,22 @@ export async function PATCH(request: NextRequest) {
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
 
-    const { id, ids, action } = (await request.json()) as { id?: string; ids?: string[]; action?: string }
+    const { id, ids, action, revisionId } = (await request.json()) as { id?: string; ids?: string[]; action?: string; revisionId?: string }
     if (action === 'restore' && id) {
       await db.prepare("UPDATE posts SET status = 'draft', updated_at = datetime('now') WHERE id = ? AND status = 'archived'").bind(id).run()
       return NextResponse.json({ success: true, status: 'draft' })
+    }
+    if (action === 'restoreRevision' && id && revisionId) {
+      const revision = await db.prepare('SELECT * FROM post_revisions WHERE id = ? AND post_id = ?').bind(revisionId, id).first<any>()
+      if (!revision) return NextResponse.json({ error: '未找到该版本' }, { status: 404 })
+      await db.prepare(
+        `INSERT INTO post_revisions (post_id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, created_by)
+         SELECT id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, ? FROM posts WHERE id = ?`
+      ).bind((session.user as any).id || null, id).run()
+      await db.prepare(
+        `UPDATE posts SET title = ?, slug = ?, excerpt = ?, content = ?, cover_image = ?, category_id = ?, status = ?, scheduled_at = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?, updated_at = datetime('now') WHERE id = ?`
+      ).bind(revision.title, revision.slug, revision.excerpt || '', revision.content, revision.cover_image || '', revision.category_id || null, revision.status, revision.scheduled_at || null, revision.tags || '[]', revision.meta_title || null, revision.meta_description || null, revision.og_image || null, id).run()
+      return NextResponse.json({ success: true })
     }
 
     const selected = Array.isArray(ids) ? [...new Set(ids.filter((value) => typeof value === 'string' && value))].slice(0, 100) : []
