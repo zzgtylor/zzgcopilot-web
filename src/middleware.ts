@@ -12,6 +12,8 @@ export default function middleware(request: NextRequest) {
 
     if (pathname.startsWith('/admin')) return authMiddleware(request)
 
+    if (pathname === '/sitemap.xml') return NextResponse.rewrite(new URL('/api/sitemap', request.url))
+
     if (
         pathname === '/word-tutorial' ||
         pathname.startsWith('/word-tutorial/') ||
@@ -34,6 +36,7 @@ export default function middleware(request: NextRequest) {
         pathname.startsWith('/_next') ||
         pathname.startsWith('/uploads') ||
         pathname === '/favicon.ico'
+        || pathname === '/robots.txt'
     ) {
         return NextResponse.next()
     }
