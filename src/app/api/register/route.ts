@@ -4,13 +4,16 @@ import { hashPassword } from '@/lib/passwords'
 
 export async function POST(request: NextRequest) {
     try {
-          const { name, email, password } = await request.json()
+      if (process.env.PUBLIC_REGISTRATION_ENABLED !== 'true') {
+              return NextResponse.json({ error: '公开注册当前已关闭，请联系管理员创建账号。' }, { status: 403 })
+      }
+          const { name, email, password } = await request.json() as { name?: string; email?: string; password?: string }
 
       if (!name || !email || !password) {
               return NextResponse.json({ error: '请填写所有必填项' }, { status: 400 })
       }
-          if (password.length < 8) {
-                  return NextResponse.json({ error: '密码至少需要8位字符' }, { status: 400 })
+          if (password.length < 12 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+                  return NextResponse.json({ error: '密码至少12位，并包含大小写字母和数字' }, { status: 400 })
           }
 
       const db = await getDb()

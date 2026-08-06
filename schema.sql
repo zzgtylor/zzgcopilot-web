@@ -113,7 +113,32 @@ CREATE TABLE IF NOT EXISTS media (
   width INTEGER,
   height INTEGER,
   uploaded_by TEXT NOT NULL REFERENCES users(id),
+  deleted_at TEXT,
+  source_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS auth_attempts (
+  key TEXT PRIMARY KEY,
+  failed_count INTEGER NOT NULL DEFAULT 0,
+  first_failed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  locked_until TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS system_events (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  event_type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  details TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS post_daily_views (
+  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  view_date TEXT NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (post_id, view_date)
 );
 
 -- Site copy and safe UI controls for non-technical editors
@@ -135,16 +160,9 @@ CREATE INDEX IF NOT EXISTS idx_comments_author ON comments(author_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_post ON bookmarks(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id);
-
--- Seed admin user (password: Admin@123456 - change in production!)
-INSERT OR IGNORE INTO users (id, name, email, password_hash, role) 
-VALUES (
-  'admin-user-001',
-  'Admin',
-  'admin@zzgcopilot.com',
-  'pbkdf2:100000:e80f0c266ff2c78b950252edeb44cd1e:5ebad26386b846da73245270eafe49eceacb61bcbfe17692cede4c3771fc44fe',
-  'admin'
-);
+CREATE INDEX IF NOT EXISTS idx_media_deleted ON media(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_system_events_type_created ON system_events(event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_post_daily_views_date ON post_daily_views(view_date);
 
 -- Seed default categories
 INSERT OR IGNORE INTO categories (name, slug, description, sort_order) VALUES

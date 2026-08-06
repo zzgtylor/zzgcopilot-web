@@ -7,6 +7,7 @@ import { getDb } from '@/lib/cloudflare-db'
 import { getSiteSettings } from '@/lib/site-settings'
 import { auth } from '@/auth'
 import { publishDuePosts } from '@/lib/post-scheduling'
+import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +46,10 @@ async function getPost(slug: string, includeUnpublished = false): Promise<Post |
 async function incrementViewCount(id: string) {
   const db = await getDb()
   if (!db) return
-  await db.prepare('UPDATE posts SET view_count = view_count + 1 WHERE id = ?').bind(id).run().catch(() => {})
+  await db.batch([
+    db.prepare('UPDATE posts SET view_count = view_count + 1 WHERE id = ?').bind(id),
+    db.prepare("INSERT INTO post_daily_views (post_id, view_date, views) VALUES (?, date('now'), 1) ON CONFLICT(post_id, view_date) DO UPDATE SET views = views + 1").bind(id),
+  ]).catch(() => {})
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -88,10 +92,13 @@ function formatDate(iso: string | null) {
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const session = await auth()
+  const requestHeaders = await headers()
   const post = await getPost(slug, Boolean(session?.user))
   if (!post) notFound()
 
-  if (post.status === 'published') incrementViewCount(post.id)
+  const userAgent = requestHeaders.get('user-agent') || ''
+  const isLikelyBot = /bot|crawler|spider|slurp|preview|facebookexternalhit|whatsapp|telegram/i.test(userAgent)
+  if (post.status === 'published' && !session?.user && !isLikelyBot) await incrementViewCount(post.id)
 
   return (
     <main className="min-h-screen bg-white">
@@ -109,7 +116,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-400">
             {post.author_name && <span>{post.author_name}</span>}
             <span>{formatDate(post.published_at || post.created_at)}</span>
-            <span>{(post.view_count || 0) + 1} 次阅读</span>
+            <span>{post.view_count || 0} 次阅读</span>
           </div>
         </header>
 

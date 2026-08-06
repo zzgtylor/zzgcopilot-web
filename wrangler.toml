@@ -1,5 +1,5 @@
 name = "zzgcopilot-web"
-compatibility_date = "2025-06-01"
+compatibility_date = "2026-08-06"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".open-next"
 
@@ -7,6 +7,7 @@ pages_build_output_dir = ".open-next"
 binding = "DB"
 database_name = "zzgcopilot-db"
 database_id = "6306be87-8b34-4573-8bc6-9202dd660785"
+migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "R2"

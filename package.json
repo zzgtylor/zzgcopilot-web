@@ -9,7 +9,13 @@
           "pages:build": "opennextjs-cloudflare build && node scripts/pages-postbuild.mjs",
           "preview": "npm run pages:build && opennextjs-cloudflare preview",
     "deploy": "npm run pages:build && wrangler pages deploy",
-    "backup:cloudflare": "bash scripts/backup-cloudflare.sh"
+    "backup:cloudflare": "bash scripts/backup-cloudflare.sh",
+    "publisher:types": "wrangler types workers/publisher/env.d.ts --config wrangler.publisher.jsonc --include-runtime false",
+    "publisher:check": "wrangler deploy --dry-run --config wrangler.publisher.jsonc",
+    "publisher:deploy": "wrangler deploy --config wrangler.publisher.jsonc",
+    "media:register-static": "node scripts/register-static-media.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
           "next": "15.5.18",

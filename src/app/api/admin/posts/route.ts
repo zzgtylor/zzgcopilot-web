@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
 import { getDb } from '@/lib/cloudflare-db'
 import { publishDuePosts, scheduledAt } from '@/lib/post-scheduling'
+import { requireAdminRole } from '@/lib/admin-auth'
+
+const noStore = { 'Cache-Control': 'private, no-store, max-age=0' }
 
 function normalizedStatus(value: unknown) {
   return value === 'published' || value === 'archived' ? value : 'draft'
@@ -15,14 +17,21 @@ function parseTags(value: unknown) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const access = await requireAdminRole()
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const db = await getDb()
-    if (!db) return NextResponse.json({ posts: [] })
+    if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
     await publishDuePosts(db)
 
     const searchParams = new URL(request.url).searchParams
+    if (searchParams.get('meta') === '1') {
+      const [categories, authors] = await Promise.all([
+        db.prepare('SELECT id, name FROM categories ORDER BY sort_order ASC, name ASC').all(),
+        db.prepare("SELECT id, name FROM users WHERE is_active = 1 AND role IN ('admin', 'editor') ORDER BY name ASC").all(),
+      ])
+      return NextResponse.json({ categories: categories.results || [], authors: authors.results || [] }, { headers: noStore })
+    }
     const id = searchParams.get('id')
     if (id) {
       const post = await db
@@ -36,14 +45,20 @@ export async function GET(request: NextRequest) {
         .bind(id)
         .first()
       if (searchParams.get('revisions') === '1') {
-        const revisions = await db.prepare('SELECT id, title, status, scheduled_at, created_at FROM post_revisions WHERE post_id = ? ORDER BY created_at DESC LIMIT 20').bind(id).all()
-        return NextResponse.json({ post: post || null, revisions: revisions.results || [] })
+        const revisions = await db.prepare('SELECT id, title, status, scheduled_at, excerpt, content, created_at FROM post_revisions WHERE post_id = ? ORDER BY created_at DESC LIMIT 20').bind(id).all()
+        return NextResponse.json({ post: post || null, revisions: revisions.results || [] }, { headers: noStore })
       }
-      return NextResponse.json({ post: post || null })
+      return NextResponse.json({ post: post || null }, { headers: noStore })
     }
 
     const query = (searchParams.get('q') || '').trim().slice(0, 100)
     const status = searchParams.get('status')
+    const categoryId = searchParams.get('category_id')
+    const authorId = searchParams.get('author_id')
+    const dateFrom = searchParams.get('date_from')
+    const dateTo = searchParams.get('date_to')
+    const sort = searchParams.get('sort')
+    const quality = searchParams.get('quality')
     const page = Math.max(1, Number(searchParams.get('page')) || 1)
     const pageSize = Math.min(50, Math.max(5, Number(searchParams.get('pageSize')) || 12))
     const conditions: string[] = []
@@ -53,21 +68,31 @@ export async function GET(request: NextRequest) {
       const term = `%${query}%`
       bindings.push(term, term, term)
     }
-    if (status === 'published' || status === 'draft' || status === 'archived') {
+    if (status === 'scheduled') {
+      conditions.push("p.status = 'draft' AND p.scheduled_at IS NOT NULL")
+    } else if (status === 'published' || status === 'draft' || status === 'archived') {
       conditions.push('p.status = ?')
       bindings.push(status)
     }
+    if (categoryId) { conditions.push('p.category_id = ?'); bindings.push(categoryId) }
+    if (authorId) { conditions.push('p.author_id = ?'); bindings.push(authorId) }
+    if (quality === 'cover') conditions.push("p.status = 'published' AND (p.cover_image IS NULL OR p.cover_image = '')")
+    if (quality === 'description') conditions.push("p.status = 'published' AND (p.meta_description IS NULL OR p.meta_description = '')")
+    if (quality === 'category') conditions.push("p.status = 'published' AND p.category_id IS NULL")
+    if (dateFrom && /^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) { conditions.push('date(p.created_at) >= date(?)'); bindings.push(dateFrom) }
+    if (dateTo && /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) { conditions.push('date(p.created_at) <= date(?)'); bindings.push(dateTo) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+    const orderBy = sort === 'oldest' ? 'p.created_at ASC' : sort === 'views' ? 'p.view_count DESC, p.created_at DESC' : sort === 'updated' ? 'p.updated_at DESC' : 'p.created_at DESC'
     const count = await db.prepare(`SELECT COUNT(*) AS total FROM posts p ${where}`).bind(...bindings).first<{ total: number }>()
     const result = await db
       .prepare(
         `SELECT p.id, p.title, p.slug, p.status, p.scheduled_at, p.tags, p.view_count, p.created_at,
-                u.name AS author_name, c.name AS category_name
+                p.published_at, p.updated_at, u.name AS author_name, u.id AS author_id, c.name AS category_name, c.id AS category_id
          FROM posts p
          LEFT JOIN users u ON p.author_id = u.id
          LEFT JOIN categories c ON p.category_id = c.id
          ${where}
-         ORDER BY p.created_at DESC
+         ORDER BY ${orderBy}
          LIMIT ? OFFSET ?`
       )
       .bind(...bindings, pageSize, (page - 1) * pageSize)
@@ -77,16 +102,17 @@ export async function GET(request: NextRequest) {
       ...post,
       tags: (() => { try { return JSON.parse(post.tags || '[]') } catch { return [] } })(),
     }))
-    return NextResponse.json({ posts, total: count?.total || 0, page, pageSize })
-  } catch {
-    return NextResponse.json({ posts: [] })
+    return NextResponse.json({ posts, total: count?.total || 0, page, pageSize }, { headers: noStore })
+  } catch (error) {
+    console.error(JSON.stringify({ message: 'admin posts list failed', error: error instanceof Error ? error.message : String(error) }))
+    return NextResponse.json({ error: '文章加载失败，请稍后重试' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const access = await requireAdminRole()
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
@@ -96,7 +122,7 @@ export async function POST(request: NextRequest) {
     const schedule = scheduledAt(body.scheduled_at)
     const wantsSchedule = body.status === 'scheduled'
     const status = wantsSchedule ? 'draft' : normalizedStatus(body.status)
-    const userId = (session.user as any).id
+    const userId = access.userId
 
     if (!title || !slug || !userId || ((status === 'published' || wantsSchedule) && !content)) {
       return NextResponse.json({ error: status === 'published' || wantsSchedule ? '发布文章需要标题、URL Slug 和正文' : '草稿至少需要标题和 URL Slug' }, { status: 400 })
@@ -128,8 +154,8 @@ export async function POST(request: NextRequest) {
       )
       .run()
 
-    const post = await db.prepare('SELECT id FROM posts WHERE slug = ?').bind(slug).first<{ id: string }>()
-    return NextResponse.json({ success: true, id: post?.id })
+    const post = await db.prepare('SELECT id, updated_at FROM posts WHERE slug = ?').bind(slug).first<{ id: string; updated_at: string }>()
+    return NextResponse.json({ success: true, id: post?.id, updated_at: post?.updated_at })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
   }
@@ -137,8 +163,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const access = await requireAdminRole()
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
@@ -148,6 +174,7 @@ export async function PUT(request: NextRequest) {
     const schedule = scheduledAt(body.scheduled_at)
     const wantsSchedule = body.status === 'scheduled'
     const status = wantsSchedule ? 'draft' : normalizedStatus(body.status)
+    const expectedUpdatedAt = body.expected_updated_at ? String(body.expected_updated_at) : null
 
     if (!id || !title || !slug || ((status === 'published' || wantsSchedule) && !content)) {
       return NextResponse.json({ error: '文章信息不完整' }, { status: 400 })
@@ -158,11 +185,11 @@ export async function PUT(request: NextRequest) {
       await db.prepare(
         `INSERT INTO post_revisions (post_id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, created_by)
          SELECT id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, ? FROM posts WHERE id = ?`
-      ).bind((session.user as any).id || null, id).run()
+      ).bind(access.userId || null, id).run()
       await db.prepare('DELETE FROM post_revisions WHERE post_id = ? AND id NOT IN (SELECT id FROM post_revisions WHERE post_id = ? ORDER BY created_at DESC LIMIT 20)').bind(id, id).run()
     }
 
-    await db
+    const update = await db
       .prepare(
         `UPDATE posts
          SET title = ?, slug = ?, content = ?, excerpt = ?, cover_image = ?, category_id = ?,
@@ -173,7 +200,7 @@ export async function PUT(request: NextRequest) {
                ELSE published_at
              END,
              updated_at = datetime('now')
-         WHERE id = ?`
+         WHERE id = ? AND (? IS NULL OR updated_at = ?)`
       )
       .bind(
         title,
@@ -190,11 +217,16 @@ export async function PUT(request: NextRequest) {
         wantsSchedule ? schedule : null,
         status,
         status,
-        id
+        id,
+        expectedUpdatedAt,
+        expectedUpdatedAt
       )
       .run()
-
-    return NextResponse.json({ success: true })
+    if (Number(update.meta.changes || 0) === 0 && expectedUpdatedAt) {
+      return NextResponse.json({ error: '文章已在其他窗口被修改，请刷新后再保存。', conflict: true }, { status: 409 })
+    }
+    const updated = await db.prepare('SELECT updated_at FROM posts WHERE id = ?').bind(id).first<{ updated_at: string }>()
+    return NextResponse.json({ success: true, updated_at: updated?.updated_at })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
   }
@@ -202,8 +234,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const access = await requireAdminRole()
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
@@ -220,8 +252,8 @@ export async function DELETE(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const access = await requireAdminRole()
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
@@ -237,7 +269,7 @@ export async function PATCH(request: NextRequest) {
       await db.prepare(
         `INSERT INTO post_revisions (post_id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, created_by)
          SELECT id, title, slug, excerpt, content, cover_image, category_id, status, scheduled_at, tags, meta_title, meta_description, og_image, ? FROM posts WHERE id = ?`
-      ).bind((session.user as any).id || null, id).run()
+      ).bind(access.userId || null, id).run()
       await db.prepare(
         `UPDATE posts SET title = ?, slug = ?, excerpt = ?, content = ?, cover_image = ?, category_id = ?, status = ?, scheduled_at = ?, tags = ?, meta_title = ?, meta_description = ?, og_image = ?, updated_at = datetime('now') WHERE id = ?`
       ).bind(revision.title, revision.slug, revision.excerpt || '', revision.content, revision.cover_image || '', revision.category_id || null, revision.status, revision.scheduled_at || null, revision.tags || '[]', revision.meta_title || null, revision.meta_description || null, revision.og_image || null, id).run()

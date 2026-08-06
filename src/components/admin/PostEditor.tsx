@@ -74,7 +74,7 @@ function RichEditor({ value, onChange, onImage }: { value: string; onChange: (v:
   const cmd = (c: string, v?: string) => { document.execCommand(c, false, v); sync() }
   const sync = () => { if (ref.current) onChange(htmlToMarkdown(ref.current.innerHTML)) }
   const insertLink = () => { const url = prompt('链接地址 URL:'); if (url) cmd('createLink', url) }
-  const insertImage = async () => { const url = await onImage(); if (url) cmd('insertHTML', '<img src="' + url + '" alt="" style="max-width:100%" />') }
+  const insertImage = async () => { const url = await onImage(); if (url) { const alt = prompt('请填写图片替代文字（说明图片内容）：') || ''; cmd('insertHTML', '<img src="' + url + '" alt="' + alt.replace(/["<>]/g, '') + '" style="max-width:100%" />') } }
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="flex flex-wrap items-center gap-0.5 border-b bg-gray-50 px-2 py-1.5">
@@ -112,10 +112,10 @@ function RichEditor({ value, onChange, onImage }: { value: string; onChange: (v:
   )
 }
 
-type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; scheduled_at: string; cover_image: string; tags: string[]; meta_title?: string; meta_description?: string }
+type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; scheduled_at: string; cover_image: string; tags: string[]; meta_title: string; meta_description: string; og_image: string }
 type Category = { id: string; name: string }
 type MediaItem = { id: string; original_name: string; url: string; size: number }
-type Revision = { id: string; title: string; status: string; scheduled_at?: string; created_at: string }
+type Revision = { id: string; title: string; status: string; scheduled_at?: string; excerpt?: string; content?: string; created_at: string }
 
 function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const [items, setItems] = useState<MediaItem[]>([])
@@ -124,7 +124,7 @@ function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; o
   useEffect(() => {
     fetch('/api/upload')
       .then((r) => (r.ok ? r.json() : { media: [] }))
-      .then((data) => setItems(data.media || []))
+      .then((data: any) => setItems(data.media || []))
       .finally(() => setLoading(false))
   }, [])
 
@@ -155,7 +155,7 @@ function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; o
 export default function PostEditor({ postId }: { postId?: string }) {
   const router = useRouter()
   const isEdit = Boolean(postId)
-  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', scheduled_at: '', cover_image: '', tags: [], meta_title: '', meta_description: '' })
+  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', scheduled_at: '', cover_image: '', tags: [], meta_title: '', meta_description: '', og_image: '' })
   const [revisions, setRevisions] = useState<Revision[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [saving, setSaving] = useState(false)
@@ -167,6 +167,9 @@ export default function PostEditor({ postId }: { postId?: string }) {
   const slugTouchedRef = useRef(isEdit)
   const [currentPostId, setCurrentPostId] = useState(postId || '')
   const [lastSavedAt, setLastSavedAt] = useState('')
+  const [savedSignature, setSavedSignature] = useState('')
+  const [revisionPreview, setRevisionPreview] = useState<Revision | null>(null)
+  const [serverUpdatedAt, setServerUpdatedAt] = useState('')
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -180,12 +183,19 @@ export default function PostEditor({ postId }: { postId?: string }) {
         if (d.post) {
           let tags: string[] = []
           try { tags = Array.isArray(d.post.tags) ? d.post.tags : JSON.parse(d.post.tags || '[]') } catch { tags = [] }
-          setForm({ id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '' })
+          const loadedForm = { id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '', og_image: d.post.og_image || '' }
+          setForm(loadedForm)
+          setSavedSignature(JSON.stringify(loadedForm))
+          setServerUpdatedAt(d.post.updated_at || '')
           setRevisions(d.revisions || [])
         }
         else setError(d.error || '加载文章失败')
       }).catch(() => setError('加载文章失败')).finally(() => setLoading(false))
   }, [isEdit, postId])
+
+  useEffect(() => {
+    if (!isEdit) setSavedSignature(JSON.stringify(form))
+  }, [])
 
   useEffect(() => {
     if (form.title && !slugTouchedRef.current && !form.slug) {
@@ -202,7 +212,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
   async function uploadFile(): Promise<string> {
     return new Promise((resolve) => {
       const input = document.createElement('input')
-      input.type = 'file'; input.accept = 'image/*'
+      input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp,image/gif'
       input.onchange = async () => {
         const file = input.files?.[0]; if (!file) return resolve('')
         const fd = new FormData(); fd.append('file', file)
@@ -230,7 +240,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
       return false
     }
     setSaving(true); setError('')
-    const payload = { ...form, id: currentPostId || undefined, status: automatic ? 'draft' : form.status, scheduled_at: automatic ? '' : form.status === 'scheduled' ? form.scheduled_at : '', save_revision: !automatic, slug: form.slug || Date.now().toString() }
+    const payload = { ...form, id: currentPostId || undefined, expected_updated_at: serverUpdatedAt || undefined, status: form.status, scheduled_at: form.status === 'scheduled' ? form.scheduled_at : '', save_revision: !automatic, slug: form.slug || Date.now().toString() }
     const r = currentPostId
       ? await fetch('/api/admin/posts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
       : await fetch('/api/admin/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
@@ -242,6 +252,8 @@ export default function PostEditor({ postId }: { postId?: string }) {
         if (automatic) router.replace(`/admin/posts/${d.id}/edit`)
       }
       setLastSavedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+      if (d.updated_at) setServerUpdatedAt(d.updated_at)
+      setSavedSignature(JSON.stringify({ ...form, slug: payload.slug }))
       if (!automatic) { setOk(true); setTimeout(() => router.push('/admin/posts'), 1200) }
     }
     setSaving(false)
@@ -254,11 +266,25 @@ export default function PostEditor({ postId }: { postId?: string }) {
   }
 
   useEffect(() => {
-    if (!form.title || saving) return
+    if (!form.title || saving || form.status !== 'draft') return
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => { void save(true) }, 10000)
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
-  }, [form.title, form.slug, form.excerpt, form.content, form.category_id, form.cover_image, form.tags, form.meta_title, form.meta_description])
+  }, [form.title, form.slug, form.excerpt, form.content, form.category_id, form.cover_image, form.tags, form.meta_title, form.meta_description, form.og_image, form.status])
+
+  const currentSignature = JSON.stringify(form)
+  const dirty = Boolean(savedSignature && currentSignature !== savedSignature)
+  const plainContent = form.content.replace(/[#*_>`\[\]()!-]/g, ' ').replace(/\s+/g, ' ').trim()
+  const wordCount = plainContent ? plainContent.split(/\s+/).length : 0
+  const chineseCount = (plainContent.match(/[\u4e00-\u9fff]/g) || []).length
+  const readingMinutes = Math.max(1, Math.ceil((wordCount + chineseCount) / 300))
+  const outline = form.content.split('\n').filter(line => /^#{1,3}\s+/.test(line)).slice(0, 12)
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   async function restoreRevision(revisionId: string) {
     if (!currentPostId || !confirm('恢复这个版本？系统会先保留当前内容，便于再次恢复。')) return
@@ -272,7 +298,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
   return (
     <div className="mx-auto max-w-7xl p-5 sm:p-8">
       <div className="mb-6 flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">{isEdit ? '编辑文章' : '写文章'}</h1><p className="mt-1 text-sm text-gray-500">内容发布后会自动出现在首页的教程卡片中。</p></div>
+        <div><h1 className="text-2xl font-bold text-gray-900">{isEdit ? '编辑文章' : '写文章'}</h1><p className="mt-1 text-sm text-gray-500">内容发布后会自动出现在首页的教程卡片中。{dirty ? <span className="ml-2 font-medium text-amber-600">有未保存修改</span> : savedSignature ? <span className="ml-2 text-green-600">已保存</span> : null}</p></div>
         <button type="button" onClick={() => router.back()} className="rounded-md border bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">返回列表</button>
       </div>
       {ok && <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">保存成功，正在返回文章列表…</p>}
@@ -291,7 +317,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
           </div>
 
           <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-3 flex items-center justify-between"><label className="text-sm font-semibold text-gray-800">正文内容</label><span className="text-xs text-gray-400">支持标题、列表、链接、图片与 Markdown</span></div>
+            <div className="mb-3 flex items-center justify-between"><label className="text-sm font-semibold text-gray-800">正文内容</label><span className="text-xs text-gray-400">{wordCount + chineseCount} 字 · 约 {readingMinutes} 分钟阅读</span></div>
             <RichEditor value={form.content} onChange={(v) => setForm(f => ({ ...f, content: v }))} onImage={uploadFile} />
           </div>
 
@@ -303,8 +329,10 @@ export default function PostEditor({ postId }: { postId?: string }) {
           <details className="rounded-xl border bg-white shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-gray-800">SEO 设置（可选）<ChevronDown className="h-4 w-4 text-gray-400" /></summary>
             <div className="space-y-4 border-t p-5">
-              <div><label className="mb-1 block text-sm font-medium text-gray-700">SEO 标题</label><input type="text" value={form.meta_title} onChange={set('meta_title')} placeholder={form.title || '留空则使用文章标题'} className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></div>
-              <div><label className="mb-1 block text-sm font-medium text-gray-700">SEO 描述</label><textarea value={form.meta_description} onChange={set('meta_description')} rows={3} placeholder={form.excerpt || '留空则使用摘要'} className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></div>
+              <div><label className="mb-1 flex justify-between text-sm font-medium text-gray-700"><span>SEO 标题</span><span className={(form.meta_title || form.title).length > 60 ? 'text-red-600' : 'text-gray-400'}>{(form.meta_title || form.title).length}/60</span></label><input type="text" value={form.meta_title} onChange={set('meta_title')} placeholder={form.title || '留空则使用文章标题'} className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></div>
+              <div><label className="mb-1 flex justify-between text-sm font-medium text-gray-700"><span>SEO 描述</span><span className={(form.meta_description || form.excerpt).length > 160 ? 'text-red-600' : 'text-gray-400'}>{(form.meta_description || form.excerpt).length}/160</span></label><textarea value={form.meta_description} onChange={set('meta_description')} rows={3} placeholder={form.excerpt || '留空则使用摘要'} className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></div>
+              <div><label className="mb-1 block text-sm font-medium text-gray-700">社交分享图片 URL</label><input type="url" value={form.og_image} onChange={set('og_image')} placeholder={form.cover_image || '留空则使用文章封面'} className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></div>
+              <div className="rounded-lg border bg-gray-50 p-4"><p className="truncate text-base text-blue-700">{form.meta_title || form.title || '文章标题预览'}</p><p className="mt-1 truncate text-xs text-green-700">zzgcopilot.com/tutorials/{form.slug || 'article-slug'}</p><p className="mt-1 line-clamp-2 text-sm text-gray-600">{form.meta_description || form.excerpt || '这里会显示搜索结果描述。'}</p></div>
             </div>
           </details>
         </section>
@@ -323,7 +351,9 @@ export default function PostEditor({ postId }: { postId?: string }) {
             </div>
           </section>
 
-          {isEdit && <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">版本记录</h2><p className="mt-1 text-xs text-gray-500">每次手动保存都会保留一个版本，最多 20 个。</p></div><div className="divide-y">{revisions.length ? revisions.map(revision => <div key={revision.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm text-gray-700">{revision.title}</p><p className="text-xs text-gray-400">{String(revision.created_at).replace('T', ' ').slice(0, 16)}</p></div><button type="button" onClick={() => restoreRevision(revision.id)} className="shrink-0 text-sm text-blue-600 hover:underline">恢复</button></div>) : <p className="px-5 py-4 text-sm text-gray-400">还没有可恢复的历史版本。</p>}</div></section>}
+          {isEdit && <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">版本记录</h2><p className="mt-1 text-xs text-gray-500">手动保存保留版本，最多 20 个；可先比较再恢复。</p></div><div className="divide-y">{revisions.length ? revisions.map(revision => <div key={revision.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm text-gray-700">{revision.title}</p><p className="text-xs text-gray-400">{String(revision.created_at).replace('T', ' ').slice(0, 16)}</p></div><div className="flex gap-3"><button type="button" onClick={() => setRevisionPreview(revision)} className="text-sm text-gray-600 hover:underline">比较</button><button type="button" onClick={() => restoreRevision(revision.id)} className="text-sm text-blue-600 hover:underline">恢复</button></div></div>) : <p className="px-5 py-4 text-sm text-gray-400">还没有可恢复的历史版本。</p>}</div></section>}
+
+          <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">文章目录</h2><p className="mt-1 text-xs text-gray-500">根据正文中的一级至三级标题生成</p></div><div className="p-5">{outline.length ? <ul className="space-y-2 text-sm text-gray-600">{outline.map((heading, index) => <li key={index} className={heading.startsWith('###') ? 'pl-6' : heading.startsWith('##') ? 'pl-3' : ''}>{heading.replace(/^#{1,3}\s+/, '')}</li>)}</ul> : <p className="text-sm text-gray-400">正文中还没有标题。</p>}</div></section>
 
           <section className="rounded-xl border bg-white shadow-sm">
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">分类</h2></div>
@@ -338,12 +368,13 @@ export default function PostEditor({ postId }: { postId?: string }) {
           <section className="rounded-xl border bg-white shadow-sm">
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">特色图片</h2><p className="mt-1 text-xs text-gray-500">作为首页文章卡片的封面。</p></div>
             <div className="p-5">
-              {form.cover_image ? <div className="space-y-3"><img src={form.cover_image} className="aspect-[16/9] w-full rounded-lg object-cover" alt="文章封面" /><div className="flex gap-2"><button type="button" onClick={() => setMediaPickerOpen(true)} className="flex-1 rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">替换</button><button type="button" onClick={() => setForm(f => ({ ...f, cover_image: '' }))} className="rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50">移除</button></div></div> : <div className="space-y-3"><div className="flex aspect-[16/9] flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 text-center text-sm text-gray-400"><ImageIcon className="mb-2 h-7 w-7" />上传一张横向图片</div><p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">建议上传 16:9 横向封面；没有封面时首页会使用默认图片。</p><label className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-gray-800"><Upload className="h-4 w-4" />{uploading ? '上传中…' : '上传图片'}<input type="file" accept="image/*" className="hidden" onChange={uploadImage} /></label><button type="button" onClick={() => setMediaPickerOpen(true)} className="w-full rounded-md border px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50">从媒体库选择</button></div>}
+              {form.cover_image ? <div className="space-y-3"><img src={form.cover_image} className="aspect-[16/9] w-full rounded-lg object-cover" alt="文章封面" /><div className="flex gap-2"><button type="button" onClick={() => setMediaPickerOpen(true)} className="flex-1 rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">替换</button><button type="button" onClick={() => setForm(f => ({ ...f, cover_image: '' }))} className="rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50">移除</button></div></div> : <div className="space-y-3"><img src="/uploads/tmp-final-base.jpg" className="aspect-[16/9] w-full rounded-lg object-cover opacity-75" alt="当前默认封面"/><p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">当前前台会显示上面的默认封面。建议为每篇文章设置独立封面。</p><button type="button" onClick={() => setForm(f => ({ ...f, cover_image: '/uploads/tmp-final-base.jpg' }))} className="w-full rounded-md border px-3 py-2 text-sm text-gray-700">使用当前默认封面</button><label className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-gray-800"><Upload className="h-4 w-4" />{uploading ? '上传中…' : '上传图片'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={uploadImage} /></label><button type="button" onClick={() => setMediaPickerOpen(true)} className="w-full rounded-md border px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50">从媒体库选择</button></div>}
             </div>
           </section>
         </aside>
       </form>
       {mediaPickerOpen && <MediaPicker onSelect={(url) => setForm(f => ({ ...f, cover_image: url }))} onClose={() => setMediaPickerOpen(false)} />}
+      {revisionPreview && <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 p-4"><div className="max-h-[85vh] w-full max-w-5xl overflow-auto rounded-xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><div><h2 className="font-semibold text-gray-900">版本比较</h2><p className="text-xs text-gray-500">左侧为历史版本，右侧为当前内容</p></div><button type="button" onClick={() => setRevisionPreview(null)} className="rounded border px-3 py-1.5 text-sm">关闭</button></div><div className="grid gap-4 md:grid-cols-2"><div><p className="mb-2 text-sm font-medium text-gray-700">历史版本</p><pre className="max-h-[60vh] whitespace-pre-wrap rounded-lg border bg-red-50 p-4 text-xs leading-6">{revisionPreview.content || ''}</pre></div><div><p className="mb-2 text-sm font-medium text-gray-700">当前版本</p><pre className="max-h-[60vh] whitespace-pre-wrap rounded-lg border bg-green-50 p-4 text-xs leading-6">{form.content}</pre></div></div></div></div>}
     </div>
   )
 }

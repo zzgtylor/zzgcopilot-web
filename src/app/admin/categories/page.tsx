@@ -11,7 +11,7 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null)
   const [message, setMessage] = useState('')
 
-  function load() { fetch('/api/admin/categories').then(r => r.ok ? r.json() : { categories: [] }).then(data => setCategories(data.categories || [])) }
+  function load() { fetch('/api/admin/categories').then(r => r.ok ? r.json() : { categories: [] }).then((data: any) => setCategories(data.categories || [])) }
   useEffect(() => { load() }, [])
   async function submit(event: FormEvent) {
     event.preventDefault(); setMessage('')
