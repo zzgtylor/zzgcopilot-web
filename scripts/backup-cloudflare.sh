@@ -50,4 +50,8 @@ else
 fi
 
 (cd "$backup_dir" && find . -type f ! -name 'SHA256SUMS' -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS)
+archive_path="${backup_dir}.tar.gz"
+tar -C "$(dirname "$backup_dir")" -czf "$archive_path" "$(basename "$backup_dir")"
+echo "Uploading encrypted-in-transit archive to the private backup bucket"
+npx wrangler r2 object put "zzgcopilot-backups/${timestamp}.tar.gz" --remote --file "$archive_path"
 echo "Backup complete: $backup_dir"
