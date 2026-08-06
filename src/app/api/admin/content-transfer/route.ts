@@ -14,7 +14,7 @@ function markdownExport(post: Record<string, unknown>) {
 }
 
 export async function GET(request: NextRequest) {
-  const access = await requireAdminRole()
+  const access = await requireAdminRole(['admin', 'editor'])
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const db = access.db
   if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireAdminRole()
+  const access = await requireAdminRole(['admin', 'editor'])
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const db = access.db
   if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })

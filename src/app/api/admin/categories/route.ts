@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
 import { getDb } from '@/lib/cloudflare-db'
-
-async function requireAdmin() {
-  const session = await auth()
-  return session?.user && (session.user as any).role === 'admin'
-}
+import { requireAdminRole } from '@/lib/admin-auth'
 
 function normalizeSlug(value: unknown) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '').slice(0, 80)
 }
 
 export async function GET() {
-  if (!await requireAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const access = await requireAdminRole(['admin', 'editor']); if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const db = await getDb()
   if (!db) return NextResponse.json({ categories: [] })
   const result = await db.prepare(`SELECT c.id, c.name, c.slug, c.description, c.sort_order, COUNT(p.id) AS post_count FROM categories c LEFT JOIN posts p ON p.category_id = c.id AND p.status != 'archived' GROUP BY c.id ORDER BY c.sort_order ASC, c.name ASC`).all()
@@ -20,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await requireAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const access = await requireAdminRole(['admin', 'editor']); if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const body = await request.json() as any
   const name = String(body.name || '').trim().slice(0, 50)
   const slug = normalizeSlug(body.slug || name)
@@ -32,7 +27,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!await requireAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const access = await requireAdminRole(['admin', 'editor']); if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const body = await request.json() as any
   const id = String(body.id || '')
   const name = String(body.name || '').trim().slice(0, 50)
@@ -45,7 +40,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await requireAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const access = await requireAdminRole(['admin', 'editor']); if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const id = new URL(request.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: '缺少分类 ID' }, { status: 400 })
   const db = await getDb()

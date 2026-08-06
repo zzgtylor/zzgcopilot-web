@@ -80,10 +80,12 @@ export default function PostEditor({ postId }: { postId?: string }) {
   const [savedSignature, setSavedSignature] = useState('')
   const [revisionPreview, setRevisionPreview] = useState<Revision | null>(null)
   const [serverUpdatedAt, setServerUpdatedAt] = useState('')
+  const [reviewNote, setReviewNote] = useState('')
+  const [capabilities, setCapabilities] = useState({ manageAll: false, publish: true, upload: true })
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    fetch('/api/categories').then(r => r.json()).then((d: any) => setCategories(d.categories || [])).catch(() => {})
+    fetch('/api/admin/posts?meta=1', { cache: 'no-store' }).then(r => r.json()).then((d: any) => { setCategories(d.categories || []); if (d.capabilities) setCapabilities(d.capabilities) }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -93,10 +95,11 @@ export default function PostEditor({ postId }: { postId?: string }) {
         if (d.post) {
           let tags: string[] = []
           try { tags = Array.isArray(d.post.tags) ? d.post.tags : JSON.parse(d.post.tags || '[]') } catch { tags = [] }
-          const loadedForm = { id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '', og_image: d.post.og_image || '' }
+          const loadedForm = { id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.review_status === 'pending' ? 'pending' : d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '', og_image: d.post.og_image || '' }
           setForm(loadedForm)
           setSavedSignature(JSON.stringify(loadedForm))
           setServerUpdatedAt(d.post.updated_at || '')
+          setReviewNote(d.post.review_note || '')
           setRevisions(d.revisions || [])
         }
         else setError(d.error || '加载文章失败')
@@ -203,6 +206,13 @@ export default function PostEditor({ postId }: { postId?: string }) {
     window.location.reload()
   }
 
+  async function review(action: 'approve' | 'reject') {
+    if (!currentPostId) return
+    const note = action === 'reject' ? prompt('请填写退回修改说明（可选）：') || '' : ''
+    const r = await fetch('/api/admin/posts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: currentPostId, action, note }) })
+    if (r.ok) router.push('/admin/posts?status=pending'); else { const data: any = await r.json().catch(() => ({})); setError(data.error || '审核操作失败') }
+  }
+
   if (loading) return <div className="p-8 text-sm text-gray-400">加载中...</div>
 
   return (
@@ -213,6 +223,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
       </div>
       {ok && <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">保存成功，正在返回文章列表…</p>}
       {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {isEdit && reviewNote && form.status !== 'pending' && <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">编辑审核说明：{reviewNote}</p>}
       <form onSubmit={submit} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-w-0 space-y-5">
           <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
@@ -252,12 +263,13 @@ export default function PostEditor({ postId }: { postId?: string }) {
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">发布</h2></div>
             <div className="space-y-4 p-5">
               <div className="rounded-lg bg-gray-50 p-3 text-sm"><p className="font-medium text-gray-700">状态</p><div className="mt-2 grid grid-cols-3 gap-2">
-                {([['draft', '草稿'], ['published', '立即发布'], ['scheduled', '定时发布']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setForm(f => ({ ...f, status: value }))} className={'rounded-md border px-2 py-2 text-xs font-medium transition ' + (form.status === value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-600 hover:bg-gray-50')}>{label}</button>)}
+                {([['draft', '草稿'], ...(capabilities.publish ? [['published', '立即发布'], ['scheduled', '定时发布']] : [['pending', '提交审核']])] as string[][]).map(([value, label]) => <button key={value} type="button" onClick={() => setForm(f => ({ ...f, status: value }))} className={'rounded-md border px-2 py-2 text-xs font-medium transition ' + (form.status === value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-600 hover:bg-gray-50')}>{label}</button>)}
               </div>{form.status === 'scheduled' && <label className="mt-3 block text-xs text-gray-600">发布时间<input type="datetime-local" value={form.scheduled_at} onChange={set('scheduled_at')} className="mt-1 w-full rounded-md border bg-white px-2 py-2 text-sm" /></label>}</div>
-              <p className="text-xs leading-5 text-gray-500">立即发布会显示在首页；定时发布到点后自动公开；草稿仅在后台可见。{lastSavedAt ? ` 已自动保存 ${lastSavedAt}` : ' 输入后会自动保存为草稿。'}</p>
+              <p className="text-xs leading-5 text-gray-500">{capabilities.publish ? '立即发布会显示在首页；定时发布到点后自动公开；草稿仅在后台可见。' : '投稿者保存草稿后提交审核，由编辑审核通过后公开。'}{lastSavedAt ? ` 已自动保存 ${lastSavedAt}` : ' 输入后会自动保存为草稿。'}</p>
               <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? '保存中…' : form.status === 'published' ? '发布文章' : form.status === 'scheduled' ? '设定发布时间' : '保存草稿'}
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? '保存中…' : form.status === 'published' ? '发布文章' : form.status === 'scheduled' ? '设定发布时间' : form.status === 'pending' ? '提交审核' : '保存草稿'}
               </button>
+              {capabilities.manageAll && form.status === 'pending' && <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => review('approve')} className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white">审核通过并发布</button><button type="button" onClick={() => review('reject')} className="rounded-lg border border-amber-300 px-3 py-2 text-sm text-amber-700">退回修改</button></div>}
             </div>
           </section>
 

@@ -42,7 +42,7 @@ export const authConfig = {
                   if (path.startsWith('/admin')) {
                             if (!isLoggedIn) return false
                             const role = (auth?.user as any)?.role
-                            return role === 'admin' || role === 'editor'
+                            return role === 'admin' || role === 'editor' || role === 'author' || role === 'contributor'
                   }
                   return true
           },

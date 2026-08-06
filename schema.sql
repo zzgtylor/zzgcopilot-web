@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   avatar_url TEXT,
   role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin', 'editor')),
+  role_key TEXT NOT NULL DEFAULT '',
   is_active INTEGER DEFAULT 1,
   bio TEXT,
   auth_version INTEGER NOT NULL DEFAULT 0,
@@ -52,6 +53,8 @@ CREATE TABLE IF NOT EXISTS posts (
   og_image TEXT,
   published_at TEXT,
   scheduled_at TEXT,
+  review_status TEXT NOT NULL DEFAULT 'none',
+  review_note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -84,6 +87,7 @@ CREATE TABLE IF NOT EXISTS comments (
   parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   is_approved INTEGER DEFAULT 1,
+  moderation_note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

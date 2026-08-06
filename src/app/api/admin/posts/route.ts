@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/cloudflare-db'
 import { publishDuePosts, scheduledAt } from '@/lib/post-scheduling'
-import { requireAdminRole } from '@/lib/admin-auth'
+import { canManageAllContent, canPublish, requireAdminRole } from '@/lib/admin-auth'
 import { writeAuditLog } from '@/lib/audit'
 
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' }
@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('meta') === '1') {
       const [categories, authors] = await Promise.all([
         db.prepare('SELECT id, name FROM categories ORDER BY sort_order ASC, name ASC').all(),
-        db.prepare("SELECT id, name FROM users WHERE is_active = 1 AND role IN ('admin', 'editor') ORDER BY name ASC").all(),
+        db.prepare("SELECT id, name FROM users WHERE is_active = 1 AND COALESCE(NULLIF(role_key, ''), role) IN ('admin', 'editor', 'author', 'contributor') ORDER BY name ASC").all(),
       ])
-      return NextResponse.json({ categories: categories.results || [], authors: authors.results || [] }, { headers: noStore })
+      return NextResponse.json({ categories: categories.results || [], authors: authors.results || [], role: access.role, capabilities: { manageAll: canManageAllContent(access.role), publish: canPublish(access.role), upload: access.role !== 'contributor' } }, { headers: noStore })
     }
     const id = searchParams.get('id')
     if (id) {
@@ -41,10 +41,11 @@ export async function GET(request: NextRequest) {
            FROM posts p
            LEFT JOIN users u ON p.author_id = u.id
            LEFT JOIN categories c ON p.category_id = c.id
-           WHERE p.id = ?`
+           WHERE p.id = ? ${canManageAllContent(access.role) ? '' : 'AND p.author_id = ?'}`
         )
-        .bind(id)
+        .bind(...(canManageAllContent(access.role) ? [id] : [id, access.userId]))
         .first()
+      if (!post) return NextResponse.json({ error: '文章不存在或没有访问权限' }, { status: 404 })
       if (searchParams.get('revisions') === '1') {
         const revisions = await db.prepare('SELECT r.id, r.title, r.status, r.scheduled_at, r.excerpt, r.content, r.created_at, u.name AS created_by_name FROM post_revisions r LEFT JOIN users u ON r.created_by = u.id WHERE r.post_id = ? ORDER BY r.created_at DESC LIMIT 20').bind(id).all()
         return NextResponse.json({ post: post || null, revisions: revisions.results || [] }, { headers: noStore })
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(50, Math.max(5, Number(searchParams.get('pageSize')) || 12))
     const conditions: string[] = []
     const bindings: unknown[] = []
+    if (!canManageAllContent(access.role)) { conditions.push('p.author_id = ?'); bindings.push(access.userId) }
     if (query) {
       conditions.push('(p.title LIKE ? OR p.slug LIKE ? OR p.excerpt LIKE ?)')
       const term = `%${query}%`
@@ -71,6 +73,8 @@ export async function GET(request: NextRequest) {
     }
     if (status === 'scheduled') {
       conditions.push("p.status = 'draft' AND p.scheduled_at IS NOT NULL")
+    } else if (status === 'pending') {
+      conditions.push("p.review_status = 'pending'")
     } else if (status === 'published' || status === 'draft' || status === 'archived') {
       conditions.push('p.status = ?')
       bindings.push(status)
@@ -87,7 +91,7 @@ export async function GET(request: NextRequest) {
     const count = await db.prepare(`SELECT COUNT(*) AS total FROM posts p ${where}`).bind(...bindings).first<{ total: number }>()
     const result = await db
       .prepare(
-        `SELECT p.id, p.title, p.slug, p.status, p.scheduled_at, p.tags, p.view_count, p.created_at,
+        `SELECT p.id, p.title, p.slug, p.status, p.review_status, p.review_note, p.scheduled_at, p.tags, p.view_count, p.created_at,
                 p.published_at, p.updated_at, u.name AS author_name, u.id AS author_id, c.name AS category_name, c.id AS category_id
          FROM posts p
          LEFT JOIN users u ON p.author_id = u.id
@@ -103,7 +107,7 @@ export async function GET(request: NextRequest) {
       ...post,
       tags: (() => { try { return JSON.parse(post.tags || '[]') } catch { return [] } })(),
     }))
-    return NextResponse.json({ posts, total: count?.total || 0, page, pageSize }, { headers: noStore })
+    return NextResponse.json({ posts, total: count?.total || 0, page, pageSize, role: access.role, capabilities: { manageAll: canManageAllContent(access.role), publish: canPublish(access.role) } }, { headers: noStore })
   } catch (error) {
     console.error(JSON.stringify({ message: 'admin posts list failed', error: error instanceof Error ? error.message : String(error) }))
     return NextResponse.json({ error: '文章加载失败，请稍后重试' }, { status: 500 })
@@ -121,8 +125,11 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as any
     const { title, slug, content, excerpt, cover_image, category_id, tags, meta_title, meta_description, og_image } = body
     const schedule = scheduledAt(body.scheduled_at)
-    const wantsSchedule = body.status === 'scheduled'
-    const status = wantsSchedule ? 'draft' : normalizedStatus(body.status)
+    const wantsReview = body.status === 'pending' || body.submit_review === true
+    const wantsSchedule = body.status === 'scheduled' && canPublish(access.role)
+    const requestedStatus = wantsReview ? 'draft' : body.status
+    const status = canPublish(access.role) ? (wantsSchedule ? 'draft' : normalizedStatus(requestedStatus)) : 'draft'
+    const reviewStatus = wantsReview ? 'pending' : 'none'
     const userId = access.userId
 
     if (!title || !slug || !userId || ((status === 'published' || wantsSchedule) && !content)) {
@@ -134,8 +141,8 @@ export async function POST(request: NextRequest) {
       .prepare(
         `INSERT INTO posts (
           title, slug, content, excerpt, cover_image, category_id, author_id, status, tags,
-          meta_title, meta_description, og_image, published_at, scheduled_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END, ?)`
+          meta_title, meta_description, og_image, published_at, scheduled_at, review_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END, ?, ?)`
       )
       .bind(
         title,
@@ -151,12 +158,13 @@ export async function POST(request: NextRequest) {
         meta_description || null,
         og_image || null,
         status
-        , wantsSchedule ? schedule : null
+        , wantsSchedule ? schedule : null,
+        reviewStatus
       )
       .run()
 
     const post = await db.prepare('SELECT id, updated_at FROM posts WHERE slug = ?').bind(slug).first<{ id: string; updated_at: string }>()
-    await writeAuditLog(db, { userId: access.userId, action: status === 'published' ? 'post.publish' : wantsSchedule ? 'post.schedule' : 'post.create_draft', targetType: 'post', targetId: post?.id, summary: `${status === 'published' ? '发布' : wantsSchedule ? '定时发布' : '创建草稿'}：${String(title).slice(0, 120)}`, request })
+    await writeAuditLog(db, { userId: access.userId, action: wantsReview ? 'post.submit_review' : status === 'published' ? 'post.publish' : wantsSchedule ? 'post.schedule' : 'post.create_draft', targetType: 'post', targetId: post?.id, summary: `${wantsReview ? '提交审核' : status === 'published' ? '发布' : wantsSchedule ? '定时发布' : '创建草稿'}：${String(title).slice(0, 120)}`, request })
     return NextResponse.json({ success: true, id: post?.id, updated_at: post?.updated_at })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
@@ -173,9 +181,14 @@ export async function PUT(request: NextRequest) {
 
     const body = (await request.json()) as any
     const { id, title, slug, content, excerpt, cover_image, category_id, tags, meta_title, meta_description, og_image } = body
+    const current = await db.prepare('SELECT author_id, review_status FROM posts WHERE id = ?').bind(id).first<{ author_id: string; review_status: string }>()
+    if (!current) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+    if (!canManageAllContent(access.role) && current.author_id !== access.userId) return NextResponse.json({ error: '只能编辑自己的文章' }, { status: 403 })
     const schedule = scheduledAt(body.scheduled_at)
-    const wantsSchedule = body.status === 'scheduled'
-    const status = wantsSchedule ? 'draft' : normalizedStatus(body.status)
+    const wantsReview = body.status === 'pending' || body.submit_review === true
+    const wantsSchedule = body.status === 'scheduled' && canPublish(access.role)
+    const status = canPublish(access.role) ? (wantsSchedule ? 'draft' : normalizedStatus(wantsReview ? 'draft' : body.status)) : 'draft'
+    const reviewStatus = wantsReview ? 'pending' : (current.review_status === 'pending' && !canManageAllContent(access.role) ? 'pending' : 'none')
     const expectedUpdatedAt = body.expected_updated_at ? String(body.expected_updated_at) : null
 
     if (!id || !title || !slug || ((status === 'published' || wantsSchedule) && !content)) {
@@ -201,6 +214,7 @@ export async function PUT(request: NextRequest) {
                WHEN ? <> 'published' THEN NULL
                ELSE published_at
              END,
+             review_status = ?, review_note = CASE WHEN ? = 'pending' THEN '' ELSE review_note END,
              updated_at = datetime('now')
          WHERE id = ? AND (? IS NULL OR updated_at = ?)`
       )
@@ -219,6 +233,8 @@ export async function PUT(request: NextRequest) {
         wantsSchedule ? schedule : null,
         status,
         status,
+        reviewStatus,
+        reviewStatus,
         id,
         expectedUpdatedAt,
         expectedUpdatedAt
@@ -228,7 +244,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '文章已在其他窗口被修改，请刷新后再保存。', conflict: true }, { status: 409 })
     }
     const updated = await db.prepare('SELECT updated_at FROM posts WHERE id = ?').bind(id).first<{ updated_at: string }>()
-    await writeAuditLog(db, { userId: access.userId, action: status === 'published' ? 'post.update_published' : wantsSchedule ? 'post.schedule' : 'post.update_draft', targetType: 'post', targetId: id, summary: `保存文章：${String(title).slice(0, 120)}`, request })
+    await writeAuditLog(db, { userId: access.userId, action: wantsReview ? 'post.submit_review' : status === 'published' ? 'post.update_published' : wantsSchedule ? 'post.schedule' : 'post.update_draft', targetType: 'post', targetId: id, summary: `${wantsReview ? '提交审核' : '保存文章'}：${String(title).slice(0, 120)}`, request })
     return NextResponse.json({ success: true, updated_at: updated?.updated_at })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
@@ -246,7 +262,10 @@ export async function DELETE(request: NextRequest) {
     const id = new URL(request.url).searchParams.get('id')
     if (!id) return NextResponse.json({ error: '缺少文章 ID' }, { status: 400 })
 
-    await db.prepare("UPDATE posts SET status = 'archived', updated_at = datetime('now') WHERE id = ?").bind(id).run()
+    const post = await db.prepare('SELECT author_id FROM posts WHERE id = ?').bind(id).first<{ author_id: string }>()
+    if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+    if (!canManageAllContent(access.role) && post.author_id !== access.userId) return NextResponse.json({ error: '只能管理自己的文章' }, { status: 403 })
+    await db.prepare("UPDATE posts SET status = 'archived', review_status = 'none', updated_at = datetime('now') WHERE id = ?").bind(id).run()
     await writeAuditLog(db, { userId: access.userId, action: 'post.trash', targetType: 'post', targetId: id, summary: '将文章移入回收站', request })
     return NextResponse.json({ success: true, status: 'archived' })
   } catch (e: any) {
@@ -262,7 +281,20 @@ export async function PATCH(request: NextRequest) {
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
 
-    const { id, ids, action, revisionId } = (await request.json()) as { id?: string; ids?: string[]; action?: string; revisionId?: string }
+    const { id, ids, action, revisionId, note: rawNote } = (await request.json()) as { id?: string; ids?: string[]; action?: string; revisionId?: string; note?: string }
+    if (id) {
+      const target = await db.prepare('SELECT author_id FROM posts WHERE id = ?').bind(id).first<{ author_id: string }>()
+      if (!target) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+      if (!canManageAllContent(access.role) && target.author_id !== access.userId) return NextResponse.json({ error: '只能管理自己的文章' }, { status: 403 })
+    }
+    if ((action === 'approve' || action === 'reject') && id) {
+      if (!canManageAllContent(access.role)) return NextResponse.json({ error: '只有管理员或编辑可以审核文章' }, { status: 403 })
+      const note = String(rawNote || '').slice(0, 500)
+      if (action === 'approve') await db.prepare("UPDATE posts SET status = 'published', review_status = 'none', review_note = ?, published_at = COALESCE(published_at, datetime('now')), updated_at = datetime('now') WHERE id = ? AND review_status = 'pending'").bind(note, id).run()
+      else await db.prepare("UPDATE posts SET status = 'draft', review_status = 'none', review_note = ?, updated_at = datetime('now') WHERE id = ? AND review_status = 'pending'").bind(note, id).run()
+      await writeAuditLog(db, { userId: access.userId, action: `post.review_${action}`, targetType: 'post', targetId: id, summary: action === 'approve' ? '审核通过并发布文章' : '退回文章修改', metadata: { note }, request })
+      return NextResponse.json({ success: true })
+    }
     if (action === 'restore' && id) {
       await db.prepare("UPDATE posts SET status = 'draft', updated_at = datetime('now') WHERE id = ? AND status = 'archived'").bind(id).run()
       await writeAuditLog(db, { userId: access.userId, action: 'post.restore', targetType: 'post', targetId: id, summary: '从回收站恢复文章', request })
@@ -283,6 +315,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const selected = Array.isArray(ids) ? [...new Set(ids.filter((value) => typeof value === 'string' && value))].slice(0, 100) : []
+    if (action === 'publish' && !canPublish(access.role)) return NextResponse.json({ error: '没有发布权限，请提交审核' }, { status: 403 })
     const nextStatus = action === 'publish' ? 'published' : action === 'draft' ? 'draft' : action === 'archive' ? 'archived' : null
     if (!nextStatus || selected.length === 0) return NextResponse.json({ error: '请求无效' }, { status: 400 })
 
@@ -290,8 +323,8 @@ export async function PATCH(request: NextRequest) {
     await db.prepare(
       `UPDATE posts SET status = ?,
         published_at = CASE WHEN ? = 'published' AND published_at IS NULL THEN datetime('now') WHEN ? <> 'published' THEN NULL ELSE published_at END,
-        updated_at = datetime('now') WHERE id IN (${placeholders})`
-    ).bind(nextStatus, nextStatus, nextStatus, ...selected).run()
+        review_status = 'none', updated_at = datetime('now') WHERE id IN (${placeholders}) ${canManageAllContent(access.role) ? '' : 'AND author_id = ?'}`
+    ).bind(nextStatus, nextStatus, nextStatus, ...selected, ...(canManageAllContent(access.role) ? [] : [access.userId])).run()
     await writeAuditLog(db, { userId: access.userId, action: `post.bulk_${action}`, targetType: 'post', summary: `批量处理 ${selected.length} 篇文章`, metadata: { ids: selected }, request })
     return NextResponse.json({ success: true, status: nextStatus, count: selected.length })
   } catch (e: any) {
