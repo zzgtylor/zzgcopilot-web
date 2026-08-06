@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('admin content APIs require an admin/editor role', () => {
+test('admin content APIs require an authenticated CMS role', () => {
   for (const route of ['src/app/api/admin/posts/route.ts', 'src/app/api/upload/route.ts']) {
     assert.match(read(route), /requireAdminRole\(\)/)
   }
@@ -56,5 +56,19 @@ test('media library supports checksums, pagination, and duplicate detection', ()
 test('article editor uses structured blocks and content transfer stays private', () => {
   assert.match(read('src/components/admin/PostEditor.tsx'), /StructuredEditor/)
   assert.doesNotMatch(read('src/components/admin/PostEditor.tsx'), /execCommand/)
-  assert.match(read('src/app/api/admin/content-transfer/route.ts'), /requireAdminRole\(\)/)
+  assert.match(read('src/app/api/admin/content-transfer/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
+})
+
+test('editorial workflow enforces ownership and review capabilities', () => {
+  const auth = read('src/lib/admin-auth.ts')
+  const posts = read('src/app/api/admin/posts/route.ts')
+  assert.match(auth, /'author' \| 'contributor'/)
+  assert.match(posts, /review_status/)
+  assert.match(posts, /只能编辑自己的文章/)
+  assert.match(posts, /只有管理员或编辑可以审核文章/)
+})
+
+test('comments and site health have restricted admin APIs', () => {
+  assert.match(read('src/app/api/admin/comments/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
+  assert.match(read('src/app/api/admin/site-health/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
 })

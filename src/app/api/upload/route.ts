@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/cloudflare-db'
 import { getR2, getR2PublicUrl } from '@/lib/cloudflare-r2'
-import { requireAdminRole } from '@/lib/admin-auth'
+import { canManageAllContent, canUploadMedia, requireAdminRole } from '@/lib/admin-auth'
 import { sha256 } from '@/lib/totp'
 import { writeAuditLog } from '@/lib/audit'
 
@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
   try {
     const access = await requireAdminRole()
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    if (!canUploadMedia(access.role)) return NextResponse.json({ error: '投稿者不能上传媒体，请由编辑添加图片' }, { status: 403 })
     const formData = await request.formData().catch(() => null)
     const file = formData?.get('file') as File | null
     if (!file) return NextResponse.json({ error: '未找到上传文件' }, { status: 400 })
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
   try {
     const access = await requireAdminRole()
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    if (!canUploadMedia(access.role)) return NextResponse.json({ error: '没有媒体库权限' }, { status: 403 })
     const db = access.db || await getDb()
     if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
     const params = new URL(request.url).searchParams
@@ -79,6 +81,7 @@ export async function GET(request: NextRequest) {
     const trash = params.get('trash') === '1'; const query = String(params.get('q') || '').trim().slice(0, 100)
     const type = String(params.get('type') || ''); const month = String(params.get('month') || ''); const duplicates = params.get('duplicates') === '1'
     const conditions = [`deleted_at IS ${trash ? 'NOT NULL' : 'NULL'}`]; const bindings: unknown[] = []
+    if (!canManageAllContent(access.role)) { conditions.push('uploaded_by = ?'); bindings.push(access.userId) }
     if (query) { conditions.push('(original_name LIKE ? OR filename LIKE ? OR alt_text LIKE ?)'); const term = `%${query}%`; bindings.push(term, term, term) }
     if (Object.hasOwn(ALLOWED_TYPES, type)) { conditions.push('mime_type = ?'); bindings.push(type) }
     if (/^\d{4}-\d{2}$/.test(month)) { conditions.push("strftime('%Y-%m', created_at) = ?"); bindings.push(month) }
@@ -106,15 +109,31 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const access = await requireAdminRole(); if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
-    const body = await request.json() as { id?: string; alt_text?: string; action?: string }
-    if (!body.id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
+    if (!canUploadMedia(access.role)) return NextResponse.json({ error: '没有媒体库权限' }, { status: 403 })
+    const body = await request.json() as { id?: string; ids?: string[]; alt_text?: string; action?: string }
     const db = access.db || await getDb(); if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
+    const ids = [...new Set((body.ids || []).filter(Boolean))].slice(0, 100)
+    if (ids.length && (body.action === 'trash' || body.action === 'restore')) {
+      const placeholders = ids.map(() => '?').join(',')
+      const ownerSql = canManageAllContent(access.role) ? '' : ' AND uploaded_by = ?'
+      if (body.action === 'trash') {
+        const rows = await db.prepare(`SELECT id, r2_key, source_url FROM media WHERE id IN (${placeholders})${ownerSql}`).bind(...ids, ...(canManageAllContent(access.role) ? [] : [access.userId])).all<{ id: string; r2_key: string; source_url?: string | null }>()
+        for (const row of rows.results || []) {
+          const references = await referenceCount(db, await mediaUrl(row))
+          if (references > 0) return NextResponse.json({ error: `文件 ${row.id} 仍被 ${references} 篇文章引用，请先替换文章图片` }, { status: 409 })
+        }
+      }
+      await db.prepare(`UPDATE media SET deleted_at = ${body.action === 'restore' ? 'NULL' : "datetime('now')"} WHERE id IN (${placeholders})${ownerSql}`).bind(...ids, ...(canManageAllContent(access.role) ? [] : [access.userId])).run()
+      await writeAuditLog(db, { userId: access.userId, action: `media.bulk_${body.action}`, targetType: 'media', summary: `批量处理 ${ids.length} 个媒体文件`, metadata: { ids }, request })
+      return NextResponse.json({ success: true, count: ids.length })
+    }
+    if (!body.id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
     if (body.action === 'restore') {
-      await db.prepare('UPDATE media SET deleted_at = NULL WHERE id = ?').bind(body.id).run()
+      await db.prepare(`UPDATE media SET deleted_at = NULL WHERE id = ?${canManageAllContent(access.role) ? '' : ' AND uploaded_by = ?'}`).bind(body.id, ...(canManageAllContent(access.role) ? [] : [access.userId])).run()
       await writeAuditLog(db, { userId: access.userId, action: 'media.restore', targetType: 'media', targetId: body.id, summary: '从回收站恢复媒体', request })
       return NextResponse.json({ success: true })
     }
-    await db.prepare('UPDATE media SET alt_text = ? WHERE id = ? AND deleted_at IS NULL').bind(String(body.alt_text || '').trim().slice(0, 180), body.id).run()
+    await db.prepare(`UPDATE media SET alt_text = ? WHERE id = ? AND deleted_at IS NULL${canManageAllContent(access.role) ? '' : ' AND uploaded_by = ?'}`).bind(String(body.alt_text || '').trim().slice(0, 180), body.id, ...(canManageAllContent(access.role) ? [] : [access.userId])).run()
     await writeAuditLog(db, { userId: access.userId, action: 'media.alt_updated', targetType: 'media', targetId: body.id, summary: '更新图片替代文字', request })
     return NextResponse.json({ success: true })
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : '保存失败' }, { status: 500 }) }
@@ -123,10 +142,11 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const access = await requireAdminRole(); if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    if (!canUploadMedia(access.role)) return NextResponse.json({ error: '没有媒体库权限' }, { status: 403 })
     const params = new URL(request.url).searchParams; const id = params.get('id'); const permanent = params.get('permanent') === '1'
     if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
     const db = access.db || await getDb(); if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
-    const row = await db.prepare('SELECT r2_key, source_url FROM media WHERE id = ?').bind(id).first<{ r2_key: string; source_url?: string | null }>()
+    const row = await db.prepare(`SELECT r2_key, source_url FROM media WHERE id = ?${canManageAllContent(access.role) ? '' : ' AND uploaded_by = ?'}`).bind(id, ...(canManageAllContent(access.role) ? [] : [access.userId])).first<{ r2_key: string; source_url?: string | null }>()
     if (!row) return NextResponse.json({ error: '未找到该文件' }, { status: 404 })
     const url = await mediaUrl(row); const references = await referenceCount(db, url)
     if (references > 0) return NextResponse.json({ error: `该图片仍被 ${references} 篇文章引用，不能删除` }, { status: 409 })

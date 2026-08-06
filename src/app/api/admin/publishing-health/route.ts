@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/cloudflare-db'
 import { publishDuePosts } from '@/lib/post-scheduling'
 import { requireAdminRole } from '@/lib/admin-auth'
+import { canManageAllContent } from '@/lib/admin-auth'
 
 export async function GET() {
   const access = await requireAdminRole()
@@ -9,11 +10,13 @@ export async function GET() {
   const db = await getDb()
   if (!db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
   await publishDuePosts(db)
+  const owner = canManageAllContent(access.role) ? '' : ' AND author_id = ?'
+  const args = canManageAllContent(access.role) ? [] : [access.userId]
   const [missingCover, missingDescription, missingCategory, scheduled] = await Promise.all([
-    db.prepare("SELECT COUNT(*) AS count FROM posts WHERE status = 'published' AND (cover_image IS NULL OR cover_image = '')").first<any>(),
-    db.prepare("SELECT COUNT(*) AS count FROM posts WHERE status = 'published' AND (meta_description IS NULL OR meta_description = '')").first<any>(),
-    db.prepare("SELECT COUNT(*) AS count FROM posts WHERE status = 'published' AND category_id IS NULL").first<any>(),
-    db.prepare("SELECT COUNT(*) AS count FROM posts WHERE status = 'draft' AND scheduled_at IS NOT NULL AND scheduled_at > datetime('now')").first<any>(),
+    db.prepare(`SELECT COUNT(*) AS count FROM posts WHERE status = 'published' AND (cover_image IS NULL OR cover_image = '')${owner}`).bind(...args).first<any>(),
+    db.prepare(`SELECT COUNT(*) AS count FROM posts WHERE status = 'published' AND (meta_description IS NULL OR meta_description = '')${owner}`).bind(...args).first<any>(),
+    db.prepare(`SELECT COUNT(*) AS count FROM posts WHERE status = 'published' AND category_id IS NULL${owner}`).bind(...args).first<any>(),
+    db.prepare(`SELECT COUNT(*) AS count FROM posts WHERE status = 'draft' AND scheduled_at IS NOT NULL AND scheduled_at > datetime('now')${owner}`).bind(...args).first<any>(),
   ])
   const count = (value: any) => value?.count || 0
   return NextResponse.json({ checks: [
