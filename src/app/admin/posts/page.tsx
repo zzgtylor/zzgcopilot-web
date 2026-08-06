@@ -29,8 +29,10 @@ export default function AdminPostsPage() {
   const [authors, setAuthors] = useState<Option[]>([])
   const [capabilities, setCapabilities] = useState({ manageAll: false, publish: true })
   const loadSequence = useRef(0)
+  const [initialized, setInitialized] = useState(false)
 
   function load() {
+    if (!initialized) return
     const sequence = ++loadSequence.current
     setLoading(true)
     setError('')
@@ -50,12 +52,13 @@ export default function AdminPostsPage() {
       .finally(() => { if (sequence === loadSequence.current) setLoading(false) })
   }
 
-  useEffect(() => { load() }, [page, filter, search, categoryId, authorId, dateFrom, dateTo, sort, quality])
+  useEffect(() => { load() }, [initialized, page, filter, search, categoryId, authorId, dateFrom, dateTo, sort, quality])
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const requestedStatus = params.get('status')
     if (requestedStatus && ['published', 'draft', 'pending', 'scheduled', 'archived'].includes(requestedStatus)) setFilter(requestedStatus)
     setQuality(params.get('quality') || '')
+    setInitialized(true)
     fetch('/api/admin/posts?meta=1', { cache: 'no-store' }).then(r => r.json()).then((data: any) => { setCategories(data.categories || []); setAuthors(data.authors || []) }).catch(() => {})
   }, [])
 
