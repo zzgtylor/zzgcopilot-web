@@ -10,6 +10,7 @@ type MediaItem = {
   mime_type: string
   size: number
   url: string
+  alt_text?: string
   created_at: string
 }
 
@@ -71,6 +72,11 @@ export default function MediaLibraryPage() {
     })
   }
 
+  async function saveAltText(id: string, alt_text: string) {
+    const r = await fetch('/api/upload', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, alt_text }) }).catch(() => null)
+    if (!r?.ok) setError('图片替代文字保存失败')
+  }
+
   return (
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between">
@@ -120,13 +126,14 @@ export default function MediaLibraryPage() {
           {items.map((item) => (
             <div key={item.id} className="group relative overflow-hidden rounded-xl border bg-white">
               <div className="aspect-square w-full overflow-hidden bg-gray-50">
-                <img src={item.url} alt={item.original_name} className="h-full w-full object-cover" />
+                <img src={item.url} alt={item.alt_text || item.original_name} className="h-full w-full object-cover" />
               </div>
               <div className="p-2.5">
                 <p className="truncate text-xs font-medium text-gray-700" title={item.original_name}>
                   {item.original_name}
                 </p>
                 <p className="mt-0.5 text-[11px] text-gray-400">{formatSize(item.size)}</p>
+                <label className="mt-2 block text-[11px] text-gray-500">图片替代文字<input defaultValue={item.alt_text || ''} onBlur={(event) => saveAltText(item.id, event.target.value)} placeholder="说明图片内容" className="mt-1 w-full rounded border px-2 py-1 text-xs text-gray-700 outline-none focus:border-blue-500" /></label>
               </div>
               <div className="absolute inset-x-0 top-0 flex justify-end gap-1 bg-gradient-to-b from-black/40 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
                 <button

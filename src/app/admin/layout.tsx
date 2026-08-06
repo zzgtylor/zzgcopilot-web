@@ -32,6 +32,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                                   <span>🖼️</span> 媒体库
                                 </Link>
                         {role === 'admin' && (
+                          <Link href="/admin/categories" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white text-sm transition">
+                                    <span>🏷️</span> 分类管理
+                          </Link>
+                        )}
+                        {role === 'admin' && (
                       <Link href="/admin/users" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white text-sm transition">
                                     <span>👥</span> 用户管理
                       </Link>

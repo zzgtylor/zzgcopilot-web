@@ -112,7 +112,7 @@ function RichEditor({ value, onChange, onImage }: { value: string; onChange: (v:
   )
 }
 
-type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; cover_image: string; meta_title?: string; meta_description?: string }
+type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; cover_image: string; tags: string[]; meta_title?: string; meta_description?: string }
 type Category = { id: string; name: string }
 type MediaItem = { id: string; original_name: string; url: string; size: number }
 
@@ -154,7 +154,7 @@ function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; o
 export default function PostEditor({ postId }: { postId?: string }) {
   const router = useRouter()
   const isEdit = Boolean(postId)
-  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', cover_image: '', meta_title: '', meta_description: '' })
+  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', cover_image: '', tags: [], meta_title: '', meta_description: '' })
   const [categories, setCategories] = useState<Category[]>([])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(isEdit)
@@ -175,7 +175,11 @@ export default function PostEditor({ postId }: { postId?: string }) {
     if (!isEdit) return
     fetch('/api/admin/posts?id=' + encodeURIComponent(postId!)).then(r => r.json())
       .then((d: any) => {
-        if (d.post) setForm({ id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.status || 'draft', cover_image: d.post.cover_image || '', meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '' })
+        if (d.post) {
+          let tags: string[] = []
+          try { tags = Array.isArray(d.post.tags) ? d.post.tags : JSON.parse(d.post.tags || '[]') } catch { tags = [] }
+          setForm({ id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.status || 'draft', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '' })
+        }
         else setError(d.error || '加载文章失败')
       }).catch(() => setError('加载文章失败')).finally(() => setLoading(false))
   }, [isEdit, postId])
@@ -312,6 +316,11 @@ export default function PostEditor({ postId }: { postId?: string }) {
           <section className="rounded-xl border bg-white shadow-sm">
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">分类</h2></div>
             <div className="p-5"><select value={form.category_id} onChange={set('category_id')} className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"><option value="">未分类</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          </section>
+
+          <section className="rounded-xl border bg-white shadow-sm">
+            <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">标签</h2><p className="mt-1 text-xs text-gray-500">用逗号隔开，例如：Word, 排版, 新手</p></div>
+            <div className="p-5"><input value={form.tags.join(', ')} onChange={(event) => setForm(f => ({ ...f, tags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean).slice(0, 12) }))} placeholder="输入标签" className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></div>
           </section>
 
           <section className="rounded-xl border bg-white shadow-sm">
