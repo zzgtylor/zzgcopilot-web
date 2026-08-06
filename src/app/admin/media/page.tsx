@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Copy, Image as ImageIcon, Trash2, Upload } from 'lucide-react'
+import { Copy, Image as ImageIcon, Search, Trash2, Upload } from 'lucide-react'
 
 type MediaItem = {
   id: string
@@ -29,20 +29,32 @@ export default function MediaLibraryPage() {
   const [error, setError] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const [trash, setTrash] = useState(false)
+  const [query, setQuery] = useState('')
+  const [type, setType] = useState('')
+  const [month, setMonth] = useState('')
+  const [duplicates, setDuplicates] = useState(false)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function load() {
     setLoading(true)
-    fetch('/api/upload' + (trash ? '?trash=1' : ''), { cache: 'no-store' })
+    const params = new URLSearchParams({ page: String(page), pageSize: '30' })
+    if (trash) params.set('trash', '1')
+    if (query) params.set('q', query)
+    if (type) params.set('type', type)
+    if (month) params.set('month', month)
+    if (duplicates) params.set('duplicates', '1')
+    fetch('/api/upload?' + params.toString(), { cache: 'no-store' })
       .then(async (r) => { const d: any = await r.json(); if (!r.ok) throw new Error(d.error || '加载失败'); return d })
-      .then((d: any) => setItems(d.media || []))
+      .then((d: any) => { setItems(d.media || []); setTotal(Number(d.total || 0)) })
       .catch((error) => setError(error.message || '加载失败'))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     load()
-  }, [trash])
+  }, [trash, query, type, month, duplicates, page])
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -119,7 +131,8 @@ export default function MediaLibraryPage() {
         />
       </div>
 
-      <div className="mb-5 flex gap-2"><button onClick={() => setTrash(false)} className={'rounded-lg border px-3 py-1.5 text-sm ' + (!trash ? 'border-blue-600 bg-blue-600 text-white' : 'bg-white text-gray-600')}>媒体库</button><button onClick={() => setTrash(true)} className={'rounded-lg border px-3 py-1.5 text-sm ' + (trash ? 'border-blue-600 bg-blue-600 text-white' : 'bg-white text-gray-600')}>回收站</button></div>
+      <div className="mb-5 flex gap-2"><button onClick={() => { setTrash(false); setPage(1) }} className={'rounded-lg border px-3 py-1.5 text-sm ' + (!trash ? 'border-blue-600 bg-blue-600 text-white' : 'bg-white text-gray-600')}>媒体库</button><button onClick={() => { setTrash(true); setPage(1) }} className={'rounded-lg border px-3 py-1.5 text-sm ' + (trash ? 'border-blue-600 bg-blue-600 text-white' : 'bg-white text-gray-600')}>回收站</button></div>
+      <div className="mb-5 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1fr_170px_170px_auto]"><label className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"/><input value={query} onChange={event => { setQuery(event.target.value); setPage(1) }} placeholder="搜索文件名或替代文字" className="w-full rounded-lg border py-2 pl-9 pr-3 text-sm"/></label><select value={type} onChange={event => { setType(event.target.value); setPage(1) }} className="rounded-lg border px-3 py-2 text-sm"><option value="">全部格式</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WEBP</option><option value="image/gif">GIF</option></select><input type="month" value={month} onChange={event => { setMonth(event.target.value); setPage(1) }} className="rounded-lg border px-3 py-2 text-sm"/><label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600"><input type="checkbox" checked={duplicates} onChange={event => { setDuplicates(event.target.checked); setPage(1) }}/>仅看重复文件</label></div>
       {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {!trash && <div
@@ -177,6 +190,7 @@ export default function MediaLibraryPage() {
           ))}
         </div>
       )}
+      <div className="mt-6 flex items-center justify-between text-sm text-gray-500"><span>共 {total} 个文件 · 第 {page} 页</span><div className="flex gap-2"><button disabled={page <= 1} onClick={() => setPage(value => value - 1)} className="rounded border bg-white px-3 py-1.5 disabled:opacity-40">上一页</button><button disabled={page * 30 >= total} onClick={() => setPage(value => value + 1)} className="rounded border bg-white px-3 py-1.5 disabled:opacity-40">下一页</button></div></div>
     </div>
   )
 }

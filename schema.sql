@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin', 'editor')),
   is_active INTEGER DEFAULT 1,
   bio TEXT,
+  auth_version INTEGER NOT NULL DEFAULT 0,
+  two_factor_secret TEXT,
+  two_factor_enabled INTEGER NOT NULL DEFAULT 0,
+  recovery_codes TEXT NOT NULL DEFAULT '[]',
+  last_login_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -115,6 +120,7 @@ CREATE TABLE IF NOT EXISTS media (
   uploaded_by TEXT NOT NULL REFERENCES users(id),
   deleted_at TEXT,
   source_url TEXT,
+  checksum TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -131,6 +137,18 @@ CREATE TABLE IF NOT EXISTS system_events (
   event_type TEXT NOT NULL,
   status TEXT NOT NULL,
   details TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id TEXT,
+  summary TEXT NOT NULL,
+  metadata TEXT NOT NULL DEFAULT '{}',
+  ip_address TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -161,6 +179,9 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_post ON bookmarks(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_media_deleted ON media(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_media_checksum ON media(checksum);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_system_events_type_created ON system_events(event_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_post_daily_views_date ON post_daily_views(view_date);
 

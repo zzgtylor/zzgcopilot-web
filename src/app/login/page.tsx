@@ -10,6 +10,7 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -18,7 +19,7 @@ function LoginForm() {
     setError('')
     setLoading(true)
     try {
-      const result = await signIn('credentials', { email, password, redirect: false })
+      const result = await signIn('credentials', { email, password, otp, redirect: false })
       if (result?.error) { setError('邮箱或密码错误') }
       else { router.push(callbackUrl); router.refresh() }
     } catch { setError('登录失败，请稍后重试') }
@@ -38,6 +39,10 @@ function LoginForm() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">邮箱</label>
               <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="w-full px-4 py-2.5 border rounded-lg text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">两步验证码 <span className="font-normal text-gray-400">（已启用时填写）</span></label>
+              <input inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={e => setOtp(e.target.value)} placeholder="6 位验证码或恢复码" className="w-full px-4 py-2.5 border rounded-lg text-sm" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">密码</label>

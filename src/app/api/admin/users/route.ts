@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/cloudflare-db'
 import { requireAdminRole } from '@/lib/admin-auth'
 import { hashPassword } from '@/lib/passwords'
+import { writeAuditLog } from '@/lib/audit'
 
 const ROLES = new Set(['admin', 'editor', 'user'])
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' }
@@ -41,6 +42,8 @@ export async function POST(request: NextRequest) {
     if (existing) return NextResponse.json({ error: '该邮箱已经存在' }, { status: 409 })
     const passwordHash = await hashPassword(password)
     await db.prepare('INSERT INTO users (name, email, password_hash, role, is_active, email_verified) VALUES (?, ?, ?, ?, 1, 1)').bind(name, email, passwordHash, role).run()
+    const created = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>()
+    await writeAuditLog(db, { userId: access.userId, action: 'user.create', targetType: 'user', targetId: created?.id, summary: `创建用户：${email}`, metadata: { role }, request })
     return NextResponse.json({ success: true }, { status: 201 })
   } catch (error) {
     console.error(JSON.stringify({ message: 'admin user create failed', error: error instanceof Error ? error.message : String(error) }))
@@ -78,6 +81,7 @@ export async function PATCH(request: NextRequest) {
       const passwordHash = await hashPassword(requestedPassword)
       await db.prepare('UPDATE users SET password_hash = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(passwordHash, id).run()
     }
+    await writeAuditLog(db, { userId: access.userId, action: requestedPassword ? 'user.password_reset' : 'user.update', targetType: 'user', targetId: id, summary: requestedPassword ? '管理员重置了用户密码' : '更新用户角色或状态', metadata: { role: nextRole, active: nextActive }, request })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error(JSON.stringify({ message: 'admin user update failed', error: error instanceof Error ? error.message : String(error) }))
