@@ -1,7 +1,61 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
+import { getDb } from '@/lib/cloudflare-db'
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+type PostCard = {
+  id: string
+  title: string
+  slug: string
+  cover_image: string | null
+  reading_time: number | null
+  created_at: string
+  published_at: string | null
+  category_name: string | null
+}
+
+const legacyTutorial = {
+  title: 'Word软件使用全攻略教程',
+  href: '/word-tutorial/',
+  coverImage: '/uploads/tmp-final-base.jpg',
+  category: '入门基础',
+  date: '2026-07-03',
+  readingTime: 20,
+}
+
+async function getLatestPosts(): Promise<PostCard[]> {
+  const db = await getDb()
+  if (!db) return []
+
+  try {
+    const result = await db
+      .prepare(
+        `SELECT p.id, p.title, p.slug, p.cover_image, p.reading_time, p.created_at, p.published_at,
+                c.name AS category_name
+         FROM posts p
+         LEFT JOIN categories c ON p.category_id = c.id
+         WHERE p.status = 'published'
+         ORDER BY COALESCE(p.published_at, p.created_at) DESC
+         LIMIT 12`
+      )
+      .all<PostCard>()
+
+    return result.results || []
+  } catch {
+    return []
+  }
+}
+
+function formatCardDate(value: string | null) {
+  if (!value) return ''
+  return value.slice(0, 10)
+}
+
+export default async function HomePage() {
+  const posts = await getLatestPosts()
+  const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8f9fa] text-[#211e19]">
       {/* NAV */}
@@ -14,16 +68,16 @@ export default function HomePage() {
           <Link href="/" className="font-bold text-[#11567f]">
             首页
           </Link>
-          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+          <Link href={tutorialHref} className="hover:text-[#11567f]">
             免费资源
           </Link>
-          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+          <Link href={tutorialHref} className="hover:text-[#11567f]">
             教程
           </Link>
-          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+          <Link href={tutorialHref} className="hover:text-[#11567f]">
             模板下载
           </Link>
-          <Link href="/word-tutorial/" className="hover:text-[#11567f]">
+          <Link href={tutorialHref} className="hover:text-[#11567f]">
             关于我们
           </Link>
         </div>
@@ -40,7 +94,7 @@ export default function HomePage() {
           </label>
 
           <Link
-            href="/word-tutorial/"
+            href={tutorialHref}
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[#11567f] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[#142844]"
           >
             从零开始学习 →
@@ -57,51 +111,64 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <Link
-              href="/word-tutorial/"
-              className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
-            >
-              <div className="relative h-[150px] bg-[#f5f5f7]">
-                <img
-                  src="/uploads/tmp-final-base.jpg"
-                  alt="Word软件使用全攻略教程"
-                  className="h-full w-full object-cover"
-                  loading="eager"
-                />
-                <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
-                  入门基础
-                </span>
-              </div>
+            {posts.length > 0
+              ? posts.map((post) => (
+                  <Link
+                    key={post.id}
+                    href={`/tutorials/${post.slug}`}
+                    className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
+                  >
+                    <div className="relative h-[150px] bg-[#f5f5f7]">
+                      <img
+                        src={post.cover_image || legacyTutorial.coverImage}
+                        alt={post.title}
+                        className="h-full w-full object-cover"
+                        loading="eager"
+                      />
+                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
+                        {post.category_name || legacyTutorial.category}
+                      </span>
+                    </div>
 
-              <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
-                <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">
-                  Word软件使用全攻略教程
-                </h3>
-                <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
-                  <span className="whitespace-nowrap font-mono">2026-07-03</span>
-                  <span className="whitespace-nowrap">20 分钟</span>
-                </div>
-              </div>
-            </Link>
+                    <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
+                      <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{post.title}</h3>
+                      <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
+                        <span className="whitespace-nowrap font-mono">{formatCardDate(post.published_at || post.created_at)}</span>
+                        <span className="whitespace-nowrap">{post.reading_time || legacyTutorial.readingTime} 分钟</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              : (
+                  <Link
+                    href={legacyTutorial.href}
+                    className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
+                  >
+                    <div className="relative h-[150px] bg-[#f5f5f7]">
+                      <img src={legacyTutorial.coverImage} alt={legacyTutorial.title} className="h-full w-full object-cover" loading="eager" />
+                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
+                        {legacyTutorial.category}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
+                      <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{legacyTutorial.title}</h3>
+                      <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
+                        <span className="whitespace-nowrap font-mono">{legacyTutorial.date}</span>
+                        <span className="whitespace-nowrap">{legacyTutorial.readingTime} 分钟</span>
+                      </div>
+                    </div>
+                  </Link>
+                )}
           </div>
 
           {/* 分页（装饰性，当前仅一篇教程，暂不可点） */}
           <div className="mt-12 flex items-center justify-center gap-2 font-mono text-[13px]">
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">
-              ← 上一页
-            </span>
-            <span className="cursor-default select-none rounded border border-[#11567f] bg-[#11567f] px-3.5 py-2 text-white">
-              1
-            </span>
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">
-              2
-            </span>
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">
-              3
-            </span>
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">
-              下一页 →
-            </span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">← 上一页</span>
+            <span className="cursor-default select-none rounded border border-[#11567f] bg-[#11567f] px-3.5 py-2 text-white">1</span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">2</span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">3</span>
+            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">下一页 →</span>
           </div>
         </main>
 
@@ -113,9 +180,7 @@ export default function HomePage() {
       <footer className="border-t border-[#211e19]/10 bg-white px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4">
           <span className="text-[13px] text-[#797266]">Tyler博客</span>
-          <span className="font-mono text-xs text-[#a39a8a]">
-            本站内容独立编写整理，非 Microsoft 官方文档
-          </span>
+          <span className="font-mono text-xs text-[#a39a8a]">本站内容独立编写整理，非 Microsoft 官方文档</span>
         </div>
       </footer>
     </div>

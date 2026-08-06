@@ -12,8 +12,16 @@ export default function middleware(request: NextRequest) {
 
     if (pathname.startsWith('/admin')) return authMiddleware(request)
 
-    if (pathname === '/tutorials/word' || pathname.startsWith('/tutorials/word/')) {
-        return NextResponse.redirect(new URL('/word-tutorial', request.url))
+    if (
+        pathname === '/word-tutorial' ||
+        pathname.startsWith('/word-tutorial/') ||
+        pathname === '/tutorials/word' ||
+        pathname.startsWith('/tutorials/word/')
+    ) {
+        return NextResponse.redirect(
+            new URL('/tutorials/word-software-complete-guide', request.url),
+            308
+        )
     }
 
     if (
@@ -25,7 +33,6 @@ export default function middleware(request: NextRequest) {
         pathname.startsWith('/api') ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/uploads') ||
-        pathname.startsWith('/word-tutorial') ||
         pathname === '/favicon.ico'
     ) {
         return NextResponse.next()
