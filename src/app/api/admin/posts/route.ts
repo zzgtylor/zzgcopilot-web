@@ -3,7 +3,7 @@ import { auth } from '@/auth'
 import { getDb } from '@/lib/cloudflare-db'
 
 function normalizedStatus(value: unknown) {
-  return value === 'published' ? 'published' : 'draft'
+  return value === 'published' || value === 'archived' ? value : 'draft'
 }
 
 export async function GET(request: NextRequest) {
@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     const status = normalizedStatus(body.status)
     const userId = (session.user as any).id
 
-    if (!title || !slug || !content || !userId) {
-      return NextResponse.json({ error: '标题、URL Slug 和正文不能为空' }, { status: 400 })
+    if (!title || !slug || !userId || (status === 'published' && !content)) {
+      return NextResponse.json({ error: status === 'published' ? '标题、URL Slug 和正文不能为空' : '草稿至少需要标题和 URL Slug' }, { status: 400 })
     }
 
     await db
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       .bind(
         title,
         slug,
-        content,
+        content || '',
         excerpt || '',
         cover_image || '',
         category_id || null,
@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
       )
       .run()
 
-    return NextResponse.json({ success: true })
+    const post = await db.prepare('SELECT id FROM posts WHERE slug = ?').bind(slug).first<{ id: string }>()
+    return NextResponse.json({ success: true, id: post?.id })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
   }
@@ -158,9 +159,27 @@ export async function DELETE(request: NextRequest) {
     const id = new URL(request.url).searchParams.get('id')
     if (!id) return NextResponse.json({ error: '缺少文章 ID' }, { status: 400 })
 
-    await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run()
-    return NextResponse.json({ success: true })
+    await db.prepare("UPDATE posts SET status = 'archived', updated_at = datetime('now') WHERE id = ?").bind(id).run()
+    return NextResponse.json({ success: true, status: 'archived' })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '删除失败' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const db = await getDb()
+    if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
+
+    const { id, action } = (await request.json()) as { id?: string; action?: string }
+    if (!id || action !== 'restore') return NextResponse.json({ error: '请求无效' }, { status: 400 })
+
+    await db.prepare("UPDATE posts SET status = 'draft', updated_at = datetime('now') WHERE id = ? AND status = 'archived'").bind(id).run()
+    return NextResponse.json({ success: true, status: 'draft' })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || '恢复失败' }, { status: 500 })
   }
 }

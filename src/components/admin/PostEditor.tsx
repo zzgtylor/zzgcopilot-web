@@ -163,6 +163,9 @@ export default function PostEditor({ postId }: { postId?: string }) {
   const [error, setError] = useState('')
   const [ok, setOk] = useState(false)
   const slugTouchedRef = useRef(isEdit)
+  const [currentPostId, setCurrentPostId] = useState(postId || '')
+  const [lastSavedAt, setLastSavedAt] = useState('')
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetch('/api/categories').then(r => r.json()).then((d: any) => setCategories(d.categories || [])).catch(() => {})
@@ -214,19 +217,41 @@ export default function PostEditor({ postId }: { postId?: string }) {
     setUploading(false)
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.title || !form.content) return setError('标题和正文不能为空')
+  async function save(automatic = false) {
+    if (!form.title || (!automatic && form.status === 'published' && !form.content)) {
+      if (!automatic) setError('发布文章需要标题和正文')
+      return false
+    }
     setSaving(true); setError('')
-    const payload = { ...form, slug: form.slug || Date.now().toString() }
-    const r = isEdit
+    const payload = { ...form, id: currentPostId || undefined, status: automatic ? 'draft' : form.status, slug: form.slug || Date.now().toString() }
+    const r = currentPostId
       ? await fetch('/api/admin/posts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
       : await fetch('/api/admin/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => null)
     const d = r ? await r.json() : {}
     if (!r || !r.ok) setError(d.error || '保存失败')
-    else { setOk(true); setTimeout(() => router.push('/admin/posts'), 1200) }
+    else {
+      if (!currentPostId && d.id) {
+        setCurrentPostId(d.id)
+        if (automatic) router.replace(`/admin/posts/${d.id}/edit`)
+      }
+      setLastSavedAt(new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+      if (!automatic) { setOk(true); setTimeout(() => router.push('/admin/posts'), 1200) }
+    }
     setSaving(false)
+    return Boolean(r?.ok)
   }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    await save(false)
+  }
+
+  useEffect(() => {
+    if (!form.title || saving) return
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => { void save(true) }, 10000)
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
+  }, [form.title, form.slug, form.excerpt, form.content, form.category_id, form.cover_image, form.meta_title, form.meta_description])
 
   if (loading) return <div className="p-8 text-sm text-gray-400">加载中...</div>
 
@@ -277,7 +302,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
               <div className="rounded-lg bg-gray-50 p-3 text-sm"><p className="font-medium text-gray-700">状态</p><div className="mt-2 grid grid-cols-2 gap-2">
                 {([['draft', '存为草稿'], ['published', '立即发布']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setForm(f => ({ ...f, status: value }))} className={'rounded-md border px-2 py-2 text-xs font-medium transition ' + (form.status === value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'bg-white text-gray-600 hover:bg-gray-50')}>{label}</button>)}
               </div></div>
-              <p className="text-xs leading-5 text-gray-500">“立即发布”的文章会自动显示在首页；草稿仅在后台可见。</p>
+              <p className="text-xs leading-5 text-gray-500">“立即发布”的文章会自动显示在首页；草稿仅在后台可见。{lastSavedAt ? ` 已自动保存 ${lastSavedAt}` : ' 输入后会自动保存为草稿。'}</p>
               <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}{saving ? '保存中…' : form.status === 'published' ? '发布文章' : '保存草稿'}
               </button>
@@ -292,7 +317,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
           <section className="rounded-xl border bg-white shadow-sm">
             <div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">特色图片</h2><p className="mt-1 text-xs text-gray-500">作为首页文章卡片的封面。</p></div>
             <div className="p-5">
-              {form.cover_image ? <div className="space-y-3"><img src={form.cover_image} className="aspect-[16/9] w-full rounded-lg object-cover" alt="文章封面" /><div className="flex gap-2"><button type="button" onClick={() => setMediaPickerOpen(true)} className="flex-1 rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">替换</button><button type="button" onClick={() => setForm(f => ({ ...f, cover_image: '' }))} className="rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50">移除</button></div></div> : <div className="space-y-3"><div className="flex aspect-[16/9] flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 text-center text-sm text-gray-400"><ImageIcon className="mb-2 h-7 w-7" />上传一张横向图片</div><label className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-gray-800"><Upload className="h-4 w-4" />{uploading ? '上传中…' : '上传图片'}<input type="file" accept="image/*" className="hidden" onChange={uploadImage} /></label><button type="button" onClick={() => setMediaPickerOpen(true)} className="w-full rounded-md border px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50">从媒体库选择</button></div>}
+              {form.cover_image ? <div className="space-y-3"><img src={form.cover_image} className="aspect-[16/9] w-full rounded-lg object-cover" alt="文章封面" /><div className="flex gap-2"><button type="button" onClick={() => setMediaPickerOpen(true)} className="flex-1 rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">替换</button><button type="button" onClick={() => setForm(f => ({ ...f, cover_image: '' }))} className="rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50">移除</button></div></div> : <div className="space-y-3"><div className="flex aspect-[16/9] flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 text-center text-sm text-gray-400"><ImageIcon className="mb-2 h-7 w-7" />上传一张横向图片</div><p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">建议上传 16:9 横向封面；没有封面时首页会使用默认图片。</p><label className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-gray-800"><Upload className="h-4 w-4" />{uploading ? '上传中…' : '上传图片'}<input type="file" accept="image/*" className="hidden" onChange={uploadImage} /></label><button type="button" onClick={() => setMediaPickerOpen(true)} className="w-full rounded-md border px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50">从媒体库选择</button></div>}
             </div>
           </section>
         </aside>

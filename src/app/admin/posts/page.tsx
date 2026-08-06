@@ -19,10 +19,16 @@ export default function AdminPostsPage() {
   useEffect(() => { load() }, [])
 
   async function remove(id, title) {
-    if (!confirm('确定要删除文章「' + title + '」吗？此操作不可恢复。')) return
+    if (!confirm('将文章「' + title + '」移入回收站？以后可以恢复。')) return
     const r = await fetch('/api/admin/posts?id=' + encodeURIComponent(id), { method: 'DELETE' }).catch(() => null)
     if (r && r.ok) { setPosts(p => p.filter(x => x.id !== id)) }
     else { alert('删除失败') }
+  }
+
+  async function restore(id) {
+    const r = await fetch('/api/admin/posts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'restore' }) }).catch(() => null)
+    if (r && r.ok) setPosts(p => p.map(x => x.id === id ? { ...x, status: 'draft' } : x))
+    else alert('恢复失败')
   }
 
   const shown = posts.filter(p => filter === 'all' ? true : p.status === filter)
@@ -42,6 +48,7 @@ export default function AdminPostsPage() {
           { k: 'all', label: '全部' },
           { k: 'published', label: '已发布' },
           { k: 'draft', label: '草稿' },
+          { k: 'archived', label: '回收站' },
         ].map(t => (
           <button key={t.k} onClick={() => setFilter(t.k)} className={'px-3 py-1.5 text-sm rounded-lg border ' + (filter === t.k ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50')}>
             {t.label}
@@ -86,14 +93,13 @@ export default function AdminPostsPage() {
                   <td className="px-4 py-4 text-gray-600">{post.category_name || '未分类'}</td>
                   <td className="px-4 py-4">
                     <span className={'text-xs px-2 py-0.5 rounded-full ' + (post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700')}>
-                      {post.status === 'published' ? '已发布' : '草稿'}
+                      {post.status === 'published' ? '已发布' : post.status === 'archived' ? '已删除' : '草稿'}
                     </span>
                   </td>
                   <td className="px-4 py-4 text-gray-600">{post.view_count ?? 0}</td>
                   <td className="px-4 py-4 text-gray-400">{post.created_at?.split('T')[0]}</td>
                   <td className="px-4 py-4 text-right">
-                    <Link href={`/admin/posts/${post.id}/edit`} className="text-blue-600 hover:text-blue-800 text-sm mr-4">编辑</Link>
-                  <button onClick={() => remove(post.id, post.title)} className="text-red-500 hover:text-red-700 text-sm">删除</button>
+                    {post.status !== 'archived' ? <><Link href={`/admin/posts/${post.id}/edit`} className="text-blue-600 hover:text-blue-800 text-sm mr-4">编辑</Link><button onClick={() => remove(post.id, post.title)} className="text-red-500 hover:text-red-700 text-sm">移入回收站</button></> : <button onClick={() => restore(post.id)} className="text-blue-600 hover:text-blue-800 text-sm">恢复为草稿</button>}
                   </td>
                 </tr>
               ))}

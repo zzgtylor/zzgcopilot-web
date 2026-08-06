@@ -25,3 +25,6 @@ tsconfig.tsbuildinfo
 # system
 .DS_Store
 Thumbs.db
+
+# Local, private recovery snapshots. Never commit site content or user data.
+backups/
