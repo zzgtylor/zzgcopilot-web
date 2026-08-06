@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS media (
   r2_key TEXT NOT NULL UNIQUE,
   mime_type TEXT NOT NULL,
   size INTEGER NOT NULL,
+  alt_text TEXT NOT NULL DEFAULT '',
   width INTEGER,
   height INTEGER,
   uploaded_by TEXT NOT NULL REFERENCES users(id),

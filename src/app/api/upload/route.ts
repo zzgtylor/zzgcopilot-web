@@ -84,12 +84,12 @@ export async function POST(request: NextRequest) {
 
     await db
       .prepare(
-        'INSERT INTO media (id, filename, original_name, r2_key, mime_type, size, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO media (id, filename, original_name, r2_key, mime_type, size, alt_text, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       )
-      .bind(mediaId, filename, file.name || filename, r2Key, file.type, file.size, userId)
+      .bind(mediaId, filename, file.name || filename, r2Key, file.type, file.size, '', userId)
       .run()
 
-    return NextResponse.json({ url, id: mediaId, filename, size: file.size, mime_type: file.type })
+    return NextResponse.json({ url, id: mediaId, filename, size: file.size, mime_type: file.type, alt_text: '' })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || '上传失败' }, { status: 500 })
   }
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     const result = await db
       .prepare(
-        'SELECT id, filename, original_name, r2_key, mime_type, size, created_at FROM media ORDER BY created_at DESC LIMIT ?'
+        'SELECT id, filename, original_name, r2_key, mime_type, size, alt_text, created_at FROM media ORDER BY created_at DESC LIMIT ?'
       )
       .bind(limit)
       .all()
@@ -124,6 +124,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ media })
   } catch (e: any) {
     return NextResponse.json({ media: [], error: e.message }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!canUpload(session)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { id, alt_text } = await request.json() as { id?: string; alt_text?: string }
+    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
+    const db = await getDb()
+    if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
+    await db.prepare('UPDATE media SET alt_text = ? WHERE id = ?').bind(String(alt_text || '').trim().slice(0, 180), id).run()
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || '保存失败' }, { status: 500 })
   }
 }
 
