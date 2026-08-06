@@ -85,11 +85,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(Number(searchParams.get('limit')) || 60, 200)
     const trash = searchParams.get('trash') === '1'
-    const result = await db.prepare(
+    const [result, postReferences] = await Promise.all([db.prepare(
       `SELECT id, filename, original_name, r2_key, mime_type, size, alt_text, source_url, deleted_at, created_at
        FROM media WHERE deleted_at IS ${trash ? 'NOT NULL' : 'NULL'} ORDER BY created_at DESC LIMIT ?`
-    ).bind(limit).all()
-    const media = await Promise.all((result.results || []).map(async (row) => ({ ...row, url: await mediaUrl(row as { r2_key: string; source_url?: string | null }), references: await referenceCount(db, await mediaUrl(row as { r2_key: string; source_url?: string | null })) })))
+    ).bind(limit).all(), db.prepare("SELECT cover_image, og_image, content FROM posts WHERE status != 'archived'").all<{ cover_image?: string; og_image?: string; content?: string }>()])
+    const publicBase = await getR2PublicUrl()
+    const referencedBy = postReferences.results || []
+    const media = (result.results || []).map((row: any) => {
+      const url = row.source_url || (publicBase ? `${publicBase}/${row.r2_key}` : `/api/media/${encodeURIComponent(row.r2_key)}`)
+      const references = referencedBy.filter(post => post.cover_image === url || post.og_image === url || String(post.content || '').includes(url)).length
+      return { ...row, url, references }
+    })
     return NextResponse.json({ media }, { headers: noStore })
   } catch (error) {
     console.error(JSON.stringify({ message: 'media list failed', error: error instanceof Error ? error.message : String(error) }))
