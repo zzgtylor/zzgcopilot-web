@@ -28,7 +28,9 @@ type Post = {
   meta_title?: string
   meta_description?: string
   og_image?: string
+  comments_enabled?: number
 }
+type Comment = { id: string; content: string; created_at: string; author_name: string }
 
 async function getPost(slug: string, includeUnpublished = false): Promise<Post | null> {
   const db = await getDb()
@@ -99,6 +101,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const userAgent = requestHeaders.get('user-agent') || ''
   const isLikelyBot = /bot|crawler|spider|slurp|preview|facebookexternalhit|whatsapp|telegram/i.test(userAgent)
   if (post.status === 'published' && !session?.user && !isLikelyBot) await incrementViewCount(post.id)
+  const db = await getDb()
+  const comments = post.comments_enabled && db ? (await db.prepare('SELECT c.id, c.content, c.created_at, u.name AS author_name FROM comments c JOIN users u ON c.author_id=u.id WHERE c.post_id=? AND c.is_approved=1 ORDER BY c.created_at ASC LIMIT 100').bind(post.id).all<Comment>()).results || [] : []
 
   return (
     <main className="min-h-screen bg-white">
@@ -127,6 +131,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
         </article>
+        {post.comments_enabled ? <section className="mt-12 border-t pt-8"><h2 className="text-xl font-bold text-gray-900">评论</h2>{comments.length ? <div className="mt-5 space-y-4">{comments.map(comment => <article key={comment.id} className="rounded-xl bg-gray-50 p-4"><div className="flex justify-between text-sm"><strong>{comment.author_name}</strong><time className="text-gray-400">{formatDate(comment.created_at)}</time></div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700">{comment.content}</p></article>)}</div> : <p className="mt-3 text-sm text-gray-400">暂无已审核评论。</p>}</section> : null}
       </div>
     </main>
   )

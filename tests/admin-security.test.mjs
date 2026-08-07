@@ -72,3 +72,24 @@ test('comments and site health have restricted admin APIs', () => {
   assert.match(read('src/app/api/admin/comments/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
   assert.match(read('src/app/api/admin/site-health/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
 })
+
+test('remaining WordPress-style core content tools are authenticated and persisted', () => {
+  const cms = read('src/app/api/admin/cms/route.ts')
+  const migration = read('migrations/0004_wordpress_remaining_core.sql')
+  assert.match(cms, /requireAdminRole\(\['admin', 'editor'\]\)/)
+  assert.match(cms, /D1PreparedStatement/)
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS pages/)
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS navigation_items/)
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS content_templates/)
+  assert.match(read('src/app/api/admin/profile/route.ts'), /requireAdminRole\(\)/)
+  assert.match(read('src/app/api/admin/posts/route.ts'), /post\.duplicate/)
+  assert.match(read('src/app/api/admin/posts/route.ts'), /delete_permanent/)
+})
+
+test('homepage keeps its established design while navigation becomes editable', () => {
+  const home = read('src/app/page.tsx')
+  assert.match(home, /Tyler博客/)
+  assert.match(home, /navigation_items/)
+  assert.match(home, /__latest_tutorial__/)
+  assert.match(home, /bg-\[#f8f9fa\]/)
+})

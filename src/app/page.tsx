@@ -15,6 +15,7 @@ type PostCard = {
   published_at: string | null
   category_name: string | null
 }
+type NavigationItem = { id: string; label: string; href: string; is_visible: number; open_new_tab: number }
 
 const legacyTutorial = {
   title: 'Word软件使用全攻略教程',
@@ -49,14 +50,31 @@ async function getLatestPosts(): Promise<PostCard[]> {
   }
 }
 
+async function getNavigation(): Promise<NavigationItem[]> {
+  const db = await getDb()
+  if (!db) return []
+  try {
+    const result = await db.prepare('SELECT id, label, href, is_visible, open_new_tab FROM navigation_items WHERE is_visible = 1 ORDER BY sort_order ASC, created_at ASC').all<NavigationItem>()
+    return result.results || []
+  } catch { return [] }
+}
+
 function formatCardDate(value: string | null) {
   if (!value) return ''
   return value.slice(0, 10)
 }
 
 export default async function HomePage() {
-  const posts = await getLatestPosts()
+  const [posts, navigation] = await Promise.all([getLatestPosts(), getNavigation()])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
+  const defaultNavigation: NavigationItem[] = [
+    { id: 'home', label: '首页', href: '/', is_visible: 1, open_new_tab: 0 },
+    { id: 'free', label: '免费资源', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
+    { id: 'tutorial', label: '教程', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
+    { id: 'template', label: '模板下载', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
+    { id: 'about', label: '关于我们', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
+  ]
+  const navItems = navigation.length ? navigation : defaultNavigation
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8f9fa] text-[#211e19]">
@@ -67,21 +85,10 @@ export default async function HomePage() {
         </Link>
 
         <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 whitespace-nowrap text-[13.5px] font-medium text-[#4a443b] md:flex">
-          <Link href="/" className="font-bold text-[#11567f]">
-            首页
-          </Link>
-          <Link href={tutorialHref} className="hover:text-[#11567f]">
-            免费资源
-          </Link>
-          <Link href={tutorialHref} className="hover:text-[#11567f]">
-            教程
-          </Link>
-          <Link href={tutorialHref} className="hover:text-[#11567f]">
-            模板下载
-          </Link>
-          <Link href={tutorialHref} className="hover:text-[#11567f]">
-            关于我们
-          </Link>
+          {navItems.map(item => {
+            const href = item.href === '__latest_tutorial__' ? tutorialHref : item.href
+            return <Link key={item.id} href={href} target={item.open_new_tab ? '_blank' : undefined} rel={item.open_new_tab ? 'noreferrer' : undefined} className={href === '/' ? 'font-bold text-[#11567f]' : 'hover:text-[#11567f]'}>{item.label}</Link>
+          })}
         </div>
 
         <div className="flex shrink-0 items-center gap-3.5">

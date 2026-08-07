@@ -3,6 +3,7 @@ import { getDb } from '@/lib/cloudflare-db'
 import { publishDuePosts, scheduledAt } from '@/lib/post-scheduling'
 import { canManageAllContent, canPublish, requireAdminRole } from '@/lib/admin-auth'
 import { writeAuditLog } from '@/lib/audit'
+import { getSiteSettings } from '@/lib/site-settings'
 
 const noStore = { 'Cache-Control': 'private, no-store, max-age=0' }
 
@@ -27,11 +28,13 @@ export async function GET(request: NextRequest) {
 
     const searchParams = new URL(request.url).searchParams
     if (searchParams.get('meta') === '1') {
-      const [categories, authors] = await Promise.all([
+      const [categories, authors, templates, settings] = await Promise.all([
         db.prepare('SELECT id, name FROM categories ORDER BY sort_order ASC, name ASC').all(),
         db.prepare("SELECT id, name FROM users WHERE is_active = 1 AND COALESCE(NULLIF(role_key, ''), role) IN ('admin', 'editor', 'author', 'contributor') ORDER BY name ASC").all(),
+        db.prepare('SELECT id, name, description, content FROM content_templates ORDER BY updated_at DESC LIMIT 100').all(),
+        getSiteSettings(db),
       ])
-      return NextResponse.json({ categories: categories.results || [], authors: authors.results || [], role: access.role, capabilities: { manageAll: canManageAllContent(access.role), publish: canPublish(access.role), upload: access.role !== 'contributor' } }, { headers: noStore })
+      return NextResponse.json({ categories: categories.results || [], authors: authors.results || [], templates: templates.results || [], discussionDefaults: { comments_enabled: settings.commentsDefault === 'true', require_approval: settings.commentsRequireApproval === 'true' }, role: access.role, capabilities: { manageAll: canManageAllContent(access.role), publish: canPublish(access.role), upload: access.role !== 'contributor' } }, { headers: noStore })
     }
     const id = searchParams.get('id')
     if (id) {
@@ -141,8 +144,8 @@ export async function POST(request: NextRequest) {
       .prepare(
         `INSERT INTO posts (
           title, slug, content, excerpt, cover_image, category_id, author_id, status, tags,
-          meta_title, meta_description, og_image, published_at, scheduled_at, review_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END, ?, ?)`
+          meta_title, meta_description, og_image, published_at, scheduled_at, review_status, comments_enabled
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') ELSE NULL END, ?, ?, ?)`
       )
       .bind(
         title,
@@ -159,7 +162,8 @@ export async function POST(request: NextRequest) {
         og_image || null,
         status
         , wantsSchedule ? schedule : null,
-        reviewStatus
+        reviewStatus,
+        body.comments_enabled ? 1 : 0
       )
       .run()
 
@@ -215,6 +219,7 @@ export async function PUT(request: NextRequest) {
                ELSE published_at
              END,
              review_status = ?, review_note = CASE WHEN ? = 'pending' THEN '' ELSE review_note END,
+             comments_enabled = ?,
              updated_at = datetime('now')
          WHERE id = ? AND (? IS NULL OR updated_at = ?)`
       )
@@ -235,6 +240,7 @@ export async function PUT(request: NextRequest) {
         status,
         reviewStatus,
         reviewStatus,
+        body.comments_enabled ? 1 : 0,
         id,
         expectedUpdatedAt,
         expectedUpdatedAt
@@ -259,12 +265,20 @@ export async function DELETE(request: NextRequest) {
     const db = await getDb()
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 500 })
 
-    const id = new URL(request.url).searchParams.get('id')
+    const params = new URL(request.url).searchParams
+    const id = params.get('id')
     if (!id) return NextResponse.json({ error: '缺少文章 ID' }, { status: 400 })
 
-    const post = await db.prepare('SELECT author_id FROM posts WHERE id = ?').bind(id).first<{ author_id: string }>()
+    const post = await db.prepare('SELECT author_id, status FROM posts WHERE id = ?').bind(id).first<{ author_id: string; status: string }>()
     if (!post) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
     if (!canManageAllContent(access.role) && post.author_id !== access.userId) return NextResponse.json({ error: '只能管理自己的文章' }, { status: 403 })
+    if (params.get('permanent') === '1') {
+      if (access.role !== 'admin') return NextResponse.json({ error: '只有管理员可以永久删除文章' }, { status: 403 })
+      if (post.status !== 'archived') return NextResponse.json({ error: '请先将文章移入回收站' }, { status: 400 })
+      await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run()
+      await writeAuditLog(db, { userId: access.userId, action: 'post.delete_permanent', targetType: 'post', targetId: id, summary: '永久删除文章', request })
+      return NextResponse.json({ success: true, permanent: true })
+    }
     await db.prepare("UPDATE posts SET status = 'archived', review_status = 'none', updated_at = datetime('now') WHERE id = ?").bind(id).run()
     await writeAuditLog(db, { userId: access.userId, action: 'post.trash', targetType: 'post', targetId: id, summary: '将文章移入回收站', request })
     return NextResponse.json({ success: true, status: 'archived' })
@@ -299,6 +313,18 @@ export async function PATCH(request: NextRequest) {
       await db.prepare("UPDATE posts SET status = 'draft', updated_at = datetime('now') WHERE id = ? AND status = 'archived'").bind(id).run()
       await writeAuditLog(db, { userId: access.userId, action: 'post.restore', targetType: 'post', targetId: id, summary: '从回收站恢复文章', request })
       return NextResponse.json({ success: true, status: 'draft' })
+    }
+    if (action === 'duplicate' && id) {
+      const original = await db.prepare('SELECT * FROM posts WHERE id = ?').bind(id).first<any>()
+      if (!original) return NextResponse.json({ error: '文章不存在' }, { status: 404 })
+      const suffix = crypto.randomUUID().slice(0, 8)
+      const slug = `${String(original.slug).slice(0, 100)}-copy-${suffix}`
+      await db.prepare(`INSERT INTO posts (title, slug, excerpt, content, cover_image, author_id, category_id, status, reading_time, tags, meta_title, meta_description, og_image, comments_enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`)
+        .bind(`${String(original.title).slice(0, 145)}（副本）`, slug, original.excerpt || '', original.content || '', original.cover_image || '', access.userId, original.category_id || null, Number(original.reading_time || 0), original.tags || '[]', original.meta_title || null, original.meta_description || null, original.og_image || null, Number(original.comments_enabled || 0)).run()
+      const copy = await db.prepare('SELECT id FROM posts WHERE slug = ?').bind(slug).first<{ id: string }>()
+      await writeAuditLog(db, { userId: access.userId, action: 'post.duplicate', targetType: 'post', targetId: copy?.id, summary: `复制文章：${String(original.title).slice(0, 120)}`, request })
+      return NextResponse.json({ success: true, id: copy?.id })
     }
     if (action === 'restoreRevision' && id && revisionId) {
       const revision = await db.prepare('SELECT * FROM post_revisions WHERE id = ? AND post_id = ?').bind(revisionId, id).first<any>()

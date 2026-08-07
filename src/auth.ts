@@ -36,8 +36,11 @@ async function recordLoginFailure(db: D1Database, key: string) {
     ).bind(key, failedCount, lockedUntil, stillInWindow ? 1 : 0).run()
 }
 
+const { providers: edgeOnlyProviders, ...runtimeAuthConfig } = authConfig
+void edgeOnlyProviders
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-    ...authConfig,
+    ...runtimeAuthConfig,
     providers: [
           Credentials({
                   name: 'credentials',

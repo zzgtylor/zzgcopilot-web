@@ -22,6 +22,8 @@ export type SiteSettings = {
   seoDefaultTitle: string
   seoDefaultDescription: string
   seoDefaultOgImage: string
+  commentsDefault: string
+  commentsRequireApproval: string
 }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -46,6 +48,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   seoDefaultTitle: 'ZZGCopilot Word 教程',
   seoDefaultDescription: 'Microsoft Word 从入门到精通教程，覆盖文档编辑、格式排版、样式目录、表格图片、协作审阅与高效办公。',
   seoDefaultOgImage: '',
+  commentsDefault: 'false',
+  commentsRequireApproval: 'true',
 }
 
 const SETTINGS_KEYS = Object.keys(DEFAULT_SITE_SETTINGS) as Array<keyof SiteSettings>
@@ -140,6 +144,8 @@ function normalizeSiteSettings(settings: Record<string, string>): SiteSettings {
     seoDefaultTitle: clean(settings.seoDefaultTitle, DEFAULT_SITE_SETTINGS.seoDefaultTitle),
     seoDefaultDescription: clean(settings.seoDefaultDescription, DEFAULT_SITE_SETTINGS.seoDefaultDescription),
     seoDefaultOgImage: cleanOptionalUrl(settings.seoDefaultOgImage),
+    commentsDefault: settings.commentsDefault === 'true' ? 'true' : 'false',
+    commentsRequireApproval: settings.commentsRequireApproval === 'false' ? 'false' : 'true',
   }
 }
 
