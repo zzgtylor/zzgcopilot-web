@@ -93,3 +93,9 @@ test('homepage keeps its established design while navigation becomes editable', 
   assert.match(home, /__latest_tutorial__/)
   assert.match(home, /bg-\[#f8f9fa\]/)
 })
+
+test('public article and independent page routes are not rewritten to the homepage', () => {
+  const middleware = read('src/middleware.ts')
+  assert.match(middleware, /pathname\.startsWith\('\/tutorials\/'\)/)
+  assert.match(middleware, /pathname\.startsWith\('\/pages\/'\)/)
+})
