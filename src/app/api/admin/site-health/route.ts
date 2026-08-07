@@ -11,7 +11,7 @@ export async function GET() {
   if (!access.db) return NextResponse.json({ error: '数据库暂时不可用' }, { status: 503 })
   try {
     const r2 = await getR2()
-    const [dbProbe, scheduler, backup, admins, twoFactor, pendingPosts, pendingComments, missingAlt, overdue, r2Probe] = await Promise.all([
+    const [dbProbe, scheduler, backup, admins, twoFactor, pendingPosts, pendingComments, missingAlt, overdue, pages, navigation, r2Probe] = await Promise.all([
       access.db.prepare('SELECT 1 AS ok').first(),
       access.db.prepare("SELECT status, details, created_at FROM system_events WHERE event_type = 'scheduled_publish' ORDER BY created_at DESC LIMIT 1").first<{ status: string; details?: string; created_at: string }>(),
       access.db.prepare("SELECT status, details, created_at FROM system_events WHERE event_type = 'backup' ORDER BY created_at DESC LIMIT 1").first<{ status: string; details?: string; created_at: string }>(),
@@ -21,6 +21,8 @@ export async function GET() {
       access.db.prepare('SELECT COUNT(*) AS count FROM comments WHERE is_approved = 0').first<{ count: number }>(),
       access.db.prepare("SELECT COUNT(*) AS count FROM media WHERE deleted_at IS NULL AND (alt_text IS NULL OR trim(alt_text) = '')").first<{ count: number }>(),
       access.db.prepare("SELECT COUNT(*) AS count FROM posts WHERE status = 'draft' AND scheduled_at IS NOT NULL AND scheduled_at <= datetime('now')").first<{ count: number }>(),
+      access.db.prepare("SELECT COUNT(*) AS count FROM pages WHERE status = 'published'").first<{ count: number }>(),
+      access.db.prepare("SELECT COUNT(*) AS count FROM navigation_items WHERE is_visible = 1").first<{ count: number }>(),
       r2 ? r2.list({ limit: 1 }).then(() => true).catch(() => false) : Promise.resolve(false),
     ])
     const checks: Check[] = [
@@ -34,6 +36,8 @@ export async function GET() {
       { key: 'reviews', label: '待审核文章', status: Number(pendingPosts?.count || 0) ? 'warning' : 'good', detail: `${Number(pendingPosts?.count || 0)} 篇等待审核`, href: '/admin/posts?status=pending' },
       { key: 'comments', label: '待审核评论', status: Number(pendingComments?.count || 0) ? 'warning' : 'good', detail: `${Number(pendingComments?.count || 0)} 条等待审核`, href: '/admin/comments' },
       { key: 'alt', label: '图片无障碍说明', status: Number(missingAlt?.count || 0) ? 'warning' : 'good', detail: `${Number(missingAlt?.count || 0)} 张图片缺少替代文字`, href: '/admin/media' },
+      { key: 'pages', label: '独立页面', status: 'good', detail: `${Number(pages?.count || 0)} 个已发布页面`, href: '/admin/pages' },
+      { key: 'navigation', label: '首页导航', status: Number(navigation?.count || 0) ? 'good' : 'critical', detail: Number(navigation?.count || 0) ? `${navigation?.count} 个可见菜单项` : '没有可见菜单项，首页将使用安全默认值', href: '/admin/navigation' },
     ]
     return NextResponse.json({ checks, summary: { critical: checks.filter(c => c.status === 'critical').length, warning: checks.filter(c => c.status === 'warning').length, good: checks.filter(c => c.status === 'good').length } }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } })
   } catch (error) {

@@ -26,6 +26,8 @@ const DEFAULT_FORM = {
   seoDefaultTitle: 'ZZGCopilot - 教程网站',
   seoDefaultDescription: '分享编程教程、技术文章和实用指南',
   seoDefaultOgImage: '',
+  commentsDefault: 'false',
+  commentsRequireApproval: 'true',
 }
 
 const heroTones = [
@@ -201,6 +203,9 @@ export default function SiteSettingsPage() {
           </SettingsSection>
 
           <HomeBlocksEditor />
+          <SettingsSection icon={<Eye className="h-4 w-4" />} title="讨论设置">
+            <div className="grid grid-cols-2 gap-4"><Toggle label="新文章默认允许评论" checked={form.commentsDefault === 'true'} onChange={(checked) => update('commentsDefault', checked ? 'true' : 'false')} /><Toggle label="评论发布前需要审核" checked={form.commentsRequireApproval === 'true'} onChange={(checked) => update('commentsRequireApproval', checked ? 'true' : 'false')} /></div>
+          </SettingsSection>
         </div>
 
         <aside className="sticky top-6 h-fit rounded-lg border bg-white p-4">

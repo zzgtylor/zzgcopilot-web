@@ -4,10 +4,11 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown, ExternalLink, Loader2, Upload } from 'lucide-react'
 import StructuredEditor from '@/components/admin/StructuredEditor'
 
-type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; scheduled_at: string; cover_image: string; tags: string[]; meta_title: string; meta_description: string; og_image: string }
+type PostForm = { id?: string; title: string; slug: string; excerpt: string; content: string; category_id: string; status: string; scheduled_at: string; cover_image: string; tags: string[]; meta_title: string; meta_description: string; og_image: string; comments_enabled: boolean }
 type Category = { id: string; name: string }
 type MediaItem = { id: string; original_name: string; url: string; size: number }
 type Revision = { id: string; title: string; status: string; scheduled_at?: string; excerpt?: string; content?: string; created_at: string; created_by_name?: string }
+type ContentTemplate = { id: string; name: string; description: string; content: string }
 
 function lineDiff(before: string, after: string) {
   const left = before.split('\n').slice(0, 500)
@@ -65,7 +66,7 @@ function MediaPicker({ onSelect, onClose }: { onSelect: (url: string) => void; o
 export default function PostEditor({ postId }: { postId?: string }) {
   const router = useRouter()
   const isEdit = Boolean(postId)
-  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', scheduled_at: '', cover_image: '', tags: [], meta_title: '', meta_description: '', og_image: '' })
+  const [form, setForm] = useState<PostForm>({ title: '', slug: '', excerpt: '', content: '', category_id: '', status: 'draft', scheduled_at: '', cover_image: '', tags: [], meta_title: '', meta_description: '', og_image: '', comments_enabled: false })
   const [revisions, setRevisions] = useState<Revision[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [saving, setSaving] = useState(false)
@@ -82,10 +83,11 @@ export default function PostEditor({ postId }: { postId?: string }) {
   const [serverUpdatedAt, setServerUpdatedAt] = useState('')
   const [reviewNote, setReviewNote] = useState('')
   const [capabilities, setCapabilities] = useState({ manageAll: false, publish: true, upload: true })
+  const [templates, setTemplates] = useState<ContentTemplate[]>([])
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    fetch('/api/admin/posts?meta=1', { cache: 'no-store' }).then(r => r.json()).then((d: any) => { setCategories(d.categories || []); if (d.capabilities) setCapabilities(d.capabilities) }).catch(() => {})
+    fetch('/api/admin/posts?meta=1', { cache: 'no-store' }).then(r => r.json()).then((d: any) => { setCategories(d.categories || []); setTemplates(d.templates || []); if (!isEdit && d.discussionDefaults) setForm(f => ({ ...f, comments_enabled: Boolean(d.discussionDefaults.comments_enabled) })); if (d.capabilities) setCapabilities(d.capabilities) }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -95,7 +97,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
         if (d.post) {
           let tags: string[] = []
           try { tags = Array.isArray(d.post.tags) ? d.post.tags : JSON.parse(d.post.tags || '[]') } catch { tags = [] }
-          const loadedForm = { id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.review_status === 'pending' ? 'pending' : d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '', og_image: d.post.og_image || '' }
+          const loadedForm = { id: d.post.id, title: d.post.title || '', slug: d.post.slug || '', excerpt: d.post.excerpt || '', content: d.post.content || '', category_id: d.post.category_id || '', status: d.post.review_status === 'pending' ? 'pending' : d.post.scheduled_at ? 'scheduled' : d.post.status || 'draft', scheduled_at: d.post.scheduled_at ? new Date(d.post.scheduled_at).toISOString().slice(0, 16) : '', cover_image: d.post.cover_image || '', tags, meta_title: d.post.meta_title || '', meta_description: d.post.meta_description || '', og_image: d.post.og_image || '', comments_enabled: Boolean(d.post.comments_enabled) }
           setForm(loadedForm)
           setSavedSignature(JSON.stringify(loadedForm))
           setServerUpdatedAt(d.post.updated_at || '')
@@ -238,7 +240,7 @@ export default function PostEditor({ postId }: { postId?: string }) {
           </div>
 
           <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-3 flex items-center justify-between"><label className="text-sm font-semibold text-gray-800">正文内容</label><span className="text-xs text-gray-400">{wordCount + chineseCount} 字 · 约 {readingMinutes} 分钟阅读</span></div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><label className="text-sm font-semibold text-gray-800">正文内容</label><div className="flex items-center gap-3"><select defaultValue="" onChange={e => { const template = templates.find(item => item.id === e.target.value); if (template && (!form.content || confirm('应用模板会替换当前正文，继续吗？'))) setForm(f => ({ ...f, content: template.content })); e.target.value = '' }} className="rounded-md border px-2 py-1 text-xs"><option value="">应用内容模板…</option>{templates.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span className="text-xs text-gray-400">{wordCount + chineseCount} 字 · 约 {readingMinutes} 分钟阅读</span></div></div>
             <StructuredEditor value={form.content} onChange={(v) => setForm(f => ({ ...f, content: v }))} onImage={uploadFile} />
           </div>
 
@@ -272,6 +274,8 @@ export default function PostEditor({ postId }: { postId?: string }) {
               {capabilities.manageAll && form.status === 'pending' && <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => review('approve')} className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white">审核通过并发布</button><button type="button" onClick={() => review('reject')} className="rounded-lg border border-amber-300 px-3 py-2 text-sm text-amber-700">退回修改</button></div>}
             </div>
           </section>
+
+          <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">讨论</h2></div><label className="flex items-start gap-3 p-5 text-sm text-gray-700"><input type="checkbox" checked={form.comments_enabled} onChange={e => setForm(f => ({ ...f, comments_enabled: e.target.checked }))} className="mt-0.5"/><span>允许这篇文章显示已审核评论<span className="mt-1 block text-xs text-gray-400">默认关闭，不会改变现有前台页面。</span></span></label></section>
 
           {isEdit && <section className="rounded-xl border bg-white shadow-sm"><div className="border-b px-5 py-4"><h2 className="font-semibold text-gray-900">版本记录</h2><p className="mt-1 text-xs text-gray-500">手动保存保留版本，最多 20 个；可高亮比较再恢复。</p></div><div className="divide-y">{revisions.length ? revisions.map(revision => <div key={revision.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm text-gray-700">{revision.title}</p><p className="text-xs text-gray-400">{String(revision.created_at).replace('T', ' ').slice(0, 16)}{revision.created_by_name ? ` · ${revision.created_by_name}` : ''}</p></div><div className="flex gap-3"><button type="button" onClick={() => setRevisionPreview(revision)} className="text-sm text-gray-600 hover:underline">比较</button><button type="button" onClick={() => restoreRevision(revision.id)} className="text-sm text-blue-600 hover:underline">恢复</button></div></div>) : <p className="px-5 py-4 text-sm text-gray-400">还没有可恢复的历史版本。</p>}</div></section>}
 

@@ -113,6 +113,24 @@ export default function MediaLibraryPage() {
     if (r?.ok) load(); else setError('批量操作失败；正在被文章引用的媒体请单独检查。')
   }
 
+  async function transformImage(item: MediaItem, action: 'rotate' | 'square' | 'wide') {
+    setUploading(true); setError('')
+    try {
+      const image = new window.Image(); image.crossOrigin = 'anonymous'; image.src = item.url; await image.decode()
+      const sourceWidth = image.naturalWidth; const sourceHeight = image.naturalHeight
+      const ratio = action === 'square' ? 1 : 16 / 9
+      let sx = 0; let sy = 0; let sw = sourceWidth; let sh = sourceHeight
+      if (action !== 'rotate') { if (sourceWidth / sourceHeight > ratio) { sw = sourceHeight * ratio; sx = (sourceWidth - sw) / 2 } else { sh = sourceWidth / ratio; sy = (sourceHeight - sh) / 2 } }
+      const canvas = document.createElement('canvas')
+      if (action === 'rotate') { canvas.width = sourceHeight; canvas.height = sourceWidth; const context = canvas.getContext('2d'); if (!context) throw new Error('浏览器无法编辑图片'); context.translate(canvas.width, 0); context.rotate(Math.PI / 2); context.drawImage(image, 0, 0) }
+      else { canvas.width = Math.round(sw); canvas.height = Math.round(sh); canvas.getContext('2d')?.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height) }
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, item.mime_type === 'image/png' ? 'image/png' : 'image/jpeg', 0.9)); if (!blob) throw new Error('图片处理失败')
+      const extension = blob.type === 'image/png' ? 'png' : 'jpg'; const fd = new FormData(); fd.append('file', new File([blob], `${item.original_name.replace(/\.[^.]+$/, '')}-${action}.${extension}`, { type: blob.type }))
+      const response = await fetch('/api/upload', { method: 'POST', body: fd }); const data: any = await response.json(); if (!response.ok) throw new Error(data.error || '上传失败')
+      setDetail(null); load()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : '图片编辑失败') } finally { setUploading(false) }
+  }
+
   return (
     <div className="p-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -202,7 +220,7 @@ export default function MediaLibraryPage() {
         </div>
       )}
       <div className="mt-6 flex items-center justify-between text-sm text-gray-500"><span>共 {total} 个文件 · 第 {page} 页</span><div className="flex gap-2"><button disabled={page <= 1} onClick={() => setPage(value => value - 1)} className="rounded border bg-white px-3 py-1.5 disabled:opacity-40">上一页</button><button disabled={page * 30 >= total} onClick={() => setPage(value => value + 1)} className="rounded border bg-white px-3 py-1.5 disabled:opacity-40">下一页</button></div></div>
-      {detail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 p-4"><div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold">媒体详情</h2><button onClick={() => setDetail(null)} className="rounded border px-3 py-1.5 text-sm">关闭</button></div><div className="mt-5 grid gap-6 md:grid-cols-2"><img src={detail.url} alt={detail.alt_text || detail.original_name} className="max-h-[55vh] w-full rounded-xl bg-gray-50 object-contain"/><dl className="space-y-3 text-sm"><div><dt className="text-gray-400">文件名</dt><dd className="break-all text-gray-800">{detail.original_name}</dd></div><div><dt className="text-gray-400">格式与大小</dt><dd>{detail.mime_type} · {formatSize(detail.size)}</dd></div><div><dt className="text-gray-400">上传时间</dt><dd>{String(detail.created_at).replace('T', ' ').slice(0, 19)}</dd></div><div><dt className="text-gray-400">文章引用</dt><dd>{detail.references || 0} 处</dd></div><div><dt className="text-gray-400">文件地址</dt><dd className="break-all text-blue-600">{detail.url}</dd></div><button onClick={() => copyUrl(detail)} className="rounded-lg bg-gray-900 px-4 py-2 text-white">复制文件地址</button></dl></div></div></div>}
+      {detail && <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 p-4"><div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold">媒体详情</h2><button onClick={() => setDetail(null)} className="rounded border px-3 py-1.5 text-sm">关闭</button></div><div className="mt-5 grid gap-6 md:grid-cols-2"><img src={detail.url} alt={detail.alt_text || detail.original_name} className="max-h-[55vh] w-full rounded-xl bg-gray-50 object-contain"/><dl className="space-y-3 text-sm"><div><dt className="text-gray-400">文件名</dt><dd className="break-all text-gray-800">{detail.original_name}</dd></div><div><dt className="text-gray-400">格式与大小</dt><dd>{detail.mime_type} · {formatSize(detail.size)}</dd></div><div><dt className="text-gray-400">上传时间</dt><dd>{String(detail.created_at).replace('T', ' ').slice(0, 19)}</dd></div><div><dt className="text-gray-400">文章引用</dt><dd>{detail.references || 0} 处</dd></div><div><dt className="text-gray-400">文件地址</dt><dd className="break-all text-blue-600">{detail.url}</dd></div><div><dt className="mb-2 text-gray-400">基础编辑（生成新文件，保留原图）</dt><dd className="flex flex-wrap gap-2"><button disabled={uploading} onClick={() => transformImage(detail, 'rotate')} className="rounded border px-3 py-1.5">顺时针旋转</button><button disabled={uploading} onClick={() => transformImage(detail, 'square')} className="rounded border px-3 py-1.5">裁剪 1:1</button><button disabled={uploading} onClick={() => transformImage(detail, 'wide')} className="rounded border px-3 py-1.5">裁剪 16:9</button></dd></div><button onClick={() => copyUrl(detail)} className="rounded-lg bg-gray-900 px-4 py-2 text-white">复制文件地址</button></dl></div></div></div>}
     </div>
   )
 }

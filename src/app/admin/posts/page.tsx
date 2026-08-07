@@ -76,6 +76,18 @@ export default function AdminPostsPage() {
     if (r?.ok) load(); else alert('恢复失败')
   }
 
+  async function duplicate(id: string) {
+    const r = await fetch('/api/admin/posts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'duplicate' }) }).catch(() => null)
+    const d = r ? await r.json().catch(() => ({})) : {}
+    if (r?.ok && d.id) window.location.href = `/admin/posts/${d.id}/edit`; else alert(d.error || '复制失败')
+  }
+
+  async function permanentDelete(id: string, title: string) {
+    if (!confirm(`永久删除「${title}」？此操作无法恢复。`)) return
+    const r = await fetch('/api/admin/posts?id=' + encodeURIComponent(id) + '&permanent=1', { method: 'DELETE' }).catch(() => null)
+    const d = r ? await r.json().catch(() => ({})) : {}; if (r?.ok) load(); else alert(d.error || '永久删除失败')
+  }
+
   async function runBulk() {
     if (!bulkAction || selected.length === 0) return
     const labels: Record<string, string> = { publish: '发布', draft: '转为草稿', archive: '移入回收站' }
@@ -122,7 +134,7 @@ export default function AdminPostsPage() {
               const pending = post.review_status === 'pending'
               const label = pending ? '待审核' : post.status === 'published' ? '已发布' : post.status === 'archived' ? '已删除' : scheduled ? '定时发布' : '草稿'
               const badge = pending ? 'bg-purple-100 text-purple-700' : post.status === 'published' ? 'bg-green-100 text-green-700' : post.status === 'archived' ? 'bg-gray-100 text-gray-600' : scheduled ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
-              return <tr key={post.id} className="hover:bg-gray-50"><td className="px-4 py-4"><input type="checkbox" checked={selected.includes(post.id)} onChange={() => toggle(post.id)} aria-label={'选择 ' + post.title} /></td><td className="px-3 py-4"><p className="font-medium text-gray-900">{post.title}</p><p className="mt-0.5 font-mono text-xs text-gray-400">/{post.slug}{post.status === 'published' && <a href={`/tutorials/${post.slug}`} target="_blank" rel="noreferrer" className="ml-2 text-blue-500 hover:underline">查看 ↗</a>}</p></td><td className="px-4 py-4 text-gray-600"><p>{post.category_name || '未分类'} · {post.author_name || '未知作者'}</p>{post.tags?.length ? <p className="mt-1 text-xs text-gray-400">{post.tags.join(' · ')}</p> : null}</td><td className="px-4 py-4"><span className={'rounded-full px-2 py-0.5 text-xs ' + badge}>{label}</span>{scheduled && <p className="mt-1 text-xs text-gray-400">{String(post.scheduled_at).replace('T', ' ').slice(0, 16)}</p>}</td><td className="px-4 py-4 text-gray-600">{post.view_count ?? 0}</td><td className="px-4 py-4 text-gray-400">{String(post.created_at || '').slice(0, 10)}</td><td className="px-4 py-4 text-right">{pending && capabilities.manageAll ? <><button onClick={() => review(post.id, 'approve')} className="mr-3 text-green-700">通过</button><button onClick={() => review(post.id, 'reject')} className="mr-3 text-amber-700">退回</button></> : null}{post.status !== 'archived' ? <><Link href={`/admin/posts/${post.id}/edit`} className="mr-4 text-blue-600 hover:text-blue-800">编辑</Link><button onClick={() => remove(post.id, post.title)} className="text-red-500 hover:text-red-700">移入回收站</button></> : <button onClick={() => restore(post.id)} className="text-blue-600 hover:text-blue-800">恢复为草稿</button>}</td></tr>
+              return <tr key={post.id} className="hover:bg-gray-50"><td className="px-4 py-4"><input type="checkbox" checked={selected.includes(post.id)} onChange={() => toggle(post.id)} aria-label={'选择 ' + post.title} /></td><td className="px-3 py-4"><p className="font-medium text-gray-900">{post.title}</p><p className="mt-0.5 font-mono text-xs text-gray-400">/{post.slug}{post.status === 'published' && <a href={`/tutorials/${post.slug}`} target="_blank" rel="noreferrer" className="ml-2 text-blue-500 hover:underline">查看 ↗</a>}</p></td><td className="px-4 py-4 text-gray-600"><p>{post.category_name || '未分类'} · {post.author_name || '未知作者'}</p>{post.tags?.length ? <p className="mt-1 text-xs text-gray-400">{post.tags.join(' · ')}</p> : null}</td><td className="px-4 py-4"><span className={'rounded-full px-2 py-0.5 text-xs ' + badge}>{label}</span>{scheduled && <p className="mt-1 text-xs text-gray-400">{String(post.scheduled_at).replace('T', ' ').slice(0, 16)}</p>}</td><td className="px-4 py-4 text-gray-600">{post.view_count ?? 0}</td><td className="px-4 py-4 text-gray-400">{String(post.created_at || '').slice(0, 10)}</td><td className="px-4 py-4 text-right">{pending && capabilities.manageAll ? <><button onClick={() => review(post.id, 'approve')} className="mr-3 text-green-700">通过</button><button onClick={() => review(post.id, 'reject')} className="mr-3 text-amber-700">退回</button></> : null}{post.status !== 'archived' ? <><Link href={`/admin/posts/${post.id}/edit`} className="mr-3 text-blue-600 hover:text-blue-800">编辑</Link><button onClick={() => duplicate(post.id)} className="mr-3 text-gray-600 hover:text-gray-900">复制</button><button onClick={() => remove(post.id, post.title)} className="text-red-500 hover:text-red-700">移入回收站</button></> : <><button onClick={() => restore(post.id)} className="mr-3 text-blue-600 hover:text-blue-800">恢复为草稿</button>{capabilities.manageAll && <button onClick={() => permanentDelete(post.id, post.title)} className="text-red-600">永久删除</button>}</>}</td></tr>
             })}
           </tbody></table>
         )}

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS posts (
   scheduled_at TEXT,
   review_status TEXT NOT NULL DEFAULT 'none',
   review_note TEXT NOT NULL DEFAULT '',
+  comments_enabled INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -170,6 +171,26 @@ CREATE TABLE IF NOT EXISTS site_settings (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS pages (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), title TEXT NOT NULL, slug TEXT UNIQUE NOT NULL,
+  content TEXT NOT NULL DEFAULT '', excerpt TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'published', 'archived')),
+  author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, meta_title TEXT, meta_description TEXT,
+  published_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS navigation_items (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), label TEXT NOT NULL, href TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0, is_visible INTEGER NOT NULL DEFAULT 1, open_new_tab INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS content_templates (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '', created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category_id);
@@ -188,6 +209,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC)
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_system_events_type_created ON system_events(event_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_post_daily_views_date ON post_daily_views(view_date);
+CREATE INDEX IF NOT EXISTS idx_pages_status ON pages(status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pages_slug ON pages(slug);
+CREATE INDEX IF NOT EXISTS idx_navigation_order ON navigation_items(sort_order);
+CREATE INDEX IF NOT EXISTS idx_content_templates_updated ON content_templates(updated_at DESC);
 
 -- Seed default categories
 INSERT OR IGNORE INTO categories (name, slug, description, sort_order) VALUES
@@ -219,3 +244,14 @@ INSERT OR IGNORE INTO site_settings (key, value) VALUES
   ('seoDefaultTitle', 'ZZGCopilot Word 教程'),
   ('seoDefaultDescription', 'Microsoft Word 从入门到精通教程，覆盖文档编辑、格式排版、样式目录、表格图片、协作审阅与高效办公。'),
   ('seoDefaultOgImage', '');
+
+INSERT OR IGNORE INTO site_settings (key, value) VALUES
+  ('commentsDefault', 'false'),
+  ('commentsRequireApproval', 'true');
+
+INSERT OR IGNORE INTO navigation_items (label, href, sort_order, is_visible) VALUES
+  ('首页', '/', 0, 1),
+  ('免费资源', '__latest_tutorial__', 1, 1),
+  ('教程', '__latest_tutorial__', 2, 1),
+  ('模板下载', '__latest_tutorial__', 3, 1),
+  ('关于我们', '__latest_tutorial__', 4, 1);
