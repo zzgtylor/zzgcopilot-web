@@ -55,6 +55,12 @@ export type PublicSiteSettings = {
   seoDefaultDescription: string
   seoDefaultOgImage: string
   defaultCoverImageUrl: string
+  homepageBrandName: string
+  homepageSectionTitle: string
+  homepageSearchPlaceholder: string
+  homepageCtaLabel: string
+  homepageFooterBrand: string
+  homepageFooterNote: string
 }
 
 export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
@@ -63,6 +69,12 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   seoDefaultDescription: 'Microsoft Word 从入门到精通教程，覆盖文档编辑、格式排版、样式目录、表格图片、协作审阅与高效办公。',
   seoDefaultOgImage: '',
   defaultCoverImageUrl: '',
+  homepageBrandName: 'Tyler博客',
+  homepageSectionTitle: '最新教程',
+  homepageSearchPlaceholder: '搜索教程…',
+  homepageCtaLabel: '从零开始学习 →',
+  homepageFooterBrand: 'Tyler博客',
+  homepageFooterNote: '本站内容独立编写整理，非 Microsoft 官方文档',
 }
 
 export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
@@ -237,13 +249,19 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> | null>(`*[_type == "siteSettings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url }`)
+  const item = await query<Partial<PublicSiteSettings> | null>(`*[_type == "siteSettings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
     seoDefaultDescription: item?.seoDefaultDescription?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultDescription,
     seoDefaultOgImage: item?.seoDefaultOgImage?.trim() || '',
     defaultCoverImageUrl: item?.defaultCoverImageUrl?.trim() || '',
+    homepageBrandName: item?.homepageBrandName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageBrandName,
+    homepageSectionTitle: item?.homepageSectionTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSectionTitle,
+    homepageSearchPlaceholder: item?.homepageSearchPlaceholder?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSearchPlaceholder,
+    homepageCtaLabel: item?.homepageCtaLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageCtaLabel,
+    homepageFooterBrand: item?.homepageFooterBrand?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterBrand,
+    homepageFooterNote: item?.homepageFooterNote?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterNote,
   }
 }
 

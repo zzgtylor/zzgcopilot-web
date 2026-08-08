@@ -6,9 +6,11 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 
 test('homepage retains the existing visual shell while reading navigation from Sanity', () => {
   const home = read('src/app/page.tsx')
-  assert.match(home, /Tyler博客/)
   assert.match(home, /getSanityNavigation/)
+  assert.match(home, /getSanitySiteSettings/)
   assert.match(home, /bg-\[#f8f9fa\]/)
+  assert.match(home, /settings\.homepageSectionTitle/)
+  assert.match(home, /settings\.homepageCtaLabel/)
 })
 
 test('all public content routes use Sanity-only readers', () => {
@@ -36,6 +38,8 @@ test('Sanity schemas own posts, settings, and image assets', () => {
   assert.match(post, /type: 'image'/)
   assert.match(settings, /name: 'defaultCoverImage'/)
   assert.match(settings, /type: 'image'/)
+  assert.match(settings, /name: 'homepageSectionTitle'/)
+  assert.match(settings, /name: 'homepageFooterNote'/)
 })
 
 test('recovery backups include published Sanity documents and image binaries', () => {

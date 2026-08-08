@@ -48,7 +48,7 @@ export default async function HomePage() {
       {/* NAV */}
       <nav className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 bg-white px-5 py-4 sm:px-8">
         <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl font-bold text-[#211e19] sm:text-3xl">
-          Tyler博客
+          {settings.homepageBrandName}
         </Link>
 
         <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 whitespace-nowrap text-[13.5px] font-medium text-[#4a443b] md:flex">
@@ -63,7 +63,7 @@ export default async function HomePage() {
             <input
               type="search"
               aria-label="搜索教程"
-              placeholder="搜索教程…"
+              placeholder={settings.homepageSearchPlaceholder}
               className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[#11567f]"
             />
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a39a8a]" />
@@ -73,7 +73,7 @@ export default async function HomePage() {
             href={tutorialHref}
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[#11567f] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[#142844]"
           >
-            从零开始学习 →
+            {settings.homepageCtaLabel}
           </Link>
         </div>
       </nav>
@@ -83,7 +83,7 @@ export default async function HomePage() {
         {/* 左：主内容区 */}
         <main>
           <div className="mb-[26px] flex flex-wrap items-baseline justify-between gap-2.5">
-            <h1 className="font-serif text-2xl font-bold text-[#1a160f]">最新教程</h1>
+            <h1 className="font-serif text-2xl font-bold text-[#1a160f]">{settings.homepageSectionTitle}</h1>
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -155,8 +155,8 @@ export default async function HomePage() {
       {/* FOOTER */}
       <footer className="border-t border-[#211e19]/10 bg-white px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4">
-          <span className="text-[13px] text-[#797266]">Tyler博客</span>
-          <span className="font-mono text-xs text-[#a39a8a]">本站内容独立编写整理，非 Microsoft 官方文档</span>
+          <span className="text-[13px] text-[#797266]">{settings.homepageFooterBrand}</span>
+          <span className="font-mono text-xs text-[#a39a8a]">{settings.homepageFooterNote}</span>
         </div>
       </footer>
     </div>
