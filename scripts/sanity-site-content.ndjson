@@ -1,0 +1,6 @@
+{"_id":"site-settings","_type":"siteSettings","siteName":"ZZGCopilot Word 教程","seoDefaultTitle":"ZZGCopilot Word 教程","seoDefaultDescription":"Microsoft Word 从入门到精通教程，覆盖文档编辑、格式排版、样式目录、表格图片、协作审阅与高效办公。","seoDefaultOgImage":""}
+{"_id":"navigation-home","_type":"navigationItem","label":"首页","href":"/","sortOrder":0,"isVisible":true,"openNewTab":false}
+{"_id":"navigation-free","_type":"navigationItem","label":"免费资源","href":"__latest_tutorial__","sortOrder":1,"isVisible":true,"openNewTab":false}
+{"_id":"navigation-tutorial","_type":"navigationItem","label":"教程","href":"__latest_tutorial__","sortOrder":2,"isVisible":true,"openNewTab":false}
+{"_id":"navigation-template","_type":"navigationItem","label":"模板下载","href":"__latest_tutorial__","sortOrder":3,"isVisible":true,"openNewTab":false}
+{"_id":"navigation-about","_type":"navigationItem","label":"关于我们","href":"__latest_tutorial__","sortOrder":4,"isVisible":true,"openNewTab":false}

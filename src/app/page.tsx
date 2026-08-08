@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
-import { getDb } from '@/lib/cloudflare-db'
-import { publishDuePosts } from '@/lib/post-scheduling'
+import { DEFAULT_NAVIGATION, getSanityLatestPosts, getSanityNavigation, type SanityNavigationItem } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +14,7 @@ type PostCard = {
   published_at: string | null
   category_name: string | null
 }
-type NavigationItem = { id: string; label: string; href: string; is_visible: number; open_new_tab: number }
+type NavigationItem = SanityNavigationItem
 
 const legacyTutorial = {
   title: 'Word软件使用全攻略教程',
@@ -27,36 +26,11 @@ const legacyTutorial = {
 }
 
 async function getLatestPosts(): Promise<PostCard[]> {
-  const db = await getDb()
-  if (!db) return []
-
-  try {
-    await publishDuePosts(db)
-    const result = await db
-      .prepare(
-        `SELECT p.id, p.title, p.slug, p.cover_image, p.reading_time, p.created_at, p.published_at,
-                c.name AS category_name
-         FROM posts p
-         LEFT JOIN categories c ON p.category_id = c.id
-         WHERE p.status = 'published'
-         ORDER BY COALESCE(p.published_at, p.created_at) DESC
-         LIMIT 12`
-      )
-      .all<PostCard>()
-
-    return result.results || []
-  } catch {
-    return []
-  }
+  return getSanityLatestPosts()
 }
 
 async function getNavigation(): Promise<NavigationItem[]> {
-  const db = await getDb()
-  if (!db) return []
-  try {
-    const result = await db.prepare('SELECT id, label, href, is_visible, open_new_tab FROM navigation_items WHERE is_visible = 1 ORDER BY sort_order ASC, created_at ASC').all<NavigationItem>()
-    return result.results || []
-  } catch { return [] }
+  return getSanityNavigation()
 }
 
 function formatCardDate(value: string | null) {
@@ -67,14 +41,7 @@ function formatCardDate(value: string | null) {
 export default async function HomePage() {
   const [posts, navigation] = await Promise.all([getLatestPosts(), getNavigation()])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
-  const defaultNavigation: NavigationItem[] = [
-    { id: 'home', label: '首页', href: '/', is_visible: 1, open_new_tab: 0 },
-    { id: 'free', label: '免费资源', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
-    { id: 'tutorial', label: '教程', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
-    { id: 'template', label: '模板下载', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
-    { id: 'about', label: '关于我们', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
-  ]
-  const navItems = navigation.length ? navigation : defaultNavigation
+  const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f8f9fa] text-[#211e19]">

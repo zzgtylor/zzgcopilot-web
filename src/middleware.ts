@@ -1,16 +1,17 @@
-import NextAuth from 'next-auth'
 import { NextResponse, type NextRequest } from 'next/server'
-import { authConfig } from './auth.config'
 
-// Use the Edge-compatible config (no Credentials provider / crypto / jose)
-// so the middleware can run in the Edge Runtime without bundling Node.js APIs.
-// Route protection is handled by the `authorized` callback in auth.config.ts.
-const authMiddleware = NextAuth(authConfig).auth
+const SANITY_STUDIO_URL = 'https://zzgcopilot.sanity.studio/'
 
 export default function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if (pathname.startsWith('/admin')) return (authMiddleware as any)(request)
+    if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/register') {
+        return NextResponse.redirect(SANITY_STUDIO_URL, 307)
+    }
+
+    if (pathname.startsWith('/api/admin')) {
+        return NextResponse.json({ error: '原 Cloudflare 内容后台已停用，请使用 Sanity Studio。' }, { status: 410 })
+    }
 
     if (pathname === '/sitemap.xml') return NextResponse.rewrite(new URL('/api/sitemap', request.url))
 
@@ -30,8 +31,6 @@ export default function middleware(request: NextRequest) {
         pathname === '/' ||
         pathname === '/tyler-home.html' ||
         pathname === '/index.html' ||
-        pathname === '/login' ||
-        pathname === '/register' ||
         pathname.startsWith('/api') ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/uploads') ||

@@ -86,12 +86,22 @@ test('remaining WordPress-style core content tools are authenticated and persist
   assert.match(read('src/app/api/admin/posts/route.ts'), /delete_permanent/)
 })
 
-test('homepage keeps its established design while navigation becomes editable', () => {
+test('homepage keeps its established design while navigation is served by Sanity', () => {
   const home = read('src/app/page.tsx')
   assert.match(home, /Tyler博客/)
-  assert.match(home, /navigation_items/)
+  assert.match(home, /getSanityNavigation/)
   assert.match(home, /__latest_tutorial__/)
   assert.match(home, /bg-\[#f8f9fa\]/)
+})
+
+test('public content routes use Sanity and the retired Cloudflare admin redirects to Studio', () => {
+  assert.match(read('src/app/tutorials/[slug]/page.tsx'), /getSanityPost/)
+  assert.match(read('src/app/pages/[slug]/page.tsx'), /getSanityPage/)
+  assert.match(read('src/app/api/posts/route.ts'), /getSanityPublishedPosts/)
+  assert.match(read('src/app/api/sitemap/route.ts'), /getSanitySitemapEntries/)
+  const middleware = read('src/middleware.ts')
+  assert.match(middleware, /SANITY_STUDIO_URL/)
+  assert.match(middleware, /pathname\.startsWith\('\/api\/admin'\)/)
 })
 
 test('public article and independent page routes are not rewritten to the homepage', () => {

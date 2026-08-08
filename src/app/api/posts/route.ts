@@ -1,43 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/cloudflare-db'
-import { publishDuePosts } from '@/lib/post-scheduling'
-
-
+import { getSanityCategories, getSanityPublishedPosts } from '@/lib/sanity-content'
 
 export async function GET(request: NextRequest) {
-  try {
-      const db = await getDb()
-          if (!db) return NextResponse.json({ posts: [], categories: [] })
-              await publishDuePosts(db)
-
-              const { searchParams } = new URL(request.url)
-                  const limit = parseInt(searchParams.get('limit') || '20')
-                      const offset = parseInt(searchParams.get('offset') || '0')
-                          const category = searchParams.get('category')
-
-                              let query = `SELECT p.*, u.name as author_name, c.name as category_name
-                                    FROM posts p
-                                          LEFT JOIN users u ON p.author_id = u.id
-                                                LEFT JOIN categories c ON p.category_id = c.id
-                                                      WHERE p.status = 'published'`
-
-                                                          const params: any[] = []
-                                                              if (category) {
-                                                                    query += ' AND c.slug = ?'
-                                                                          params.push(category)
-                                                                              }
-                                                                                  query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?'
-                                                                                      params.push(limit, offset)
-
-                                                                                          const result = await db.prepare(query).bind(...params).all()
-                                                                                              const categories = await db.prepare('SELECT * FROM categories ORDER BY name').all()
-
-                                                                                                  return NextResponse.json({
-                                                                                                        posts: result.results || [],
-                                                                                                              categories: categories.results || [],
-                                                                                                                  })
-                                                                                                                    } catch (e) {
-                                                                                                                        console.error(e)
-                                                                                                                            return NextResponse.json({ posts: [], categories: [] })
-                                                                                                                              }
-                                                                                                                              }
+  const { searchParams } = new URL(request.url)
+  const limit = Number.parseInt(searchParams.get('limit') || '20', 10)
+  const offset = Number.parseInt(searchParams.get('offset') || '0', 10)
+  const category = searchParams.get('category') || undefined
+  const [posts, categories] = await Promise.all([
+    getSanityPublishedPosts({ limit: Number.isFinite(limit) ? limit : 20, offset: Number.isFinite(offset) ? offset : 0, category }),
+    getSanityCategories(),
+  ])
+  return NextResponse.json({ posts, categories })
+}
