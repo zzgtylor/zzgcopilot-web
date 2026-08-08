@@ -8,6 +8,7 @@ import { getSiteSettings } from '@/lib/site-settings'
 import { auth } from '@/auth'
 import { publishDuePosts } from '@/lib/post-scheduling'
 import { headers } from 'next/headers'
+import { getSanityPost } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,10 +30,17 @@ type Post = {
   meta_description?: string
   og_image?: string
   comments_enabled?: number
+  source?: 'd1' | 'sanity'
 }
 type Comment = { id: string; content: string; created_at: string; author_name: string }
 
 async function getPost(slug: string, includeUnpublished = false): Promise<Post | null> {
+  // Sanity only exposes published content. Draft previews intentionally remain
+  // in the existing authenticated D1 admin while migration is in progress.
+  if (!includeUnpublished) {
+    const sanityPost = await getSanityPost(slug)
+    if (sanityPost) return sanityPost
+  }
   const db = await getDb()
   if (!db) return null
   await publishDuePosts(db)
@@ -100,7 +108,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   const userAgent = requestHeaders.get('user-agent') || ''
   const isLikelyBot = /bot|crawler|spider|slurp|preview|facebookexternalhit|whatsapp|telegram/i.test(userAgent)
-  if (post.status === 'published' && !session?.user && !isLikelyBot) await incrementViewCount(post.id)
+  if (post.status === 'published' && post.source !== 'sanity' && !session?.user && !isLikelyBot) await incrementViewCount(post.id)
   const db = await getDb()
   const comments = post.comments_enabled && db ? (await db.prepare('SELECT c.id, c.content, c.created_at, u.name AS author_name FROM comments c JOIN users u ON c.author_id=u.id WHERE c.post_id=? AND c.is_approved=1 ORDER BY c.created_at ASC LIMIT 100').bind(post.id).all<Comment>()).results || [] : []
 

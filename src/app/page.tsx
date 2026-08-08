@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { getDb } from '@/lib/cloudflare-db'
 import { publishDuePosts } from '@/lib/post-scheduling'
+import { getSanityLatestPosts } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,8 +28,9 @@ const legacyTutorial = {
 }
 
 async function getLatestPosts(): Promise<PostCard[]> {
+  const sanityPosts = await getSanityLatestPosts()
   const db = await getDb()
-  if (!db) return []
+  if (!db) return sanityPosts
 
   try {
     await publishDuePosts(db)
@@ -44,9 +46,17 @@ async function getLatestPosts(): Promise<PostCard[]> {
       )
       .all<PostCard>()
 
-    return result.results || []
+    // During the gradual migration, a matching Sanity slug takes precedence,
+    // while every post that has not yet been migrated remains visible from D1.
+    const bySlug = new Map<string, PostCard>(sanityPosts.map(post => [post.slug, post]))
+    for (const post of result.results || []) {
+      if (!bySlug.has(post.slug)) bySlug.set(post.slug, post)
+    }
+    return Array.from(bySlug.values())
+      .sort((a, b) => String(b.published_at || b.created_at).localeCompare(String(a.published_at || a.created_at)))
+      .slice(0, 12)
   } catch {
-    return []
+    return sanityPosts
   }
 }
 

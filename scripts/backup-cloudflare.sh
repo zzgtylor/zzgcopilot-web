@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Creates a private, restorable snapshot of production D1 data and R2 media.
-# Snapshots live in ./backups/ and are intentionally excluded from Git.
+# Creates a private, restorable snapshot of production D1 data, R2 media, and
+# published Sanity documents. Snapshots live in ./backups/ and are intentionally
+# excluded from Git.
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 timestamp=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
@@ -12,6 +13,11 @@ mkdir -p "$backup_dir/r2"
 cd "$repo_root"
 echo "Creating D1 snapshot in $backup_dir"
 npx wrangler d1 export zzgcopilot-db --remote --output "$backup_dir/zzgcopilot-db.sql" --skip-confirmation
+
+echo "Exporting published Sanity content"
+SANITY_PROJECT_ID="${SANITY_PROJECT_ID:-o9d9rhdt}" \
+SANITY_DATASET="${SANITY_DATASET:-production}" \
+node scripts/export-sanity-content.mjs "$backup_dir/sanity-content.json"
 
 echo "Reading the R2 media manifest from D1"
 npx wrangler d1 execute zzgcopilot-db --remote \
