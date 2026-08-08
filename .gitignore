@@ -26,5 +26,10 @@ tsconfig.tsbuildinfo
 .DS_Store
 Thumbs.db
 
+# Sanity Studio build outputs and aborted local install recovery folders.
+sanity-studio/dist/
+sanity-studio/.sanity/
+sanity-studio/.install-conflict-*/
+
 # Local, private recovery snapshots. Never commit site content or user data.
 backups/

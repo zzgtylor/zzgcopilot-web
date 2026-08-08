@@ -1,0 +1,23 @@
+{
+  "name": "zzgcopilot-sanity-studio",
+  "private": true,
+  "scripts": {
+    "dev": "sanity dev",
+    "deploy": "sanity deploy"
+  },
+  "dependencies": {
+    "@portabletext/react": "^6.2.0",
+    "@sanity/icons": "^5.2.1",
+    "@sanity/image-url": "^2.1.1",
+    "@sanity/vision": "^6.9.1",
+    "sanity": "^6.9.1",
+    "sanity-plugin-media": "^6.1.1",
+    "styled-components": "^6.1.15"
+  },
+  "overrides": {
+    "js-yaml": "4.3.1",
+    "smol-toml": "1.7.1",
+    "undici": "7.29.0",
+    "uuid": "11.1.1"
+  }
+}

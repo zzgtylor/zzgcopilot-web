@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { getSiteSettings } from '@/lib/site-settings'
+import { getSanitySiteSettings } from '@/lib/sanity-content'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSiteSettings()
+  const settings = await getSanitySiteSettings()
   return {
     metadataBase: new URL('https://zzgcopilot.com'),
     title: settings.seoDefaultTitle,

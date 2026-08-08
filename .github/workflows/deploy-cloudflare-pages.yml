@@ -1,0 +1,36 @@
+name: Deploy Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ef44acba9dcdaf04615c9e00373add45
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_BACKUP_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run pages:build
+      - name: Deploy production site
+        run: >-
+          npx wrangler pages deploy .open-next
+          --project-name zzgcopilot-web
+          --branch main
+          --commit-hash "${{ github.sha }}"
+          --commit-message "${{ github.event.head_commit.message || github.sha }}"

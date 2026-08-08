@@ -4,98 +4,78 @@ import { readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('admin content APIs require an authenticated CMS role', () => {
-  for (const route of ['src/app/api/admin/posts/route.ts', 'src/app/api/upload/route.ts']) {
-    assert.match(read(route), /requireAdminRole\(\)/)
-  }
-})
-
-test('user management is restricted to administrators', () => {
-  assert.match(read('src/app/api/admin/users/route.ts'), /requireAdminRole\(\['admin'\]\)/)
-})
-
-test('public registration is closed unless explicitly enabled', () => {
-  assert.match(read('src/app/api/register/route.ts'), /PUBLIC_REGISTRATION_ENABLED !== 'true'/)
-})
-
-test('schema contains no seeded administrator credentials', () => {
-  const schema = read('schema.sql')
-  assert.doesNotMatch(schema, /Seed admin user/i)
-  assert.doesNotMatch(schema, /INSERT OR IGNORE INTO users/)
-})
-
-test('unsafe SVG uploads and insecure random fallbacks are not accepted', () => {
-  const upload = read('src/app/api/upload/route.ts')
-  assert.doesNotMatch(upload, /image\/svg\+xml/)
-  assert.doesNotMatch(upload, /Math\.random/)
-  assert.match(upload, /detectedMime/)
-})
-
-test('scheduled publishing has an independent cron worker', () => {
-  const config = read('wrangler.publisher.jsonc')
-  const worker = read('workers/publisher/index.ts')
-  assert.match(config, /"crons": \["\* \* \* \* \*"\]/)
-  assert.match(worker, /async scheduled/)
-})
-
-test('security center and audit log require authenticated admin access', () => {
-  assert.match(read('src/app/api/admin/security/route.ts'), /requireAdminRole\(\)/)
-  assert.match(read('src/app/api/admin/audit/route.ts'), /requireAdminRole\(\['admin'\]\)/)
-  assert.match(read('src/lib/totp.ts'), /crypto\.getRandomValues/)
-  assert.doesNotMatch(read('src/lib/totp.ts'), /Math\.random/)
-})
-
-test('media library supports checksums, pagination, and duplicate detection', () => {
-  const upload = read('src/app/api/upload/route.ts')
-  assert.match(upload, /checksum/)
-  assert.match(upload, /pageSize/)
-  assert.match(upload, /duplicates/)
-  assert.match(read('migrations/0002_editor_security_audit_media.sql'), /CREATE TABLE IF NOT EXISTS audit_logs/)
-})
-
-test('article editor uses structured blocks and content transfer stays private', () => {
-  assert.match(read('src/components/admin/PostEditor.tsx'), /StructuredEditor/)
-  assert.doesNotMatch(read('src/components/admin/PostEditor.tsx'), /execCommand/)
-  assert.match(read('src/app/api/admin/content-transfer/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
-})
-
-test('editorial workflow enforces ownership and review capabilities', () => {
-  const auth = read('src/lib/admin-auth.ts')
-  const posts = read('src/app/api/admin/posts/route.ts')
-  assert.match(auth, /'author' \| 'contributor'/)
-  assert.match(posts, /review_status/)
-  assert.match(posts, /只能编辑自己的文章/)
-  assert.match(posts, /只有管理员或编辑可以审核文章/)
-})
-
-test('comments and site health have restricted admin APIs', () => {
-  assert.match(read('src/app/api/admin/comments/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
-  assert.match(read('src/app/api/admin/site-health/route.ts'), /requireAdminRole\(\['admin', 'editor'\]\)/)
-})
-
-test('remaining WordPress-style core content tools are authenticated and persisted', () => {
-  const cms = read('src/app/api/admin/cms/route.ts')
-  const migration = read('migrations/0004_wordpress_remaining_core.sql')
-  assert.match(cms, /requireAdminRole\(\['admin', 'editor'\]\)/)
-  assert.match(cms, /D1PreparedStatement/)
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS pages/)
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS navigation_items/)
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS content_templates/)
-  assert.match(read('src/app/api/admin/profile/route.ts'), /requireAdminRole\(\)/)
-  assert.match(read('src/app/api/admin/posts/route.ts'), /post\.duplicate/)
-  assert.match(read('src/app/api/admin/posts/route.ts'), /delete_permanent/)
-})
-
-test('homepage keeps its established design while navigation becomes editable', () => {
+test('homepage retains the existing visual shell while reading navigation from Sanity', () => {
   const home = read('src/app/page.tsx')
-  assert.match(home, /Tyler博客/)
-  assert.match(home, /navigation_items/)
-  assert.match(home, /__latest_tutorial__/)
+  assert.match(home, /getSanityNavigation/)
+  assert.match(home, /getSanitySiteSettings/)
   assert.match(home, /bg-\[#f8f9fa\]/)
+  assert.match(home, /settings\.homepageSectionTitle/)
+  assert.match(home, /settings\.homepageCtaLabel/)
+  assert.match(home, /getSanityPublishedPostCount/)
+  assert.match(home, /name="q"/)
+  assert.match(home, /pageHref/)
 })
 
-test('public article and independent page routes are not rewritten to the homepage', () => {
+test('all public content routes use Sanity-only readers', () => {
+  assert.match(read('src/app/tutorials/[slug]/page.tsx'), /getSanityPost/)
+  assert.match(read('src/app/pages/[slug]/page.tsx'), /getSanityPage/)
+  assert.match(read('src/app/api/posts/route.ts'), /getSanityPublishedPosts/)
+  assert.match(read('src/app/api/sitemap/route.ts'), /getSanitySitemapEntries/)
+  assert.doesNotMatch(read('src/lib/sanity-content.ts'), /view_count|comments_enabled|getDb|getR2/)
+})
+
+test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {
   const middleware = read('src/middleware.ts')
-  assert.match(middleware, /pathname\.startsWith\('\/tutorials\/'\)/)
-  assert.match(middleware, /pathname\.startsWith\('\/pages\/'\)/)
+  assert.match(middleware, /SANITY_STUDIO_URL/)
+  assert.match(middleware, /pathname\.startsWith\('\/admin'\)/)
+  assert.match(middleware, /pathname === '\/login'/)
+  assert.match(middleware, /pathname\.startsWith\('\/api\/admin'\)/)
+  assert.match(middleware, /status: 410/)
+  assert.doesNotMatch(middleware, /pathname\.startsWith\('\/uploads'\)/)
+})
+
+test('Sanity schemas own posts, settings, and image assets', () => {
+  const post = read('sanity-studio/schemaTypes/postType.ts')
+  const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
+  assert.match(post, /name: 'coverImage'/)
+  assert.match(post, /type: 'image'/)
+  assert.match(post, /portableTextField/)
+  assert.match(post, /value: 'scheduled'/)
+  assert.match(post, /name: 'editorialStage'/)
+  assert.match(settings, /name: 'defaultCoverImage'/)
+  assert.match(settings, /type: 'image'/)
+  assert.match(settings, /name: 'homepageSectionTitle'/)
+  assert.match(settings, /name: 'homepageFooterNote'/)
+})
+
+test('WordPress-style editing tools include media, preview, scheduling, and review queues', () => {
+  const config = read('sanity-studio/sanity.config.ts')
+  const structure = read('sanity-studio/structure.ts')
+  const portableText = read('sanity-studio/schemaTypes/portableText.ts')
+  const publicContent = read('src/lib/sanity-content.ts')
+  assert.match(config, /media\(/)
+  assert.match(config, /presentationTool/)
+  assert.match(config, /SubmitForReviewAction/)
+  assert.match(structure, /ContentPreview/)
+  assert.match(structure, /待审核/)
+  assert.match(structure, /计划发布/)
+  assert.match(portableText, /提示框/)
+  assert.match(portableText, /操作步骤/)
+  assert.match(portableText, /下载按钮/)
+  assert.match(publicContent, /status == "scheduled"/)
+  assert.match(publicContent, /dateTime\(publishedAt\) <= dateTime\(now\(\)\)/)
+  assert.match(publicContent, /expiresAt/)
+  assert.match(read('sanity-studio/actions/editorialActions.tsx'), /hasApprovalRole/)
+  assert.match(read('src/app/api/draft-mode/enable/route.ts'), /validatePreviewUrl/)
+})
+
+test('recovery backups include drafts, published documents, and image binaries', () => {
+  const backup = read('scripts/backup-cloudflare.sh')
+  assert.match(backup, /export-sanity-content\.mjs/)
+  assert.match(backup, /backup-sanity-assets\.mjs/)
+  assert.match(read('scripts/backup-sanity-assets.mjs'), /cdn\.sanity\.io/)
+  assert.match(read('scripts/backup-sanity-assets.mjs'), /bodyAssets/)
+  assert.match(read('scripts/export-sanity-content.mjs'), /perspective', 'raw'/)
+  assert.match(read('scripts/export-sanity-content.mjs'), /SANITY_AUTH_TOKEN/)
+  assert.match(read('.github/workflows/monthly-cloudflare-backup.yml'), /SANITY_BACKUP_TOKEN/)
 })
