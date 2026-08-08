@@ -1,6 +1,6 @@
 # Sanity 渐进迁移说明
 
-此仓库的公开前端不变。接入后，首页与 `/tutorials/[slug]` 会优先读取 Sanity 中 `status = published` 的文章；当 Sanity 未配置、接口不可用或没有已发布文章时，自动继续读取现有 D1 数据。
+此仓库的公开前端不变。首页、文章页、独立页面、公开文章 API、分类 API 和站点地图均只读取 Sanity 中 `status = published` 的内容。
 
 ## 创建后需要填写的值
 
@@ -9,12 +9,13 @@
 3. 安装并发布 Studio：`cd sanity-studio && npm install && npx sanity deploy`。
 4. 在 Sanity 创建文章，状态选择“已发布”，并填写发布时间；网站会在最多约一分钟后读取新内容。
 
-## 逐步迁移规则
+## Sanity 唯一内容后台
 
-- 不批量删除 D1 文章，也不改变旧链接。
-- 每次先复制一篇文章到 Sanity，确认 `/tutorials/原-slug` 正确后，再继续下一篇。
-- 同一 slug 在 Sanity 发布后由 Sanity 版本优先显示；未迁移文章继续由 D1 显示。
-- D1 草稿、评论、阅读量和原有后台在迁移期间继续保留。Sanity 文章暂不接入 D1 评论与阅读量统计。
+- 不批量删除 D1 数据，也不改变公开链接；D1 仅保留为登录、历史数据、备份和回退层。
+- 原 Cloudflare `/admin`、`/login` 和 `/register` 会跳转到 Sanity Studio；`/api/admin/*` 返回停用状态，避免再写入旧内容库。
+- 在 Sanity 创建文章或独立页面时，填写 `status = published` 后会在最多约一分钟内被网站读取；草稿不会公开。
+- 站点设置和导航菜单也在 Sanity 中管理。初始导航与原网站保持一致。
+- Sanity 文章暂不接入 D1 评论与阅读量统计；当前网站没有公开评论，因此页面视觉不受影响。
 
 ## 备份与自动部署
 

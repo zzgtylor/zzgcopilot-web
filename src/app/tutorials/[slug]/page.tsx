@@ -3,12 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { getDb } from '@/lib/cloudflare-db'
-import { getSiteSettings } from '@/lib/site-settings'
-import { auth } from '@/auth'
-import { publishDuePosts } from '@/lib/post-scheduling'
-import { headers } from 'next/headers'
-import { getSanityPost } from '@/lib/sanity-content'
+import { getSanityPost, getSanitySiteSettings } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,34 +27,8 @@ type Post = {
   comments_enabled?: number
   source?: 'd1' | 'sanity'
 }
-type Comment = { id: string; content: string; created_at: string; author_name: string }
-
-async function getPost(slug: string, includeUnpublished = false): Promise<Post | null> {
-  // Sanity only exposes published content. Draft previews intentionally remain
-  // in the existing authenticated D1 admin while migration is in progress.
-  if (!includeUnpublished) {
-    const sanityPost = await getSanityPost(slug)
-    if (sanityPost) return sanityPost
-  }
-  const db = await getDb()
-  if (!db) return null
-  await publishDuePosts(db)
-  const post = await db
-    .prepare(
-      `SELECT p.*, u.name as author_name, c.name as category_name, c.slug as category_slug FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ? ${includeUnpublished ? "AND p.status != 'archived'" : "AND p.status = 'published'"}`
-    )
-    .bind(slug)
-    .first<Post>()
-  return post || null
-}
-
-async function incrementViewCount(id: string) {
-  const db = await getDb()
-  if (!db) return
-  await db.batch([
-    db.prepare('UPDATE posts SET view_count = view_count + 1 WHERE id = ?').bind(id),
-    db.prepare("INSERT INTO post_daily_views (post_id, view_date, views) VALUES (?, date('now'), 1) ON CONFLICT(post_id, view_date) DO UPDATE SET views = views + 1").bind(id),
-  ]).catch(() => {})
+async function getPost(slug: string): Promise<Post | null> {
+  return getSanityPost(slug)
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -67,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = await getPost(slug)
   if (!post) return { title: '文章未找到' }
 
-  const settings = await getSiteSettings()
+  const settings = await getSanitySiteSettings()
   const title = post.meta_title || post.title
   const description = post.meta_description || post.excerpt || settings.seoDefaultDescription
   const ogImage = post.og_image || post.cover_image || settings.seoDefaultOgImage || undefined
@@ -101,21 +70,12 @@ function formatDate(iso: string | null) {
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const session = await auth()
-  const requestHeaders = await headers()
-  const post = await getPost(slug, Boolean(session?.user))
+  const post = await getPost(slug)
   if (!post) notFound()
-
-  const userAgent = requestHeaders.get('user-agent') || ''
-  const isLikelyBot = /bot|crawler|spider|slurp|preview|facebookexternalhit|whatsapp|telegram/i.test(userAgent)
-  if (post.status === 'published' && post.source !== 'sanity' && !session?.user && !isLikelyBot) await incrementViewCount(post.id)
-  const db = await getDb()
-  const comments = post.comments_enabled && db ? (await db.prepare('SELECT c.id, c.content, c.created_at, u.name AS author_name FROM comments c JOIN users u ON c.author_id=u.id WHERE c.post_id=? AND c.is_approved=1 ORDER BY c.created_at ASC LIMIT 100').bind(post.id).all<Comment>()).results || [] : []
 
   return (
     <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-3xl px-6 py-12">
-        {post.status !== 'published' && <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">草稿预览：只有已登录后台的管理员能看到，发布后才会显示在首页。</p>}
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← 返回首页</Link>
 
         <header className="mt-6 mb-8">
@@ -139,7 +99,6 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
         </article>
-        {post.comments_enabled ? <section className="mt-12 border-t pt-8"><h2 className="text-xl font-bold text-gray-900">评论</h2>{comments.length ? <div className="mt-5 space-y-4">{comments.map(comment => <article key={comment.id} className="rounded-xl bg-gray-50 p-4"><div className="flex justify-between text-sm"><strong>{comment.author_name}</strong><time className="text-gray-400">{formatDate(comment.created_at)}</time></div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-700">{comment.content}</p></article>)}</div> : <p className="mt-3 text-sm text-gray-400">暂无已审核评论。</p>}</section> : null}
       </div>
     </main>
   )
