@@ -11,14 +11,12 @@ export type SanityPost = {
   created_at: string
   published_at: string | null
   status: 'published'
-  view_count: number
   category_name: string | null
   category_slug: string | null
   meta_title: string | null
   meta_description: string | null
   og_image: string | null
   author_name: string | null
-  comments_enabled: number
   source: 'sanity'
 }
 
@@ -56,6 +54,7 @@ export type PublicSiteSettings = {
   seoDefaultTitle: string
   seoDefaultDescription: string
   seoDefaultOgImage: string
+  defaultCoverImageUrl: string
 }
 
 export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
@@ -63,6 +62,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   seoDefaultTitle: 'ZZGCopilot Word 教程',
   seoDefaultDescription: 'Microsoft Word 从入门到精通教程，覆盖文档编辑、格式排版、样式目录、表格图片、协作审阅与高效办公。',
   seoDefaultOgImage: '',
+  defaultCoverImageUrl: '',
 }
 
 export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
@@ -140,14 +140,12 @@ function toPost(item: SanityResponse): SanityPost | null {
     created_at: item._createdAt || new Date(0).toISOString(),
     published_at: item.publishedAt || item._createdAt || null,
     status: 'published',
-    view_count: 0,
     category_name: item.categoryName || null,
     category_slug: item.categorySlug || null,
     meta_title: item.metaTitle || null,
     meta_description: item.metaDescription || null,
     og_image: item.ogImage || null,
     author_name: item.authorName || null,
-    comments_enabled: 0,
     source: 'sanity',
   }
 }
@@ -176,7 +174,7 @@ const projection = `{
   "slug": slug.current,
   excerpt,
   content,
-  "coverImageUrl": coverImageUrl,
+  "coverImageUrl": coalesce(coverImage.asset->url, coverImageUrl),
   readingTime,
   _createdAt,
   publishedAt,
@@ -239,12 +237,13 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> | null>(`*[_type == "siteSettings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage }`)
+  const item = await query<Partial<PublicSiteSettings> | null>(`*[_type == "siteSettings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
     seoDefaultDescription: item?.seoDefaultDescription?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultDescription,
     seoDefaultOgImage: item?.seoDefaultOgImage?.trim() || '',
+    defaultCoverImageUrl: item?.defaultCoverImageUrl?.trim() || '',
   }
 }
 

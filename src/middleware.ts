@@ -33,7 +33,6 @@ export default function middleware(request: NextRequest) {
         pathname === '/index.html' ||
         pathname.startsWith('/api') ||
         pathname.startsWith('/_next') ||
-        pathname.startsWith('/uploads') ||
         pathname.startsWith('/tutorials/') ||
         pathname.startsWith('/pages/') ||
         pathname === '/favicon.ico'

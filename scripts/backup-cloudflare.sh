@@ -8,7 +8,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 timestamp=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
 backup_dir="${BACKUP_DIR:-$repo_root/backups/$timestamp}"
-mkdir -p "$backup_dir/r2"
+mkdir -p "$backup_dir/r2" "$backup_dir/sanity-assets"
 
 cd "$repo_root"
 echo "Creating D1 snapshot in $backup_dir"
@@ -18,6 +18,11 @@ echo "Exporting published Sanity content"
 SANITY_PROJECT_ID="${SANITY_PROJECT_ID:-o9d9rhdt}" \
 SANITY_DATASET="${SANITY_DATASET:-production}" \
 node scripts/export-sanity-content.mjs "$backup_dir/sanity-content.json"
+
+echo "Backing up current Sanity image assets"
+SANITY_PROJECT_ID="${SANITY_PROJECT_ID:-o9d9rhdt}" \
+SANITY_DATASET="${SANITY_DATASET:-production}" \
+node scripts/backup-sanity-assets.mjs "$backup_dir/sanity-assets"
 
 echo "Reading the R2 media manifest from D1"
 npx wrangler d1 execute zzgcopilot-db --remote \

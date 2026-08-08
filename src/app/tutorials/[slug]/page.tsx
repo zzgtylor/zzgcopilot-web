@@ -15,7 +15,6 @@ type Post = {
   content: string
   cover_image: string
   status: string
-  view_count: number
   created_at: string
   published_at: string | null
   author_name?: string
@@ -24,8 +23,6 @@ type Post = {
   meta_title?: string
   meta_description?: string
   og_image?: string
-  comments_enabled?: number
-  source?: 'd1' | 'sanity'
 }
 async function getPost(slug: string): Promise<Post | null> {
   return getSanityPost(slug)
@@ -88,7 +85,6 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-400">
             {post.author_name && <span>{post.author_name}</span>}
             <span>{formatDate(post.published_at || post.created_at)}</span>
-            <span>{post.view_count || 0} 次阅读</span>
           </div>
         </header>
 

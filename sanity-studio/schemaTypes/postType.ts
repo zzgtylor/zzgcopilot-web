@@ -9,7 +9,7 @@ export const postType = defineType({
     defineField({ name: 'slug', title: '链接 Slug', type: 'slug', options: { source: 'title', maxLength: 110 }, validation: rule => rule.required() }),
     defineField({ name: 'excerpt', title: '摘要', type: 'text', rows: 3, validation: rule => rule.max(500) }),
     defineField({ name: 'content', title: '正文（支持 Markdown）', type: 'text', rows: 24, validation: rule => rule.required() }),
-    defineField({ name: 'coverImageUrl', title: '封面图片地址', type: 'string', description: '可填写现有站内 R2 路径（/uploads/…）或完整图片 URL。' }),
+    defineField({ name: 'coverImage', title: '封面图片', type: 'image', options: { hotspot: true } }),
     defineField({ name: 'category', title: '分类', type: 'reference', to: [{ type: 'category' }] }),
     defineField({ name: 'tags', title: '标签', type: 'array', of: [defineArrayMember({ type: 'string' })], options: { layout: 'tags' } }),
     defineField({ name: 'readingTime', title: '预计阅读分钟数', type: 'number', validation: rule => rule.integer().min(1) }),

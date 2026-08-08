@@ -11,14 +11,13 @@
 
 ## Sanity 唯一内容后台
 
-- 不批量删除 D1 数据，也不改变公开链接；D1 仅保留为登录、历史数据、备份和回退层。
-- 原 Cloudflare `/admin`、`/login` 和 `/register` 会跳转到 Sanity Studio；`/api/admin/*` 返回停用状态，避免再写入旧内容库。
+- 不批量删除 D1/R2 资源，也不改变公开链接；它们只保留为离线恢复档案，不再承担网站内容、媒体、登录或运行时读取。
+- 原 Cloudflare `/admin`、`/login` 和 `/register` 会跳转到 Sanity Studio；`/api/admin/*` 返回停用状态。旧登录、评论、阅读量、定时发布和上传 API 已下线。
 - 在 Sanity 创建文章或独立页面时，填写 `status = published` 后会在最多约一分钟内被网站读取；草稿不会公开。
 - 站点设置和导航菜单也在 Sanity 中管理。初始导航与原网站保持一致。
-- Sanity 文章暂不接入 D1 评论与阅读量统计；当前网站没有公开评论，因此页面视觉不受影响。
+- 文章封面和默认封面使用 Sanity Asset。旧的静态上传目录不再对外提供内容。
 
 ## 备份与自动部署
 
 - GitHub `main` 分支每次推送会自动构建并部署到 Cloudflare Pages；部署前会运行 OpenNext 构建。
-- 每月 1 日 UTC 03:00 的 GitHub Actions 备份会把 D1、受管 R2 媒体和 Sanity 的已发布文档打成同一个校验过的恢复包，上传到私有 `zzgcopilot-backups` R2 桶。
-- 当前 Sanity 文章使用 R2 图片 URL，不使用 Sanity Asset。以后若开始上传 Sanity Asset，应额外启用 Sanity 的完整资产导出，避免只备份文档引用。
+- 每月 1 日 UTC 03:00 的 GitHub Actions 备份会把 D1、受管 R2 历史媒体、Sanity 已发布文档和当前 Sanity 图片文件打成同一个校验过的恢复包，上传到私有 `zzgcopilot-backups` R2 桶。

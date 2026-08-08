@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
-import { DEFAULT_NAVIGATION, getSanityLatestPosts, getSanityNavigation, type SanityNavigationItem } from '@/lib/sanity-content'
+import { DEFAULT_NAVIGATION, getSanityLatestPosts, getSanityNavigation, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +19,7 @@ type NavigationItem = SanityNavigationItem
 const legacyTutorial = {
   title: 'Word软件使用全攻略教程',
   href: '/word-tutorial/',
-  coverImage: '/uploads/tmp-final-base.jpg',
+  coverImage: '',
   category: '入门基础',
   date: '2026-07-03',
   readingTime: 20,
@@ -39,7 +39,7 @@ function formatCardDate(value: string | null) {
 }
 
 export default async function HomePage() {
-  const [posts, navigation] = await Promise.all([getLatestPosts(), getNavigation()])
+  const [posts, navigation, settings] = await Promise.all([getLatestPosts(), getNavigation(), getSanitySiteSettings()])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
   const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
 
@@ -96,7 +96,7 @@ export default async function HomePage() {
                   >
                     <div className="relative h-[150px] bg-[#f5f5f7]">
                       <img
-                        src={post.cover_image || legacyTutorial.coverImage}
+                        src={post.cover_image || settings.defaultCoverImageUrl || legacyTutorial.coverImage}
                         alt={post.title}
                         className="h-full w-full object-cover"
                         loading="eager"
@@ -121,7 +121,7 @@ export default async function HomePage() {
                     className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
                   >
                     <div className="relative h-[150px] bg-[#f5f5f7]">
-                      <img src={legacyTutorial.coverImage} alt={legacyTutorial.title} className="h-full w-full object-cover" loading="eager" />
+                      {settings.defaultCoverImageUrl ? <img src={settings.defaultCoverImageUrl} alt={legacyTutorial.title} className="h-full w-full object-cover" loading="eager" /> : null}
                       <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
                         {legacyTutorial.category}
                       </span>
