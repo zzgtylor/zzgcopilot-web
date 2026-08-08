@@ -4,6 +4,7 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getSanityPost, getSanitySiteSettings } from '@/lib/sanity-content'
+import { PortableContent } from '@/components/PortableContent'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ type Post = {
   slug: string
   excerpt: string
   content: string
+  body: Array<Record<string, unknown>>
   cover_image: string
   status: string
   created_at: string
@@ -93,7 +95,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         )}
 
         <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+          {post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
         </article>
       </div>
     </main>

@@ -6,6 +6,7 @@ export type SanityPost = {
   slug: string
   excerpt: string
   content: string
+  body: Array<Record<string, unknown>>
   cover_image: string | null
   reading_time: number | null
   created_at: string
@@ -41,6 +42,7 @@ export type SanityPage = {
   slug: string
   excerpt: string
   content: string
+  body: Array<Record<string, unknown>>
   status: 'published'
   created_at: string
   updated_at: string
@@ -114,6 +116,7 @@ type SanityResponse = {
   slug?: string
   excerpt?: string
   content?: string
+  body?: Array<Record<string, unknown>>
   coverImageUrl?: string
   readingTime?: number
   _createdAt?: string
@@ -132,6 +135,7 @@ type SanityPageResponse = {
   slug?: string
   excerpt?: string
   content?: string
+  body?: Array<Record<string, unknown>>
   _createdAt?: string
   _updatedAt?: string
   publishedAt?: string
@@ -147,6 +151,7 @@ function toPost(item: SanityResponse): SanityPost | null {
     slug: item.slug,
     excerpt: item.excerpt || '',
     content: item.content || '',
+    body: item.body || [],
     cover_image: item.coverImageUrl || null,
     reading_time: item.readingTime || null,
     created_at: item._createdAt || new Date(0).toISOString(),
@@ -186,6 +191,11 @@ const projection = `{
   "slug": slug.current,
   excerpt,
   content,
+  body[]{
+    ...,
+    _type == "image" => { ..., "url": asset->url },
+    _type == "download" => { ..., "fileUrl": file.asset->url }
+  },
   "coverImageUrl": coalesce(coverImage.asset->url, coverImageUrl),
   readingTime,
   _createdAt,
@@ -206,12 +216,12 @@ export async function getSanityPublishedPosts({ limit = 20, offset = 0, category
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
   const safeOffset = Math.max(Math.floor(offset), 0)
   const categoryFilter = category ? ' && category->slug.current == $category' : ''
-  const data = await query<SanityResponse[]>(`*[_type == "post" && status == "published"${categoryFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, category ? { category } : {})
+  const data = await query<SanityResponse[]>(`*[_type == "post" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now())))${categoryFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, category ? { category } : {})
   return (data || []).map(toPost).filter((post): post is SanityPost => Boolean(post))
 }
 
 export async function getSanityPost(slug: string): Promise<SanityPost | null> {
-  const data = await query<SanityResponse | null>(`*[_type == "post" && status == "published" && slug.current == $slug][0] ${projection}`, { slug })
+  const data = await query<SanityResponse | null>(`*[_type == "post" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && slug.current == $slug][0] ${projection}`, { slug })
   return data ? toPost(data) : null
 }
 
@@ -231,14 +241,15 @@ export async function getSanityCategories(): Promise<SanityCategory[]> {
 }
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {
-  const item = await query<SanityPageResponse | null>(`*[_type == "page" && status == "published" && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
-  if (!item?.title || !item.slug || !item.content) return null
+  const item = await query<SanityPageResponse | null>(`*[_type == "page" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]{ ..., _type == "image" => { ..., "url": asset->url }, _type == "download" => { ..., "fileUrl": file.asset->url } }, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
+  if (!item?.title || !item.slug || (!item.content && !item.body?.length)) return null
   return {
     id: item._id,
     title: item.title,
     slug: item.slug,
     excerpt: item.excerpt || '',
-    content: item.content,
+    content: item.content || '',
+    body: item.body || [],
     status: 'published',
     created_at: item._createdAt || new Date(0).toISOString(),
     updated_at: item._updatedAt || item._createdAt || new Date(0).toISOString(),
@@ -266,7 +277,7 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
 }
 
 export async function getSanitySitemapEntries(): Promise<Array<{ path: string; updatedAt: string }>> {
-  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && status == "published" && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`)
+  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`)
   return (data || [])
     .filter(item => item.slug && (item.type === 'post' || item.type === 'page'))
     .map(item => ({ path: item.type === 'post' ? `/tutorials/${encodeURIComponent(item.slug!)}` : `/pages/${encodeURIComponent(item.slug!)}`, updatedAt: item.updatedAt || new Date().toISOString() }))
