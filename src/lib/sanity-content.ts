@@ -1,4 +1,6 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare'
+import { cookies } from 'next/headers'
+import { perspectiveCookieName } from '@sanity/preview-url-secret/constants'
 
 export type SanityPost = {
   id: string
@@ -87,7 +89,7 @@ export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
   { id: 'navigation-about', label: '关于我们', href: '__latest_tutorial__', is_visible: 1, open_new_tab: 0 },
 ]
 
-type SanityConfig = { projectId: string; dataset: string; apiVersion: string }
+export type SanityConfig = { projectId: string; dataset: string; apiVersion: string; token: string }
 
 function valueFromEnvironment(key: string): string {
   const fromProcess = process.env[key]
@@ -100,13 +102,14 @@ function valueFromEnvironment(key: string): string {
   }
 }
 
-function getConfig(): SanityConfig | null {
+export function getSanityConfig(): SanityConfig | null {
   const projectId = valueFromEnvironment('SANITY_PROJECT_ID')
   if (!projectId) return null
   return {
     projectId,
     dataset: valueFromEnvironment('SANITY_DATASET') || 'production',
     apiVersion: valueFromEnvironment('SANITY_API_VERSION') || '2026-08-07',
+    token: valueFromEnvironment('SANITY_API_READ_TOKEN'),
   }
 }
 
@@ -167,16 +170,29 @@ function toPost(item: SanityResponse): SanityPost | null {
   }
 }
 
+async function isDraftPreview(): Promise<boolean> {
+  try {
+    return Boolean((await cookies()).get(perspectiveCookieName)?.value)
+  } catch {
+    return false
+  }
+}
+
 async function query<T>(groq: string, params: Record<string, string | number> = {}): Promise<T | null> {
-  const config = getConfig()
+  const config = getSanityConfig()
   if (!config) return null
+  const preview = await isDraftPreview()
+  if (preview && !config.token) return null
 
   const url = new URL(`https://${config.projectId}.api.sanity.io/v${config.apiVersion}/data/query/${config.dataset}`)
   url.searchParams.set('query', groq)
+  url.searchParams.set('perspective', preview ? 'drafts' : 'published')
   for (const [key, value] of Object.entries(params)) url.searchParams.set(`$${key}`, JSON.stringify(value))
 
   try {
-    const response = await fetch(url, { next: { revalidate: 60 } })
+    const response = await fetch(url, preview
+      ? { cache: 'no-store', headers: { authorization: `Bearer ${config.token}` } }
+      : { next: { revalidate: 60 } })
     if (!response.ok) return null
     const body = await response.json() as { result?: T }
     return body.result ?? null
@@ -212,16 +228,41 @@ export async function getSanityLatestPosts(limit = 12): Promise<SanityPost[]> {
   return getSanityPublishedPosts({ limit })
 }
 
-export async function getSanityPublishedPosts({ limit = 20, offset = 0, category }: { limit?: number; offset?: number; category?: string } = {}): Promise<SanityPost[]> {
+const publicVisibility = '(status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && (!defined(expiresAt) || dateTime(expiresAt) > dateTime(now()))'
+
+function searchPattern(search?: string): string {
+  return (search || '').trim().replace(/[?*\\]/g, '').slice(0, 80)
+}
+
+export async function getSanityPublishedPosts({ limit = 20, offset = 0, category, search }: { limit?: number; offset?: number; category?: string; search?: string } = {}): Promise<SanityPost[]> {
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
   const safeOffset = Math.max(Math.floor(offset), 0)
+  const preview = await isDraftPreview()
   const categoryFilter = category ? ' && category->slug.current == $category' : ''
-  const data = await query<SanityResponse[]>(`*[_type == "post" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now())))${categoryFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, category ? { category } : {})
+  const cleanedSearch = searchPattern(search)
+  const searchFilter = cleanedSearch ? ' && (title match $search || excerpt match $search || pt::text(body) match $search || content match $search)' : ''
+  const params: Record<string, string> = {}
+  if (category) params.category = category
+  if (cleanedSearch) params.search = `*${cleanedSearch}*`
+  const visibility = preview ? 'true' : publicVisibility
+  const data = await query<SanityResponse[]>(`*[_type == "post" && ${visibility}${categoryFilter}${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, params)
   return (data || []).map(toPost).filter((post): post is SanityPost => Boolean(post))
 }
 
+export async function getSanityPublishedPostCount({ category, search }: { category?: string; search?: string } = {}): Promise<number> {
+  const preview = await isDraftPreview()
+  const categoryFilter = category ? ' && category->slug.current == $category' : ''
+  const cleanedSearch = searchPattern(search)
+  const searchFilter = cleanedSearch ? ' && (title match $search || excerpt match $search || pt::text(body) match $search || content match $search)' : ''
+  const params: Record<string, string> = {}
+  if (category) params.category = category
+  if (cleanedSearch) params.search = `*${cleanedSearch}*`
+  return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params) || 0
+}
+
 export async function getSanityPost(slug: string): Promise<SanityPost | null> {
-  const data = await query<SanityResponse | null>(`*[_type == "post" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && slug.current == $slug][0] ${projection}`, { slug })
+  const preview = await isDraftPreview()
+  const data = await query<SanityResponse | null>(`*[_type == "post" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] ${projection}`, { slug })
   return data ? toPost(data) : null
 }
 
@@ -241,7 +282,8 @@ export async function getSanityCategories(): Promise<SanityCategory[]> {
 }
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {
-  const item = await query<SanityPageResponse | null>(`*[_type == "page" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]{ ..., _type == "image" => { ..., "url": asset->url }, _type == "download" => { ..., "fileUrl": file.asset->url } }, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
+  const preview = await isDraftPreview()
+  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]{ ..., _type == "image" => { ..., "url": asset->url }, _type == "download" => { ..., "fileUrl": file.asset->url } }, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
   if (!item?.title || !item.slug || (!item.content && !item.body?.length)) return null
   return {
     id: item._id,
@@ -260,7 +302,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> | null>(`*[_type == "siteSettings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote }`)
+  const item = await query<Partial<PublicSiteSettings> | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -277,12 +319,12 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
 }
 
 export async function getSanitySitemapEntries(): Promise<Array<{ path: string; updatedAt: string }>> {
-  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`)
+  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && ${publicVisibility} && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`)
   return (data || [])
     .filter(item => item.slug && (item.type === 'post' || item.type === 'page'))
     .map(item => ({ path: item.type === 'post' ? `/tutorials/${encodeURIComponent(item.slug!)}` : `/pages/${encodeURIComponent(item.slug!)}`, updatedAt: item.updatedAt || new Date().toISOString() }))
 }
 
 export function sanityIsConfigured(): boolean {
-  return Boolean(getConfig())
+  return Boolean(getSanityConfig())
 }

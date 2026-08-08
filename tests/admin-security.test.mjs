@@ -11,6 +11,9 @@ test('homepage retains the existing visual shell while reading navigation from S
   assert.match(home, /bg-\[#f8f9fa\]/)
   assert.match(home, /settings\.homepageSectionTitle/)
   assert.match(home, /settings\.homepageCtaLabel/)
+  assert.match(home, /getSanityPublishedPostCount/)
+  assert.match(home, /name="q"/)
+  assert.match(home, /pageHref/)
 })
 
 test('all public content routes use Sanity-only readers', () => {
@@ -51,6 +54,8 @@ test('WordPress-style editing tools include media, preview, scheduling, and revi
   const portableText = read('sanity-studio/schemaTypes/portableText.ts')
   const publicContent = read('src/lib/sanity-content.ts')
   assert.match(config, /media\(/)
+  assert.match(config, /presentationTool/)
+  assert.match(config, /SubmitForReviewAction/)
   assert.match(structure, /ContentPreview/)
   assert.match(structure, /待审核/)
   assert.match(structure, /计划发布/)
@@ -59,12 +64,18 @@ test('WordPress-style editing tools include media, preview, scheduling, and revi
   assert.match(portableText, /下载按钮/)
   assert.match(publicContent, /status == "scheduled"/)
   assert.match(publicContent, /dateTime\(publishedAt\) <= dateTime\(now\(\)\)/)
+  assert.match(publicContent, /expiresAt/)
+  assert.match(read('sanity-studio/actions/editorialActions.tsx'), /hasApprovalRole/)
+  assert.match(read('src/app/api/draft-mode/enable/route.ts'), /validatePreviewUrl/)
 })
 
-test('recovery backups include published Sanity documents and image binaries', () => {
+test('recovery backups include drafts, published documents, and image binaries', () => {
   const backup = read('scripts/backup-cloudflare.sh')
   assert.match(backup, /export-sanity-content\.mjs/)
   assert.match(backup, /backup-sanity-assets\.mjs/)
   assert.match(read('scripts/backup-sanity-assets.mjs'), /cdn\.sanity\.io/)
   assert.match(read('scripts/backup-sanity-assets.mjs'), /bodyAssets/)
+  assert.match(read('scripts/export-sanity-content.mjs'), /perspective', 'raw'/)
+  assert.match(read('scripts/export-sanity-content.mjs'), /SANITY_AUTH_TOKEN/)
+  assert.match(read('.github/workflows/monthly-cloudflare-backup.yml'), /SANITY_BACKUP_TOKEN/)
 })

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
-import { DEFAULT_NAVIGATION, getSanityLatestPosts, getSanityNavigation, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
+import { DEFAULT_NAVIGATION, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,10 +25,6 @@ const legacyTutorial = {
   readingTime: 20,
 }
 
-async function getLatestPosts(): Promise<PostCard[]> {
-  return getSanityLatestPosts()
-}
-
 async function getNavigation(): Promise<NavigationItem[]> {
   return getSanityNavigation()
 }
@@ -38,8 +34,27 @@ function formatCardDate(value: string | null) {
   return value.slice(0, 10)
 }
 
-export default async function HomePage() {
-  const [posts, navigation, settings] = await Promise.all([getLatestPosts(), getNavigation(), getSanitySiteSettings()])
+function pageHref(page: number, query: string) {
+  const params = new URLSearchParams()
+  if (query) params.set('q', query)
+  if (page > 1) params.set('page', String(page))
+  const suffix = params.toString()
+  return suffix ? `/?${suffix}` : '/'
+}
+
+export default async function HomePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const resolvedSearchParams = await searchParams
+  const query = (Array.isArray(resolvedSearchParams?.q) ? resolvedSearchParams?.q[0] : resolvedSearchParams?.q || '').trim().slice(0, 80)
+  const requestedPage = Number(Array.isArray(resolvedSearchParams?.page) ? resolvedSearchParams?.page[0] : resolvedSearchParams?.page || '1')
+  const pageSize = 9
+  const totalPosts = await getSanityPublishedPostCount({ search: query })
+  const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize))
+  const currentPage = Math.min(Math.max(Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 1, 1), totalPages)
+  const [posts, navigation, settings] = await Promise.all([
+    getSanityPublishedPosts({ limit: pageSize, offset: (currentPage - 1) * pageSize, search: query }),
+    getNavigation(),
+    getSanitySiteSettings(),
+  ])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
   const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
 
@@ -59,15 +74,17 @@ export default async function HomePage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-3.5">
-          <label className="relative hidden sm:block">
+          <form action="/" method="get" className="relative hidden sm:block">
             <input
               type="search"
+              name="q"
+              defaultValue={query}
               aria-label="搜索教程"
               placeholder={settings.homepageSearchPlaceholder}
               className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[#11567f]"
             />
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a39a8a]" />
-          </label>
+          </form>
 
           <Link
             href={tutorialHref}
@@ -115,7 +132,11 @@ export default async function HomePage() {
                     </div>
                   </Link>
                 ))
-              : (
+              : query ? (
+                  <div className="col-span-full rounded-md border border-[#211e19]/[0.07] bg-white px-6 py-12 text-center text-sm text-[#797266]">
+                    没有找到与“{query}”相关的教程
+                  </div>
+                ) : (
                   <Link
                     href={legacyTutorial.href}
                     className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
@@ -138,14 +159,19 @@ export default async function HomePage() {
                 )}
           </div>
 
-          {/* 分页（装饰性，当前仅一篇教程，暂不可点） */}
-          <div className="mt-12 flex items-center justify-center gap-2 font-mono text-[13px]">
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">← 上一页</span>
-            <span className="cursor-default select-none rounded border border-[#11567f] bg-[#11567f] px-3.5 py-2 text-white">1</span>
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">2</span>
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">3</span>
-            <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b]">下一页 →</span>
-          </div>
+          {totalPosts > 0 ? (
+            <nav aria-label="教程分页" className="mt-12 flex flex-wrap items-center justify-center gap-2 font-mono text-[13px]">
+              {currentPage > 1
+                ? <Link href={pageHref(currentPage - 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[#11567f] hover:text-[#11567f]">← 上一页</Link>
+                : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">← 上一页</span>}
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => page === currentPage
+                ? <span key={page} aria-current="page" className="cursor-default select-none rounded border border-[#11567f] bg-[#11567f] px-3.5 py-2 text-white">{page}</span>
+                : <Link key={page} href={pageHref(page, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[#11567f] hover:text-[#11567f]">{page}</Link>)}
+              {currentPage < totalPages
+                ? <Link href={pageHref(currentPage + 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[#11567f] hover:text-[#11567f]">下一页 →</Link>
+                : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">下一页 →</span>}
+            </nav>
+          ) : null}
         </main>
 
         {/* 右：侧边栏（预留位，暂无内容） */}

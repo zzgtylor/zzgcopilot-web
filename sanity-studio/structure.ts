@@ -12,13 +12,14 @@ export const structure: StructureResolver = (S) => S.list()
     postList(S, '撰写中', '_type == "post" && (!defined(editorialStage) || editorialStage == "writing")'),
     postList(S, '待审核', '_type == "post" && editorialStage == "review"'),
     postList(S, '已批准', '_type == "post" && editorialStage == "approved"'),
-    postList(S, '计划发布', '_type == "post" && status == "scheduled"'),
-    postList(S, '已发布', '_type == "post" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now())))'),
+    postList(S, '计划发布', '_type == "post" && status == "scheduled" && dateTime(publishedAt) > dateTime(now())'),
+    postList(S, '已发布', '_type == "post" && (status == "published" || (status == "scheduled" && dateTime(publishedAt) <= dateTime(now()))) && (!defined(expiresAt) || dateTime(expiresAt) > dateTime(now()))'),
+    postList(S, '已过期', '_type == "post" && defined(expiresAt) && dateTime(expiresAt) <= dateTime(now())'),
     S.divider(),
     S.documentTypeListItem('page').title('独立页面'),
     S.documentTypeListItem('category').title('分类'),
     S.documentTypeListItem('navigationItem').title('导航菜单'),
-    S.documentTypeListItem('siteSettings').title('站点与首页设置'),
+    S.listItem().title('站点与首页设置').child(S.document().schemaType('siteSettings').documentId('site-settings').title('站点与首页设置')),
   ])
 
 export const defaultDocumentNode: DefaultDocumentNodeResolver = (S, { schemaType }) => {

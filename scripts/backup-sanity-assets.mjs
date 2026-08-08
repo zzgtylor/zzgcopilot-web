@@ -9,14 +9,17 @@ if (!outputDir) throw new Error('Usage: node scripts/backup-sanity-assets.mjs <o
 const projectId = process.env.SANITY_PROJECT_ID
 const dataset = process.env.SANITY_DATASET || 'production'
 const apiVersion = process.env.SANITY_API_VERSION || '2026-08-07'
+const token = process.env.SANITY_AUTH_TOKEN
 if (!projectId) throw new Error('SANITY_PROJECT_ID must be set before backing up Sanity assets')
+if (!token) throw new Error('SANITY_AUTH_TOKEN must be set so assets referenced by drafts are included')
 
 const endpoint = new URL(`https://${projectId}.api.sanity.io/v${apiVersion}/data/query/${dataset}`)
+endpoint.searchParams.set('perspective', 'raw')
 
 async function query(groq) {
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
     body: JSON.stringify({ query: groq }),
   })
   if (!response.ok) throw new Error(`Sanity asset query failed: ${response.status}`)
@@ -25,7 +28,7 @@ async function query(groq) {
 }
 
 const [postAssets, bodyDocuments, settingsAssets] = await Promise.all([
-  query('*[_type == "post" && status == "published" && defined(coverImage.asset)] { "documentId": _id, "role": "post-cover", "url": coverImage.asset->url }'),
+  query('*[_type == "post" && defined(coverImage.asset)] { "documentId": _id, "role": "post-cover", "url": coverImage.asset->url }'),
   query('*[_type in ["post", "page"] && defined(body)] { "documentId": _id, "bodyAssets": body[]{ _type == "image" => { "role": "body-image", "url": asset->url }, _type == "download" && defined(file.asset) => { "role": "download-file", "url": file.asset->url } } }'),
   query('*[_type == "siteSettings" && defined(defaultCoverImage.asset)] { "documentId": _id, "role": "site-default-cover", "url": defaultCoverImage.asset->url }'),
 ])
