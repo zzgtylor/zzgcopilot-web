@@ -1,5 +1,6 @@
 import type { DefaultDocumentNodeResolver, StructureResolver } from 'sanity/structure'
 import { ContentPreview } from './components/ContentPreview'
+import { SeoAssistant } from './components/SeoAssistant'
 
 const postList = (S: Parameters<StructureResolver>[0], id: string, title: string, filter: string) => S.listItem()
   .id(id)
@@ -21,6 +22,7 @@ export const structure: StructureResolver = (S) => S.list()
     S.documentTypeListItem('page').title('独立页面'),
     S.documentTypeListItem('category').title('分类'),
     S.documentTypeListItem('navigationItem').title('导航菜单'),
+    S.documentTypeListItem('redirect').title('网址重定向'),
     S.listItem().id('site-settings').title('站点与首页设置').child(
       S.document().id('site-settings-editor').schemaType('siteSettings').documentId('site-settings').title('站点与首页设置'),
     ),
@@ -31,6 +33,7 @@ export const defaultDocumentNode: DefaultDocumentNodeResolver = (S, { schemaType
     return S.document().views([
       S.view.form().id('editor').title('编辑'),
       S.view.component(ContentPreview).id('preview').title('实时预览'),
+      S.view.component(SeoAssistant).id('seo').title('SEO 检查'),
     ])
   }
   return S.document().views([S.view.form()])

@@ -20,6 +20,13 @@ export type SanityPost = {
   meta_description: string | null
   og_image: string | null
   author_name: string | null
+  canonical_url: string | null
+  no_index: boolean
+  schema_type: string
+  comments_enabled: boolean
+  access_level: 'public' | 'member' | 'paid'
+  teaser: string
+  stripe_price_id: string | null
   source: 'sanity'
 }
 
@@ -68,6 +75,23 @@ export type PublicSiteSettings = {
   homepageFooterNote: string
   showDefaultLatestPosts: boolean
   homepageSections: Array<Record<string, unknown>>
+  canonicalBaseUrl: string
+  organizationName: string
+  twitterHandle: string
+  primaryColor: string
+  secondaryColor: string
+  bodyFont: string
+  headingFont: string
+  contentWidth: number
+  cardRadius: number
+  imageQuality: number
+  analyticsEnabled: boolean
+  commentsEnabled: boolean
+  commentsRequireApproval: boolean
+  contactFormEnabled: boolean
+  membershipEnabled: boolean
+  paidContentEnabled: boolean
+  turnstileSiteKey: string
 }
 
 export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
@@ -84,6 +108,23 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   homepageFooterNote: '本站内容独立编写整理，非 Microsoft 官方文档',
   showDefaultLatestPosts: true,
   homepageSections: [],
+  canonicalBaseUrl: 'https://zzgcopilot.com',
+  organizationName: 'Tyler博客',
+  twitterHandle: '',
+  primaryColor: '#11567f',
+  secondaryColor: '#142844',
+  bodyFont: 'system',
+  headingFont: 'serif',
+  contentWidth: 768,
+  cardRadius: 6,
+  imageQuality: 82,
+  analyticsEnabled: false,
+  commentsEnabled: false,
+  commentsRequireApproval: true,
+  contactFormEnabled: false,
+  membershipEnabled: false,
+  paidContentEnabled: false,
+  turnstileSiteKey: '',
 }
 
 export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
@@ -135,6 +176,13 @@ type SanityResponse = {
   metaDescription?: string
   ogImage?: string
   authorName?: string
+  canonicalUrl?: string
+  noIndex?: boolean
+  schemaType?: string
+  commentsEnabled?: boolean
+  accessLevel?: 'public' | 'member' | 'paid'
+  teaser?: string
+  stripePriceId?: string
 }
 
 type SanityPageResponse = {
@@ -172,6 +220,13 @@ function toPost(item: SanityResponse): SanityPost | null {
     meta_description: item.metaDescription || null,
     og_image: item.ogImage || null,
     author_name: item.authorName || null,
+    canonical_url: item.canonicalUrl || null,
+    no_index: Boolean(item.noIndex),
+    schema_type: item.schemaType || 'Article',
+    comments_enabled: item.commentsEnabled !== false,
+    access_level: item.accessLevel || 'public',
+    teaser: item.teaser || '',
+    stripe_price_id: item.stripePriceId || null,
     source: 'sanity',
   }
 }
@@ -237,6 +292,13 @@ const projection = `{
   metaDescription,
   ogImage,
   authorName
+  ,canonicalUrl
+  ,noIndex
+  ,schemaType
+  ,commentsEnabled
+  ,accessLevel
+  ,teaser
+  ,stripePriceId
 }`
 
 export async function getSanityLatestPosts(limit = 12): Promise<SanityPost[]> {
@@ -318,7 +380,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote, showDefaultLatestPosts, homepageSections[]${sectionProjection} }`)
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote, showDefaultLatestPosts, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -333,7 +395,30 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     homepageFooterNote: item?.homepageFooterNote?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterNote,
     showDefaultLatestPosts: item?.showDefaultLatestPosts !== false,
     homepageSections: Array.isArray(item?.homepageSections) ? item.homepageSections : [],
+    canonicalBaseUrl: item?.canonicalBaseUrl?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.canonicalBaseUrl,
+    organizationName: item?.organizationName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.organizationName,
+    twitterHandle: item?.twitterHandle?.trim() || '',
+    primaryColor: item?.primaryColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.primaryColor,
+    secondaryColor: item?.secondaryColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.secondaryColor,
+    bodyFont: item?.bodyFont || DEFAULT_PUBLIC_SITE_SETTINGS.bodyFont,
+    headingFont: item?.headingFont || DEFAULT_PUBLIC_SITE_SETTINGS.headingFont,
+    contentWidth: item?.contentWidth || DEFAULT_PUBLIC_SITE_SETTINGS.contentWidth,
+    cardRadius: item?.cardRadius ?? DEFAULT_PUBLIC_SITE_SETTINGS.cardRadius,
+    imageQuality: item?.imageQuality || DEFAULT_PUBLIC_SITE_SETTINGS.imageQuality,
+    analyticsEnabled: item?.analyticsEnabled === true,
+    commentsEnabled: item?.commentsEnabled === true,
+    commentsRequireApproval: item?.commentsRequireApproval !== false,
+    contactFormEnabled: item?.contactFormEnabled === true,
+    membershipEnabled: item?.membershipEnabled === true,
+    paidContentEnabled: item?.paidContentEnabled === true,
+    turnstileSiteKey: item?.turnstileSiteKey?.trim() || '',
   }
+}
+
+export async function getSanityRedirect(path: string): Promise<{ target: string; status: 307 | 308 } | null> {
+  const item = await query<{ targetPath?: string; statusCode?: number } | null>(`*[_type == "redirect" && enabled == true && sourcePath == $path][0] { targetPath, statusCode }`, { path })
+  if (!item?.targetPath) return null
+  return { target: item.targetPath, status: item.statusCode === 307 ? 307 : 308 }
 }
 
 export async function getSanitySitemapEntries(): Promise<Array<{ path: string; updatedAt: string }>> {

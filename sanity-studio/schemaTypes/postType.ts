@@ -1,5 +1,6 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { portableTextField } from './portableText'
+import { seoFields } from './seoFields'
 
 const canApprove = (roles: Array<{ name?: string; title?: string }> = []) => roles.some(role => ['administrator', 'editor', 'developer'].includes((role.name || role.title || '').toLowerCase()))
 const approvedForNonApprover = ({ document, currentUser }: { document?: Record<string, unknown>; currentUser?: { roles?: Array<{ name?: string; title?: string }> } | null }) => document?.editorialStage === 'approved' && !canApprove(currentUser?.roles)
@@ -9,10 +10,16 @@ export const postType = defineType({
   title: '文章',
   type: 'document',
   readOnly: approvedForNonApprover,
+  groups: [
+    { name: 'content', title: '内容', default: true },
+    { name: 'publishing', title: '发布与审核' },
+    { name: 'seo', title: 'SEO' },
+    { name: 'access', title: '互动与访问' },
+  ],
   fields: [
-    defineField({ name: 'title', title: '文章标题', type: 'string', validation: rule => rule.required().max(120) }),
-    defineField({ name: 'slug', title: '链接 Slug', type: 'slug', options: { source: 'title', maxLength: 110 }, validation: rule => rule.required() }),
-    defineField({ name: 'excerpt', title: '摘要', type: 'text', rows: 3, validation: rule => rule.max(500) }),
+    defineField({ name: 'title', title: '文章标题', type: 'string', group: 'content', validation: rule => rule.required().max(120) }),
+    defineField({ name: 'slug', title: '链接 Slug', type: 'slug', group: 'content', options: { source: 'title', maxLength: 110 }, validation: rule => rule.required() }),
+    defineField({ name: 'excerpt', title: '摘要', type: 'text', rows: 3, group: 'content', validation: rule => rule.max(500) }),
     portableTextField(),
     defineField({ name: 'content', title: '旧版 Markdown 正文', description: '仅用于兼容迁移前的文章。新文章请使用上方可视化正文。', type: 'text', rows: 12, hidden: ({ document }) => Array.isArray(document?.body) && document.body.length > 0 }),
     defineField({ name: 'coverImage', title: '封面图片', type: 'image', options: { hotspot: true } }),
@@ -20,20 +27,22 @@ export const postType = defineType({
     defineField({ name: 'tags', title: '标签', type: 'array', of: [defineArrayMember({ type: 'string' })], options: { layout: 'tags' } }),
     defineField({ name: 'readingTime', title: '预计阅读分钟数', type: 'number', validation: rule => rule.integer().min(1) }),
     defineField({ name: 'authorName', title: '作者名称', type: 'string', initialValue: 'Tyler' }),
-    defineField({ name: 'editorialStage', title: '审核阶段', description: '请使用页面底部的“提交审核 / 批准内容 / 退回修改”按钮推进流程。', type: 'string', initialValue: 'writing', readOnly: true, options: { list: [{ title: '撰写中', value: 'writing' }, { title: '待审核', value: 'review' }, { title: '已批准', value: 'approved' }] }, validation: rule => rule.required() }),
+    defineField({ name: 'editorialStage', title: '审核阶段', group: 'publishing', description: '请使用页面底部的“提交审核 / 批准内容 / 退回修改”按钮推进流程。', type: 'string', initialValue: 'writing', readOnly: true, options: { list: [{ title: '撰写中', value: 'writing' }, { title: '待审核', value: 'review' }, { title: '已批准', value: 'approved' }] }, validation: rule => rule.required() }),
     defineField({ name: 'reviewerName', title: '审核人', type: 'string', readOnly: true, hidden: ({ document }) => document?.editorialStage === 'writing' }),
     defineField({ name: 'approvedAt', title: '批准时间', type: 'datetime', readOnly: true, hidden: ({ document }) => document?.editorialStage !== 'approved' }),
     defineField({ name: 'reviewNotes', title: '审核意见', type: 'text', rows: 3, hidden: ({ document }) => document?.editorialStage === 'writing', readOnly: ({ currentUser }) => !canApprove(currentUser?.roles) }),
-    defineField({ name: 'status', title: '发布状态', description: '计划发布时间到达后会自动出现在网站；无需重新部署。', type: 'string', initialValue: 'draft', options: { list: [{ title: '草稿', value: 'draft' }, { title: '计划发布', value: 'scheduled' }, { title: '已发布', value: 'published' }] }, validation: rule => rule.required().custom((value, context) => (value === 'published' || value === 'scheduled') && context.document?.editorialStage !== 'approved' ? '只有审核阶段为“已批准”时才能发布或计划发布' : true) }),
+    defineField({ name: 'status', title: '发布状态', group: 'publishing', description: '计划发布时间到达后会自动出现在网站；无需重新部署。', type: 'string', initialValue: 'draft', options: { list: [{ title: '草稿', value: 'draft' }, { title: '计划发布', value: 'scheduled' }, { title: '已发布', value: 'published' }] }, validation: rule => rule.required().custom((value, context) => (value === 'published' || value === 'scheduled') && context.document?.editorialStage !== 'approved' ? '只有审核阶段为“已批准”时才能发布或计划发布' : true) }),
     defineField({ name: 'publishedAt', title: '发布时间', description: '计划发布必须设置未来时间；到期后内容会自动公开。', type: 'datetime', validation: rule => rule.custom((value, context) => {
       if (context.document?.status === 'scheduled' && !value) return '计划发布必须填写发布时间'
       if (context.document?.status === 'published' && value && Date.parse(String(value)) > Date.now()) return '未来时间请使用“计划发布”，不能标记为“已发布”'
       return true
     }).custom((value, context) => context.document?.status === 'scheduled' && value && Date.parse(String(value)) <= Date.now() ? '该时间已经到达，内容当前已在网站公开；建议将状态改为“已发布”' : true).warning() }),
     defineField({ name: 'expiresAt', title: '下线时间（可选）', description: '到达此时间后，网站、搜索和站点地图会自动隐藏内容。', type: 'datetime', validation: rule => rule.custom((value, context) => !value || !context.document?.publishedAt || Date.parse(String(value)) > Date.parse(String(context.document.publishedAt)) ? true : '下线时间必须晚于发布时间') }),
-    defineField({ name: 'metaTitle', title: 'SEO 标题', type: 'string', validation: rule => rule.max(120) }),
-    defineField({ name: 'metaDescription', title: 'SEO 描述', type: 'text', rows: 3, validation: rule => rule.max(180) }),
-    defineField({ name: 'ogImage', title: '社交分享图片 URL', type: 'url' }),
+    defineField({ name: 'commentsEnabled', title: '允许评论', type: 'boolean', initialValue: true, group: 'access' }),
+    defineField({ name: 'accessLevel', title: '阅读权限', type: 'string', initialValue: 'public', group: 'access', options: { list: [{ title: '公开', value: 'public' }, { title: '登录会员', value: 'member' }, { title: '付费会员', value: 'paid' }] } }),
+    defineField({ name: 'teaser', title: '受限内容预览文字', type: 'text', rows: 4, group: 'access', hidden: ({ document }) => !document?.accessLevel || document.accessLevel === 'public' }),
+    defineField({ name: 'stripePriceId', title: 'Stripe Price ID', description: '仅保存公开的价格编号，不要填写密钥。', type: 'string', group: 'access', hidden: ({ document }) => document?.accessLevel !== 'paid' }),
+    ...seoFields,
   ],
   preview: { select: { title: 'title', subtitle: 'status' } },
 })
