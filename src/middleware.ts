@@ -49,6 +49,7 @@ export default async function middleware(request: NextRequest) {
         pathname === '/index.html' ||
         pathname.startsWith('/api') ||
         pathname === '/admin/engagement' ||
+        pathname === '/account' ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/tutorials/') ||
         pathname.startsWith('/pages/') ||

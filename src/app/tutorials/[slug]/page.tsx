@@ -6,6 +6,9 @@ import remarkGfm from 'remark-gfm'
 import { getSanityPost, getSanitySiteSettings } from '@/lib/sanity-content'
 import { PortableContent } from '@/components/PortableContent'
 import { Comments } from '@/components/Comments'
+import { CheckoutButton } from '@/components/CheckoutButton'
+import { currentMember } from '@/lib/member-auth'
+import { platformDb } from '@/lib/platform'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +85,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   if (!post) notFound()
   const settings = await getSanitySiteSettings()
   const restricted = post.access_level && post.access_level !== 'public'
+  const member = restricted ? await currentMember() : null
+  let canRead = !restricted || (post.access_level === 'member' && Boolean(member))
+  if (post.access_level === 'paid' && member) {
+    const subscription = await platformDb()?.prepare("SELECT id FROM member_subscriptions WHERE member_id=? AND status IN ('active','trialing') AND (current_period_end IS NULL OR current_period_end>datetime('now'))").bind(member.id).first()
+    canRead = Boolean(subscription)
+  }
   const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
 
   return (
@@ -108,9 +117,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         )}
 
         <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-[var(--site-primary)] prose-img:rounded-xl">
-          {restricted ? <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center"><h2 className="text-xl font-bold">{post.access_level === 'paid' ? '付费会员内容' : '会员内容'}</h2><p className="mt-3 text-gray-600">{post.teaser || '此内容需要会员权限。管理员完成邮件和 Stripe 配置后即可开放登录。'}</p></div> : post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
+          {!canRead ? <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center"><h2 className="text-xl font-bold">{post.access_level === 'paid' ? '付费会员内容' : '会员内容'}</h2><p className="mt-3 text-gray-600">{post.teaser || '此内容需要会员权限。'}</p>{!member ? <Link href="/account" className="mt-5 inline-block rounded bg-[var(--site-primary)] px-5 py-2.5 text-white no-underline">登录会员账户</Link> : post.access_level === 'paid' && settings.paidContentEnabled ? <CheckoutButton slug={post.slug}/> : null}</div> : post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
         </article>
-        {!restricted && settings.commentsEnabled && post.comments_enabled ? <Comments contentId={post.id} slug={post.slug} siteKey={settings.turnstileSiteKey} /> : null}
+        {canRead && settings.commentsEnabled && post.comments_enabled ? <Comments contentId={post.id} slug={post.slug} siteKey={settings.turnstileSiteKey} /> : null}
       </div>
     </main>
   )
