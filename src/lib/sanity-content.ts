@@ -92,6 +92,9 @@ export type PublicSiteSettings = {
   membershipEnabled: boolean
   paidContentEnabled: boolean
   turnstileSiteKey: string
+  themePreset: string
+  cardStyle: string
+  navigationStyle: string
 }
 
 export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
@@ -125,6 +128,9 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   membershipEnabled: false,
   paidContentEnabled: false,
   turnstileSiteKey: '',
+  themePreset: 'classic',
+  cardStyle: 'elevated',
+  navigationStyle: 'sticky',
 }
 
 export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
@@ -380,7 +386,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote, showDefaultLatestPosts, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey }`)
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote, showDefaultLatestPosts, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -412,6 +418,9 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     membershipEnabled: item?.membershipEnabled === true,
     paidContentEnabled: item?.paidContentEnabled === true,
     turnstileSiteKey: item?.turnstileSiteKey?.trim() || '',
+    themePreset: item?.themePreset || DEFAULT_PUBLIC_SITE_SETTINGS.themePreset,
+    cardStyle: item?.cardStyle || DEFAULT_PUBLIC_SITE_SETTINGS.cardStyle,
+    navigationStyle: item?.navigationStyle || DEFAULT_PUBLIC_SITE_SETTINGS.navigationStyle,
   }
 }
 
