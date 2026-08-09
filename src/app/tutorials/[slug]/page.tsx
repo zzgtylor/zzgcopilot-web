@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getSanityPost, getSanitySiteSettings } from '@/lib/sanity-content'
 import { PortableContent } from '@/components/PortableContent'
+import { Comments } from '@/components/Comments'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,12 @@ type Post = {
   meta_title?: string
   meta_description?: string
   og_image?: string
+  canonical_url?: string | null
+  no_index?: boolean
+  schema_type?: string
+  comments_enabled?: boolean
+  access_level?: 'public' | 'member' | 'paid'
+  teaser?: string
 }
 async function getPost(slug: string): Promise<Post | null> {
   return getSanityPost(slug)
@@ -55,6 +62,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       description,
       images: ogImage ? [ogImage] : undefined,
     },
+    alternates: { canonical: post.canonical_url || `/tutorials/${post.slug}` },
+    robots: post.no_index ? { index: false, follow: false } : undefined,
   }
 }
 
@@ -71,10 +80,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const post = await getPost(slug)
   if (!post) notFound()
+  const settings = await getSanitySiteSettings()
+  const restricted = post.access_level && post.access_level !== 'public'
+  const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
 
   return (
     <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
+      <div className="mx-auto px-6 py-12" style={{ maxWidth: 'var(--site-content-width)' }}>
         <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← 返回首页</Link>
 
         <header className="mt-6 mb-8">
@@ -94,9 +107,10 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <img src={post.cover_image} alt={post.title} className="mb-10 w-full rounded-2xl object-cover" />
         )}
 
-        <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
-          {post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
+        <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-[var(--site-primary)] prose-img:rounded-xl">
+          {restricted ? <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center"><h2 className="text-xl font-bold">{post.access_level === 'paid' ? '付费会员内容' : '会员内容'}</h2><p className="mt-3 text-gray-600">{post.teaser || '此内容需要会员权限。管理员完成邮件和 Stripe 配置后即可开放登录。'}</p></div> : post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
         </article>
+        {!restricted && settings.commentsEnabled && post.comments_enabled ? <Comments contentId={post.id} slug={post.slug} siteKey={settings.turnstileSiteKey} /> : null}
       </div>
     </main>
   )

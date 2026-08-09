@@ -3,9 +3,11 @@ import { structureTool } from 'sanity/structure'
 import { visionTool } from '@sanity/vision'
 import { media } from 'sanity-plugin-media'
 import { presentationTool } from 'sanity/presentation'
+import { colorInput } from '@sanity/color-input'
 import { schemaTypes } from './schemaTypes'
 import { defaultDocumentNode, structure } from './structure'
 import { ApproveAction, ReturnToWritingAction, SubmitForReviewAction } from './actions/editorialActions'
+import { FeatureCenter } from './components/FeatureCenter'
 
 export default defineConfig({
   name: 'zzgcopilot',
@@ -40,6 +42,7 @@ export default defineConfig({
       },
     }),
     media({ maximumUploadSize: 25_000_000, creditLine: { enabled: true } }),
+    colorInput(),
     visionTool(),
   ],
   schema: {
@@ -51,4 +54,5 @@ export default defineConfig({
       ? [...previous, SubmitForReviewAction, ApproveAction, ReturnToWritingAction]
       : previous,
   },
+  tools: previous => [{ name: 'features', title: '功能中心', component: FeatureCenter }, ...previous],
 })

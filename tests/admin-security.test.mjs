@@ -21,7 +21,22 @@ test('all public content routes use Sanity-only readers', () => {
   assert.match(read('src/app/pages/[slug]/page.tsx'), /getSanityPage/)
   assert.match(read('src/app/api/posts/route.ts'), /getSanityPublishedPosts/)
   assert.match(read('src/app/api/sitemap/route.ts'), /getSanitySitemapEntries/)
-  assert.doesNotMatch(read('src/lib/sanity-content.ts'), /view_count|comments_enabled|getDb|getR2/)
+  assert.doesNotMatch(read('src/lib/sanity-content.ts'), /view_count|getDb|getR2/)
+})
+
+test('extended editor experience covers SEO, design, redirects, engagement, and gated content', () => {
+  const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
+  const post = read('sanity-studio/schemaTypes/postType.ts')
+  const config = read('sanity-studio/sanity.config.ts')
+  assert.match(settings, /primaryColor/)
+  assert.match(settings, /commentsEnabled/)
+  assert.match(settings, /membershipEnabled/)
+  assert.match(post, /accessLevel/)
+  assert.match(post, /seoFields/)
+  assert.match(config, /FeatureCenter/)
+  assert.match(read('sanity-studio/schemaTypes/redirectType.ts'), /sourcePath/)
+  assert.match(read('migrations/0005_engagement_membership.sql'), /analytics_daily/)
+  assert.match(read('src/lib/platform.ts'), /TURNSTILE_SECRET_KEY/)
 })
 
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {

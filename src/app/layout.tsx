@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { getSanitySiteSettings } from '@/lib/sanity-content'
+import { AnalyticsBeacon } from '@/components/AnalyticsBeacon'
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSanitySiteSettings()
@@ -23,14 +24,17 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const settings = await getSanitySiteSettings()
+  const bodyFont = settings.bodyFont === 'serif' ? 'Georgia, serif' : settings.bodyFont === 'sans' ? 'Arial, sans-serif' : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+  const headingFont = settings.headingFont === 'sans' ? 'Arial, sans-serif' : 'Georgia, serif'
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html lang="zh-CN" style={{ '--site-primary': settings.primaryColor, '--site-secondary': settings.secondaryColor, '--site-content-width': `${settings.contentWidth}px`, '--site-card-radius': `${settings.cardRadius}px`, '--site-body-font': bodyFont, '--site-heading-font': headingFont } as React.CSSProperties}>
+      <body>{children}{settings.analyticsEnabled ? <AnalyticsBeacon /> : null}</body>
     </html>
   )
 }

@@ -1,6 +1,7 @@
 import { defineField, defineType } from 'sanity'
 import { pageSectionsField } from './pageSections'
 import { portableTextField } from './portableText'
+import { seoFields } from './seoFields'
 
 const canApprove = (roles: Array<{ name?: string; title?: string }> = []) => roles.some(role => ['administrator', 'editor', 'developer'].includes((role.name || role.title || '').toLowerCase()))
 const approvedForNonApprover = ({ document, currentUser }: { document?: Record<string, unknown>; currentUser?: { roles?: Array<{ name?: string; title?: string }> } | null }) => document?.editorialStage === 'approved' && !canApprove(currentUser?.roles)
@@ -10,6 +11,7 @@ export const pageType = defineType({
   title: '独立页面',
   type: 'document',
   readOnly: approvedForNonApprover,
+  groups: [{ name: 'content', title: '内容', default: true }, { name: 'publishing', title: '发布与审核' }, { name: 'seo', title: 'SEO' }],
   fields: [
     defineField({ name: 'title', title: '页面标题', type: 'string', validation: rule => rule.required().max(120) }),
     defineField({ name: 'slug', title: '链接 Slug', type: 'slug', options: { source: 'title', maxLength: 110 }, validation: rule => rule.required() }),
@@ -28,8 +30,7 @@ export const pageType = defineType({
       return true
     }).custom((value, context) => context.document?.status === 'scheduled' && value && Date.parse(String(value)) <= Date.now() ? '该时间已经到达，内容当前已在网站公开；建议将状态改为“已发布”' : true).warning() }),
     defineField({ name: 'expiresAt', title: '下线时间（可选）', description: '到达此时间后，网站和站点地图会自动隐藏页面。', type: 'datetime', validation: rule => rule.custom((value, context) => !value || !context.document?.publishedAt || Date.parse(String(value)) > Date.parse(String(context.document.publishedAt)) ? true : '下线时间必须晚于发布时间') }),
-    defineField({ name: 'metaTitle', title: 'SEO 标题', type: 'string', validation: rule => rule.max(120) }),
-    defineField({ name: 'metaDescription', title: 'SEO 描述', type: 'text', rows: 3, validation: rule => rule.max(180) }),
+    ...seoFields,
   ],
   preview: { select: { title: 'title', subtitle: 'status' } },
 })
