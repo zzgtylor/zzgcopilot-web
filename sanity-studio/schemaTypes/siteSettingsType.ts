@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { pageSectionsField } from './pageSections'
 
 export const siteSettingsType = defineType({
   name: 'siteSettings',
@@ -16,6 +17,8 @@ export const siteSettingsType = defineType({
     defineField({ name: 'homepageCtaLabel', title: '首页主按钮文字', type: 'string', validation: rule => rule.max(80) }),
     defineField({ name: 'homepageFooterBrand', title: '首页页脚品牌名称', type: 'string', validation: rule => rule.max(80) }),
     defineField({ name: 'homepageFooterNote', title: '首页页脚说明', type: 'string', validation: rule => rule.max(200) }),
+    defineField({ name: 'showDefaultLatestPosts', title: '显示默认“最新教程”卡片区', description: '默认开启，关闭后首页只显示下方添加的可视化首页区块。', type: 'boolean', initialValue: true }),
+    pageSectionsField('homepageSections', '首页可视化区块'),
   ],
   preview: { select: { title: 'siteName', subtitle: 'seoDefaultTitle' } },
 })

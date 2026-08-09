@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
+import { VisualSections } from '@/components/VisualSections'
 import { DEFAULT_NAVIGATION, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
@@ -95,8 +96,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         </div>
       </nav>
 
-      {/* 主体：网格 + 侧边栏 */}
-      <div className="mx-auto grid max-w-[1480px] items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
+      {/* 主体：网格 + 侧边栏。默认保持现有首页，只有手动关闭时才隐藏。 */}
+      {settings.showDefaultLatestPosts ? <div className="mx-auto grid max-w-[1480px] items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
         {/* 左：主内容区 */}
         <main>
           <div className="mb-[26px] flex flex-wrap items-baseline justify-between gap-2.5">
@@ -176,7 +177,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
         {/* 右：侧边栏（预留位，暂无内容） */}
         <aside className="sticky top-[88px] hidden flex-col gap-7 lg:flex" />
-      </div>
+      </div> : null}
+
+      {settings.homepageSections.length > 0 ? <VisualSections sections={settings.homepageSections} className="mx-auto max-w-[1480px] px-5 py-11 sm:px-8 lg:px-10 lg:py-[44px]" /> : null}
 
       {/* FOOTER */}
       <footer className="border-t border-[#211e19]/10 bg-white px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">

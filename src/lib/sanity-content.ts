@@ -45,6 +45,7 @@ export type SanityPage = {
   excerpt: string
   content: string
   body: Array<Record<string, unknown>>
+  sections: Array<Record<string, unknown>>
   status: 'published'
   created_at: string
   updated_at: string
@@ -65,6 +66,8 @@ export type PublicSiteSettings = {
   homepageCtaLabel: string
   homepageFooterBrand: string
   homepageFooterNote: string
+  showDefaultLatestPosts: boolean
+  homepageSections: Array<Record<string, unknown>>
 }
 
 export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
@@ -79,6 +82,8 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   homepageCtaLabel: '从零开始学习 →',
   homepageFooterBrand: 'Tyler博客',
   homepageFooterNote: '本站内容独立编写整理，非 Microsoft 官方文档',
+  showDefaultLatestPosts: true,
+  homepageSections: [],
 }
 
 export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
@@ -139,6 +144,7 @@ type SanityPageResponse = {
   excerpt?: string
   content?: string
   body?: Array<Record<string, unknown>>
+  sections?: Array<Record<string, unknown>>
   _createdAt?: string
   _updatedAt?: string
   publishedAt?: string
@@ -201,17 +207,26 @@ async function query<T>(groq: string, params: Record<string, string | number> = 
   }
 }
 
+const portableProjection = `{
+    ...,
+    _type == "image" => { ..., "url": asset->url },
+    _type == "download" => { ..., "fileUrl": file.asset->url }
+  }`
+
+const sectionProjection = `{
+    ...,
+    "imageUrl": image.asset->url,
+    items[]{ ..., "imageUrl": image.asset->url },
+    body[]${portableProjection}
+  }`
+
 const projection = `{
   _id,
   title,
   "slug": slug.current,
   excerpt,
   content,
-  body[]{
-    ...,
-    _type == "image" => { ..., "url": asset->url },
-    _type == "download" => { ..., "fileUrl": file.asset->url }
-  },
+  body[]${portableProjection},
   "coverImageUrl": coalesce(coverImage.asset->url, coverImageUrl),
   readingTime,
   _createdAt,
@@ -283,8 +298,8 @@ export async function getSanityCategories(): Promise<SanityCategory[]> {
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {
   const preview = await isDraftPreview()
-  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]{ ..., _type == "image" => { ..., "url": asset->url }, _type == "download" => { ..., "fileUrl": file.asset->url } }, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
-  if (!item?.title || !item.slug || (!item.content && !item.body?.length)) return null
+  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
+  if (!item?.title || !item.slug || (!item.content && !item.body?.length && !item.sections?.length)) return null
   return {
     id: item._id,
     title: item.title,
@@ -292,6 +307,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
     excerpt: item.excerpt || '',
     content: item.content || '',
     body: item.body || [],
+    sections: item.sections || [],
     status: 'published',
     created_at: item._createdAt || new Date(0).toISOString(),
     updated_at: item._updatedAt || item._createdAt || new Date(0).toISOString(),
@@ -302,7 +318,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote }`)
+  const item = await query<Partial<PublicSiteSettings> | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote, showDefaultLatestPosts, homepageSections[]${sectionProjection} }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -315,6 +331,8 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     homepageCtaLabel: item?.homepageCtaLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageCtaLabel,
     homepageFooterBrand: item?.homepageFooterBrand?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterBrand,
     homepageFooterNote: item?.homepageFooterNote?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterNote,
+    showDefaultLatestPosts: item?.showDefaultLatestPosts !== false,
+    homepageSections: Array.isArray(item?.homepageSections) ? item.homepageSections : [],
   }
 }
 

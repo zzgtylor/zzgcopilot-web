@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { pageSectionsField } from './pageSections'
 import { portableTextField } from './portableText'
 
 const canApprove = (roles: Array<{ name?: string; title?: string }> = []) => roles.some(role => ['administrator', 'editor', 'developer'].includes((role.name || role.title || '').toLowerCase()))
@@ -14,6 +15,7 @@ export const pageType = defineType({
     defineField({ name: 'slug', title: '链接 Slug', type: 'slug', options: { source: 'title', maxLength: 110 }, validation: rule => rule.required() }),
     defineField({ name: 'excerpt', title: '摘要', type: 'text', rows: 3, validation: rule => rule.max(500) }),
     portableTextField(),
+    pageSectionsField(),
     defineField({ name: 'content', title: '旧版 Markdown 正文', description: '仅用于兼容迁移前的页面。新页面请使用上方可视化正文。', type: 'text', rows: 12, hidden: ({ document }) => Array.isArray(document?.body) && document.body.length > 0 }),
     defineField({ name: 'editorialStage', title: '审核阶段', description: '请使用页面底部的“提交审核 / 批准内容 / 退回修改”按钮推进流程。', type: 'string', initialValue: 'writing', readOnly: true, options: { list: [{ title: '撰写中', value: 'writing' }, { title: '待审核', value: 'review' }, { title: '已批准', value: 'approved' }] }, validation: rule => rule.required() }),
     defineField({ name: 'reviewerName', title: '审核人', type: 'string', readOnly: true, hidden: ({ document }) => document?.editorialStage === 'writing' }),
