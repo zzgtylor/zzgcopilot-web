@@ -90,6 +90,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
           <Link
             href={tutorialHref}
+            data-analytics-event="cta"
+            data-analytics-label={settings.homepageCtaLabel}
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[var(--site-primary)] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[var(--site-secondary)]"
           >
             {settings.homepageCtaLabel}

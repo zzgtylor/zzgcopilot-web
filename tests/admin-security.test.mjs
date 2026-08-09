@@ -59,6 +59,26 @@ test('controlled theme and template center provides safe one-click presets witho
   assert.match(home, /site-card/)
 })
 
+test('analytics reporting includes privacy-safe events, protected reports, trends, and CSV export', () => {
+  const migration = read('migrations/0006_analytics_reporting.sql')
+  const beacon = read('src/components/AnalyticsBeacon.tsx')
+  const report = read('src/lib/analytics-report.ts')
+  const dashboard = read('src/app/admin/analytics/page.tsx')
+  const studio = read('sanity-studio/sanity.config.ts')
+  assert.match(migration, /analytics_daily_visitors/)
+  assert.match(migration, /analytics_events/)
+  assert.doesNotMatch(migration, /raw_ip|ip_address/)
+  assert.match(beacon, /page_view/)
+  assert.match(beacon, /search/)
+  assert.match(beacon, /external_click/)
+  assert.match(report, /热门页面/)
+  assert.match(report, /reportCsv/)
+  assert.match(dashboard, /浏览趋势/)
+  assert.match(dashboard, /adminEmail/)
+  assert.match(studio, /AnalyticsCenter/)
+  assert.match(read('src/app/api/reports/analytics.csv/route.ts'), /text\/csv/)
+})
+
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {
   const middleware = read('src/middleware.ts')
   assert.match(middleware, /SANITY_STUDIO_URL/)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { platformDb, sha256 } from '@/lib/platform'
 import { randomToken } from '@/lib/member-auth'
+import { recordAnalyticsEvent, requestAnalyticsContext } from '@/lib/analytics'
 
 export async function GET(request: NextRequest) {
   const db = platformDb(), token = request.nextUrl.searchParams.get('token') || ''
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
     db.prepare("INSERT INTO member_sessions(member_id,token_hash,expires_at) VALUES(?,?,datetime('now','+30 days'))").bind(record.member_id, await sha256(session)),
     db.prepare("UPDATE members SET last_login_at=datetime('now'),updated_at=datetime('now') WHERE id=?").bind(record.member_id),
   ])
+  await recordAnalyticsEvent(db, { type: 'member_login', path: '/account', ...(await requestAnalyticsContext(request)) })
   const response = NextResponse.redirect(new URL('/account', request.url))
   response.cookies.set('zzg_member', session, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 30 })
   return response

@@ -11,7 +11,7 @@ function ActionLink({ label, href }: { label: unknown; href: unknown }) {
   const value = text(href)
   const title = text(label)
   if (!value || !title) return null
-  return value.startsWith('/') ? <Link href={value} className={linkClass}>{title}</Link> : <a href={value} className={linkClass} target="_blank" rel="noreferrer">{title}</a>
+  return value.startsWith('/') ? <Link href={value} className={linkClass} data-analytics-event="cta" data-analytics-label={title}>{title}</Link> : <a href={value} className={linkClass} target="_blank" rel="noreferrer" data-analytics-event="cta" data-analytics-label={title}>{title}</a>
 }
 
 export function VisualSections({ sections, className = '' }: { sections: Section[]; className?: string }) {

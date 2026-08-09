@@ -6,7 +6,7 @@ const features = [
   ['SEO 助手', '文章和页面编辑器内提供评分、搜索预览、Canonical、Schema 和 noindex。', '/structure'],
   ['媒体库与图片', '集中管理图片，支持热点裁切、说明、替代文字和 CDN 优化。', '/media'],
   ['评论与表单', 'D1 已准备审核队列和表单收件箱；在站点设置中启用。', 'https://zzgcopilot.com/admin/engagement'],
-  ['访问统计', 'D1 隐私友好日统计已准备；在站点设置中启用。', 'https://zzgcopilot.com/admin/engagement'],
+  ['访问统计', '查看浏览趋势、热门文章、搜索词、来源、地区、设备、转化、会员和收入。', '/analytics'],
   ['会员与付费内容', '会员和 Stripe 数据结构已准备；配置邮件与 Stripe 密钥后启用。', 'https://zzgcopilot.com/admin/engagement'],
   ['网址重定向', '在内容结构中维护旧网址到新网址的 307/308 跳转。', '/structure'],
   ['发布工作流', '草稿、审核、批准、定时发布、自动下线和版本历史。', '/structure'],
