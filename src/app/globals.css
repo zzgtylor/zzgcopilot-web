@@ -28,6 +28,31 @@ a {
   text-decoration: none;
 }
 
+.site-home {
+  background: var(--site-surface, #f8f9fa);
+}
+
+[data-site-theme="editorial"] { --site-surface: #fbf7f2; }
+[data-site-theme="forest"] { --site-surface: #f4f8f5; }
+[data-site-theme="minimal"] { --site-surface: #ffffff; }
+
+.site-nav { position: sticky; top: 0; }
+[data-nav-style="static"] .site-nav { position: static; }
+
+.site-card {
+  border-radius: var(--site-card-radius, 6px);
+  border: 1px solid rgba(33, 30, 25, 0.07);
+  background: #fff;
+  overflow: hidden;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+[data-card-style="elevated"] .site-card { box-shadow: 0 1px 3px rgba(26, 22, 15, 0.05); }
+[data-card-style="elevated"] .site-card:hover { transform: translateY(-3px); box-shadow: 0 16px 32px -16px rgba(26, 22, 15, 0.28); }
+[data-card-style="bordered"] .site-card { border-color: color-mix(in srgb, var(--site-primary) 22%, transparent); }
+[data-card-style="bordered"] .site-card:hover { border-color: var(--site-primary); }
+[data-card-style="flat"] .site-card { border-color: transparent; box-shadow: none; }
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;

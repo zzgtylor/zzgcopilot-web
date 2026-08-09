@@ -1,6 +1,7 @@
 import { Box, Button, Card, Grid, Heading, Stack, Text } from '@sanity/ui'
 
 const features = [
+  ['主题与模板中心', '4 套安全主题与 3 套内容模板，可一键应用、创建草稿和恢复经典外观。', '/themes'],
   ['可视化区块编辑', '页面、首页和文章已支持区块、实时预览与拖放排序。', '/structure'],
   ['SEO 助手', '文章和页面编辑器内提供评分、搜索预览、Canonical、Schema 和 noindex。', '/structure'],
   ['媒体库与图片', '集中管理图片，支持热点裁切、说明、替代文字和 CDN 优化。', '/media'],

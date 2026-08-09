@@ -61,9 +61,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f8f9fa] text-[#211e19]">
+    <div className="site-home min-h-screen overflow-x-hidden text-[#211e19]">
       {/* NAV */}
-      <nav className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 bg-white px-5 py-4 sm:px-8">
+      <nav className="site-nav z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 bg-white px-5 py-4 sm:px-8">
         <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl font-bold text-[#211e19] sm:text-3xl">
           {settings.homepageBrandName}
         </Link>
@@ -71,7 +71,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 whitespace-nowrap text-[13.5px] font-medium text-[#4a443b] md:flex">
           {navItems.map(item => {
             const href = item.href === '__latest_tutorial__' ? tutorialHref : item.href
-            return <Link key={item.id} href={href} target={item.open_new_tab ? '_blank' : undefined} rel={item.open_new_tab ? 'noreferrer' : undefined} className={href === '/' ? 'font-bold text-[#11567f]' : 'hover:text-[#11567f]'}>{item.label}</Link>
+            return <Link key={item.id} href={href} target={item.open_new_tab ? '_blank' : undefined} rel={item.open_new_tab ? 'noreferrer' : undefined} className={href === '/' ? 'font-bold text-[var(--site-primary)]' : 'hover:text-[var(--site-primary)]'}>{item.label}</Link>
           })}
         </div>
 
@@ -83,14 +83,14 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               defaultValue={query}
               aria-label="搜索教程"
               placeholder={settings.homepageSearchPlaceholder}
-              className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[#11567f]"
+              className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[var(--site-primary)]"
             />
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a39a8a]" />
           </form>
 
           <Link
             href={tutorialHref}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[#11567f] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[#142844]"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[var(--site-primary)] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[var(--site-secondary)]"
           >
             {settings.homepageCtaLabel}
           </Link>
@@ -111,7 +111,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                   <Link
                     key={post.id}
                     href={`/tutorials/${post.slug}`}
-                    className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
+                    className="site-card flex flex-col"
                   >
                     <div className="relative h-[150px] bg-[#f5f5f7]">
                       <img
@@ -120,7 +120,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                         className="h-full w-full object-cover"
                         loading="eager"
                       />
-                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
+                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
                         {post.category_name || legacyTutorial.category}
                       </span>
                     </div>
@@ -141,11 +141,11 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                 ) : (
                   <Link
                     href={legacyTutorial.href}
-                    className="flex flex-col overflow-hidden rounded-md border border-[#211e19]/[0.07] bg-white shadow-[0_1px_3px_rgba(26,22,15,0.05)] transition hover:-translate-y-[3px] hover:shadow-[0_16px_32px_-16px_rgba(26,22,15,0.28)]"
+                    className="site-card flex flex-col"
                   >
                     <div className="relative h-[150px] bg-[#f5f5f7]">
                       {settings.defaultCoverImageUrl ? <img src={settings.defaultCoverImageUrl} alt={legacyTutorial.title} className="h-full w-full object-cover" loading="eager" /> : null}
-                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[#11567f] shadow-sm">
+                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
                         {legacyTutorial.category}
                       </span>
                     </div>
@@ -164,13 +164,13 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           {totalPosts > 0 ? (
             <nav aria-label="教程分页" className="mt-12 flex flex-wrap items-center justify-center gap-2 font-mono text-[13px]">
               {currentPage > 1
-                ? <Link href={pageHref(currentPage - 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[#11567f] hover:text-[#11567f]">← 上一页</Link>
+                ? <Link href={pageHref(currentPage - 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">← 上一页</Link>
                 : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">← 上一页</span>}
               {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => page === currentPage
-                ? <span key={page} aria-current="page" className="cursor-default select-none rounded border border-[#11567f] bg-[#11567f] px-3.5 py-2 text-white">{page}</span>
-                : <Link key={page} href={pageHref(page, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[#11567f] hover:text-[#11567f]">{page}</Link>)}
+                ? <span key={page} aria-current="page" className="cursor-default select-none rounded border border-[var(--site-primary)] bg-[var(--site-primary)] px-3.5 py-2 text-white">{page}</span>
+                : <Link key={page} href={pageHref(page, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">{page}</Link>)}
               {currentPage < totalPages
-                ? <Link href={pageHref(currentPage + 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[#11567f] hover:text-[#11567f]">下一页 →</Link>
+                ? <Link href={pageHref(currentPage + 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">下一页 →</Link>
                 : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">下一页 →</span>}
             </nav>
           ) : null}

@@ -8,6 +8,7 @@ import { schemaTypes } from './schemaTypes'
 import { defaultDocumentNode, structure } from './structure'
 import { ApproveAction, ReturnToWritingAction, SubmitForReviewAction } from './actions/editorialActions'
 import { FeatureCenter } from './components/FeatureCenter'
+import { ThemeTemplateCenter } from './components/ThemeTemplateCenter'
 
 export default defineConfig({
   name: 'zzgcopilot',
@@ -54,5 +55,9 @@ export default defineConfig({
       ? [...previous, SubmitForReviewAction, ApproveAction, ReturnToWritingAction]
       : previous,
   },
-  tools: previous => [{ name: 'features', title: '功能中心', component: FeatureCenter }, ...previous],
+  tools: previous => [
+    { name: 'themes', title: '主题与模板', component: ThemeTemplateCenter },
+    { name: 'features', title: '功能中心', component: FeatureCenter },
+    ...previous,
+  ],
 })

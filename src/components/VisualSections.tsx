@@ -5,7 +5,7 @@ type Section = Record<string, unknown>
 
 const text = (value: unknown) => typeof value === 'string' ? value : ''
 const list = (value: unknown): Section[] => Array.isArray(value) ? value.filter((item): item is Section => Boolean(item) && typeof item === 'object') : []
-const linkClass = 'inline-flex items-center justify-center rounded-sm bg-[#11567f] px-5 py-3 text-sm font-semibold text-white no-underline transition hover:bg-[#142844]'
+const linkClass = 'inline-flex items-center justify-center rounded-sm bg-[var(--site-primary)] px-5 py-3 text-sm font-semibold text-white no-underline transition hover:bg-[var(--site-secondary)]'
 
 function ActionLink({ label, href }: { label: unknown; href: unknown }) {
   const value = text(href)
@@ -24,7 +24,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
 
       if (type === 'hero') {
         const imageUrl = text(section.imageUrl)
-        return <section key={key} className="overflow-hidden rounded-2xl bg-[#142844] text-white">
+        return <section key={key} className="overflow-hidden rounded-2xl bg-[var(--site-secondary)] text-white">
           <div className="grid items-center gap-8 p-7 sm:p-10 lg:grid-cols-2 lg:p-12">
             <div>
               {text(section.eyebrow) ? <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#9fd8ef]">{text(section.eyebrow)}</p> : null}
@@ -41,7 +41,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
         const body = list(section.body)
         return <section key={key} className="mx-auto max-w-3xl">
           {text(section.title) ? <h2 className="mb-6 font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2> : null}
-          {body.length ? <article className="prose prose-gray max-w-none prose-a:text-[#11567f] prose-img:rounded-xl"><PortableContent value={body} /></article> : null}
+          {body.length ? <article className="prose prose-gray max-w-none prose-a:text-[var(--site-primary)] prose-img:rounded-xl"><PortableContent value={body} /></article> : null}
         </section>
       }
 
@@ -60,7 +60,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
 
       if (type === 'cta') {
         return <section key={key} className="rounded-2xl bg-[#eef6fb] px-7 py-10 text-center sm:px-12">
-          {text(section.eyebrow) ? <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#11567f]">{text(section.eyebrow)}</p> : null}
+          {text(section.eyebrow) ? <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--site-primary)]">{text(section.eyebrow)}</p> : null}
           <h2 className="mt-2 font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2>
           {text(section.text) ? <p className="mx-auto mt-4 max-w-2xl whitespace-pre-wrap leading-7 text-[#5b554b]">{text(section.text)}</p> : null}
           <div className="mt-6"><ActionLink label={section.label} href={section.href} /></div>
@@ -79,7 +79,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
         const columns = Number(section.columns) === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-3'
         return <section key={key}>
           {text(section.title) ? <h2 className="mb-6 font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2> : null}
-          <div className={`grid gap-5 ${columns}`}>{items.map((item, itemIndex) => <article key={text(item._key) || itemIndex} className="overflow-hidden rounded-xl border border-[#211e19]/10 bg-white">
+          <div className={`grid gap-5 ${columns}`}>{items.map((item, itemIndex) => <article key={text(item._key) || itemIndex} className="site-card">
             {text(item.imageUrl) ? <img src={text(item.imageUrl)} alt="" className="h-40 w-full object-cover" loading="lazy" /> : null}
             <div className="p-5"><h3 className="font-serif text-lg font-bold text-[#1a160f]">{text(item.title)}</h3>{text(item.text) ? <p className="mt-2 text-sm leading-6 text-[#5b554b]">{text(item.text)}</p> : null}<div className="mt-4"><ActionLink label={item.label} href={item.href} /></div></div>
           </article>)}</div>
