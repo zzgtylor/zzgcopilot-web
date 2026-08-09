@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { platformDb, platformValue } from '@/lib/platform'
+import { recordAnalyticsEvent } from '@/lib/analytics'
 
 function parseSignature(header: string) {
   const values = header.split(',').map(part => part.split('='))
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       db.prepare("UPDATE members SET stripe_customer_id=?,plan='paid',updated_at=datetime('now') WHERE id=?").bind(String(object.customer || ''), memberId),
       db.prepare("INSERT INTO member_subscriptions(member_id,stripe_subscription_id,status,price_id) VALUES(?,?,?,?) ON CONFLICT(stripe_subscription_id) DO UPDATE SET status=excluded.status,updated_at=datetime('now')").bind(memberId, String(object.subscription || ''), object.payment_status === 'paid' ? 'active' : 'incomplete', null),
     ])
+    if (memberId && object.payment_status === 'paid') await recordAnalyticsEvent(db, { type: 'subscription_started', path: '/account', label: String(object.subscription || ''), valueCents: Number(object.amount_total || 0), currency: String(object.currency || '') })
   }
   if (event.type?.startsWith('customer.subscription.')) {
     const status = String(object.status || 'inactive'), subscriptionId = String(object.id || ''), customer = String(object.customer || '')

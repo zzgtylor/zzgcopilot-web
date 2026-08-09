@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { platformDb, requestIp, sha256, validateTurnstile } from '@/lib/platform'
+import { recordAnalyticsEvent, requestAnalyticsContext } from '@/lib/analytics'
 
 export async function GET(request: NextRequest) {
   const db = platformDb()
@@ -24,5 +25,6 @@ export async function POST(request: NextRequest) {
   const recent = await db.prepare("SELECT count(*) AS count FROM public_comments WHERE ip_hash = ? AND created_at > datetime('now','-10 minutes')").bind(ipHash).first<{ count: number }>()
   if ((recent?.count || 0) >= 5) return NextResponse.json({ error: '提交过于频繁，请稍后再试' }, { status: 429 })
   await db.prepare('INSERT INTO public_comments(content_id,content_slug,author_name,author_email,body,status,parent_id,ip_hash) VALUES(?,?,?,?,?,?,?,?)').bind(contentId, slug, name, email, message, 'pending', body?.parentId || null, ipHash).run()
+  await recordAnalyticsEvent(db, { type: 'comment_submit', path: `/tutorials/${slug}`, ...(await requestAnalyticsContext(request)) })
   return NextResponse.json({ ok: true, message: '评论已提交，审核后显示。' }, { status: 201 })
 }

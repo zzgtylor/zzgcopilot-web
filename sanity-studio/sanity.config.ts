@@ -9,6 +9,7 @@ import { defaultDocumentNode, structure } from './structure'
 import { ApproveAction, ReturnToWritingAction, SubmitForReviewAction } from './actions/editorialActions'
 import { FeatureCenter } from './components/FeatureCenter'
 import { ThemeTemplateCenter } from './components/ThemeTemplateCenter'
+import { AnalyticsCenter } from './components/AnalyticsCenter'
 
 export default defineConfig({
   name: 'zzgcopilot',
@@ -56,6 +57,7 @@ export default defineConfig({
       : previous,
   },
   tools: previous => [
+    { name: 'analytics', title: '数据报表', component: AnalyticsCenter },
     { name: 'themes', title: '主题与模板', component: ThemeTemplateCenter },
     { name: 'features', title: '功能中心', component: FeatureCenter },
     ...previous,

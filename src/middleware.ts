@@ -18,7 +18,7 @@ async function managedRedirect(pathname: string): Promise<{ targetPath: string; 
 export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if ((pathname.startsWith('/admin') && pathname !== '/admin/engagement') || pathname === '/login' || pathname === '/register') {
+    if ((pathname.startsWith('/admin') && pathname !== '/admin/engagement' && pathname !== '/admin/analytics') || pathname === '/login' || pathname === '/register') {
         return NextResponse.redirect(SANITY_STUDIO_URL, 307)
     }
 
@@ -49,6 +49,7 @@ export default async function middleware(request: NextRequest) {
         pathname === '/index.html' ||
         pathname.startsWith('/api') ||
         pathname === '/admin/engagement' ||
+        pathname === '/admin/analytics' ||
         pathname === '/account' ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/tutorials/') ||

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { platformDb, platformValue, requestIp, validateTurnstile, sha256 } from '@/lib/platform'
 import { randomToken } from '@/lib/member-auth'
+import { recordAnalyticsEvent, requestAnalyticsContext } from '@/lib/analytics'
 
 export async function POST(request: NextRequest) {
   const db = platformDb(), apiKey = platformValue('RESEND_API_KEY'), from = platformValue('MEMBER_FROM_EMAIL')
@@ -9,6 +10,7 @@ export async function POST(request: NextRequest) {
   const email = String(body?.email || '').trim().toLowerCase().slice(0, 160)
   if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: '邮箱格式不正确' }, { status: 400 })
   if (!await validateTurnstile(String(body?.turnstileToken || ''), requestIp(request))) return NextResponse.json({ error: '安全验证失败' }, { status: 403 })
+  const existing = await db.prepare('SELECT id FROM members WHERE email=?').bind(email).first<{ id: string }>()
   await db.prepare("INSERT INTO members(email) VALUES(?) ON CONFLICT(email) DO UPDATE SET updated_at=datetime('now')").bind(email).run()
   const member = await db.prepare('SELECT id FROM members WHERE email=?').bind(email).first<{ id: string }>()
   if (!member) return NextResponse.json({ error: '无法建立会员记录' }, { status: 500 })
@@ -17,5 +19,6 @@ export async function POST(request: NextRequest) {
   const verifyUrl = `https://zzgcopilot.com/api/member/verify?token=${encodeURIComponent(token)}`
   const sent = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' }, body: JSON.stringify({ from, to: [email], subject: '登录 ZZGCopilot', html: `<p>点击下面的链接登录，15 分钟内有效：</p><p><a href="${verifyUrl}">登录 ZZGCopilot</a></p>` }) })
   if (!sent.ok) return NextResponse.json({ error: '登录邮件发送失败' }, { status: 502 })
+  if (!existing) await recordAnalyticsEvent(db, { type: 'member_register', path: '/account', ...(await requestAnalyticsContext(request)) })
   return NextResponse.json({ ok: true, message: '登录链接已发送到邮箱。' })
 }
