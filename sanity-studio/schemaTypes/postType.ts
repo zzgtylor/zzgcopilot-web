@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { portableTextField } from './portableText'
 import { seoFields } from './seoFields'
+import { customFieldsField } from './customFieldsField'
 
 const canApprove = (roles: Array<{ name?: string; title?: string }> = []) => roles.some(role => ['administrator', 'editor', 'developer'].includes((role.name || role.title || '').toLowerCase()))
 const approvedForNonApprover = ({ document, currentUser }: { document?: Record<string, unknown>; currentUser?: { roles?: Array<{ name?: string; title?: string }> } | null }) => document?.editorialStage === 'approved' && !canApprove(currentUser?.roles)
@@ -15,6 +16,7 @@ export const postType = defineType({
     { name: 'publishing', title: '发布与审核' },
     { name: 'seo', title: 'SEO' },
     { name: 'access', title: '互动与访问' },
+    { name: 'custom', title: '自定义字段' },
   ],
   fields: [
     defineField({ name: 'title', title: '文章标题', type: 'string', group: 'content', validation: rule => rule.required().max(120) }),
@@ -42,6 +44,7 @@ export const postType = defineType({
     defineField({ name: 'accessLevel', title: '阅读权限', type: 'string', initialValue: 'public', group: 'access', options: { list: [{ title: '公开', value: 'public' }, { title: '登录会员', value: 'member' }, { title: '付费会员', value: 'paid' }] } }),
     defineField({ name: 'teaser', title: '受限内容预览文字', type: 'text', rows: 4, group: 'access', hidden: ({ document }) => !document?.accessLevel || document.accessLevel === 'public' }),
     defineField({ name: 'stripePriceId', title: 'Stripe Price ID', description: '仅保存公开的价格编号，不要填写密钥。', type: 'string', group: 'access', hidden: ({ document }) => document?.accessLevel !== 'paid' }),
+    customFieldsField(),
     ...seoFields,
   ],
   preview: { select: { title: 'title', subtitle: 'status' } },

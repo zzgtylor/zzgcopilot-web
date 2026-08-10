@@ -10,6 +10,8 @@ import { CheckoutButton } from '@/components/CheckoutButton'
 import { currentMember } from '@/lib/member-auth'
 import { platformDb } from '@/lib/platform'
 import { ArticleEnhancements } from '@/components/ArticleEnhancements'
+import { CustomFieldDisplay } from '@/components/CustomFieldDisplay'
+import type { SanityCustomField } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +38,7 @@ type Post = {
   comments_enabled?: boolean
   access_level?: 'public' | 'member' | 'paid'
   teaser?: string
+  custom_fields: SanityCustomField[]
 }
 async function getPost(slug: string): Promise<Post | null> {
   return getSanityPost(slug)
@@ -120,9 +123,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <img src={post.cover_image} alt={post.title} className="mb-10 w-full rounded-2xl object-cover" />
         )}
 
+        <CustomFieldDisplay fields={post.custom_fields} placement="beforeContent" />
+
         <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-[var(--site-primary)] prose-img:rounded-xl">
           {!canRead ? <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center"><h2 className="text-xl font-bold">{post.access_level === 'paid' ? '付费会员内容' : '会员内容'}</h2><p className="mt-3 text-gray-600">{post.teaser || '此内容需要会员权限。'}</p>{!member ? <Link href="/account" className="mt-5 inline-block rounded bg-[var(--site-primary)] px-5 py-2.5 text-white no-underline">登录会员账户</Link> : post.access_level === 'paid' && settings.paidContentEnabled ? <CheckoutButton slug={post.slug}/> : null}</div> : post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
         </article>
+        <CustomFieldDisplay fields={post.custom_fields} placement="afterContent" />
         {canRead ? <ArticleEnhancements title={post.title} readingProgress={settings.readingProgressEnabled} shareButtons={settings.shareButtonsEnabled} backToTop={settings.backToTopEnabled} /> : null}
         {canRead && settings.authorBoxEnabled ? <section className="mt-10 rounded-xl border border-gray-200 bg-gray-50 p-6"><p className="text-xs font-semibold uppercase tracking-wider text-[var(--site-primary)]">作者</p><h2 className="mt-2 text-lg font-bold text-gray-900">{post.author_name || settings.organizationName}</h2><p className="mt-2 text-sm leading-6 text-gray-600">由 {post.author_name || settings.organizationName} 整理和维护本站教程内容。</p></section> : null}
         {canRead && settings.newsletterEnabled && settings.newsletterHref ? <section className="mt-10 rounded-2xl bg-[var(--site-secondary)] p-7 text-white"><h2 className="text-xl font-bold">{settings.newsletterTitle}</h2><p className="mt-2 text-sm leading-6 text-white/80">{settings.newsletterText}</p><a href={settings.newsletterHref} className="mt-5 inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-[var(--site-secondary)] no-underline">{settings.newsletterButtonLabel}</a></section> : null}

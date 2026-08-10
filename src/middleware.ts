@@ -26,6 +26,13 @@ export default async function middleware(request: NextRequest) {
         return NextResponse.json({ error: '原 Cloudflare 内容后台已停用，请使用 Sanity Studio。' }, { status: 410 })
     }
 
+    if ((pathname === '/' || pathname.startsWith('/tutorials/') || pathname.startsWith('/pages/')) && ['classic', 'minimal', 'editorial', 'forest'].includes(request.nextUrl.searchParams.get('templatePreview') || '')) {
+        const response = NextResponse.next()
+        response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+        response.headers.set('Cache-Control', 'private, no-store')
+        return response
+    }
+
     if (pathname === '/sitemap.xml') return NextResponse.rewrite(new URL('/api/sitemap', request.url))
 
     const redirect = await managedRedirect(pathname)
