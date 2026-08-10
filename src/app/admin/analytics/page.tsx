@@ -1,5 +1,6 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { adminEmail } from '@/lib/admin-auth'
 import { buildAnalyticsReport, reportRange, type MetricRow } from '@/lib/analytics-report'
 import { platformDb } from '@/lib/platform'
@@ -12,11 +13,18 @@ function Ranking({ title, rows }: { title: string; rows: MetricRow[] }) {
 }
 
 export default async function AnalyticsAdmin({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
-  const requestHeaders = await headers(), email = adminEmail(requestHeaders)
+  const requestHeaders = await headers()
+  const host = requestHeaders.get('host')?.split(':')[0].toLowerCase()
+  const params = await searchParams
+  if (host === 'zzgcopilot.com' || host === 'www.zzgcopilot.com') {
+    const rangeQuery = params.range ? `?range=${encodeURIComponent(params.range)}` : ''
+    redirect(`https://zzgcopilot-web-52s.pages.dev/admin/analytics${rangeQuery}`)
+  }
+  const email = adminEmail(requestHeaders)
   if (!email) return <main className="mx-auto max-w-2xl p-10"><h1 className="text-2xl font-bold">访问未授权</h1><p className="mt-3">请通过 Cloudflare Access 登录管理员邮箱。</p></main>
   const db = platformDb()
   if (!db) return <main className="p-10">D1 尚未连接。</main>
-  const range = reportRange((await searchParams).range || null), report = await buildAnalyticsReport(db, range)
+  const range = reportRange(params.range || null), report = await buildAnalyticsReport(db, range)
   const maxTrend = Math.max(1, ...report.trends.map(row => Number(row.views)))
   const summary = [
     ['浏览量', report.summary.views], ['访客（日去重）', report.summary.visitors], ['搜索次数', report.summary.searches], ['转化事件', report.summary.conversions], ['新会员', report.summary.members], ['订阅收入', `${(report.summary.revenueCents / 100).toFixed(2)} ${report.summary.currency}`],
