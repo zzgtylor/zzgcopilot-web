@@ -10,6 +10,7 @@ import { ApproveAction, ReturnToWritingAction, SubmitForReviewAction } from './a
 import { FeatureCenter } from './components/FeatureCenter'
 import { ThemeTemplateCenter } from './components/ThemeTemplateCenter'
 import { AnalyticsCenter } from './components/AnalyticsCenter'
+import { ContentModelCenter } from './components/ContentModelCenter'
 
 export default defineConfig({
   name: 'zzgcopilot',
@@ -60,6 +61,7 @@ export default defineConfig({
     { name: 'analytics', title: '数据报表', component: AnalyticsCenter },
     { name: 'themes', title: '主题与模板', component: ThemeTemplateCenter },
     { name: 'features', title: '功能中心', component: FeatureCenter },
+    { name: 'models', title: '内容模型', component: ContentModelCenter },
     ...previous,
   ],
 })

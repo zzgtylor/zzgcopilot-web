@@ -11,11 +11,14 @@ type ThemePreset = {
 }
 
 const themes: ThemePreset[] = [
-  { id: 'classic', name: '经典教程', description: '当前网站主题。稳重、清晰，保持现有首页外观。', colors: ['#11567f', '#142844', '#f8f9fa'], values: { primaryColor: '#11567f', secondaryColor: '#142844', bodyFont: 'system', headingFont: 'serif', contentWidth: 768, cardRadius: 6, cardStyle: 'elevated', navigationStyle: 'sticky' } },
-  { id: 'minimal', name: '极简蓝白', description: '更现代的无衬线排版、较大留白和轻量卡片。', colors: ['#2563eb', '#111827', '#ffffff'], values: { primaryColor: '#2563eb', secondaryColor: '#111827', bodyFont: 'sans', headingFont: 'sans', contentWidth: 800, cardRadius: 14, cardStyle: 'bordered', navigationStyle: 'sticky' } },
-  { id: 'editorial', name: '暖色杂志', description: '适合长文章与观点内容的暖色衬线风格。', colors: ['#9a3412', '#3f2a1d', '#fbf7f2'], values: { primaryColor: '#9a3412', secondaryColor: '#3f2a1d', bodyFont: 'serif', headingFont: 'serif', contentWidth: 720, cardRadius: 4, cardStyle: 'flat', navigationStyle: 'static' } },
-  { id: 'forest', name: '森林知识库', description: '沉静绿色，适合资源库、课程与知识文档。', colors: ['#047857', '#16352d', '#f4f8f5'], values: { primaryColor: '#047857', secondaryColor: '#16352d', bodyFont: 'system', headingFont: 'sans', contentWidth: 820, cardRadius: 10, cardStyle: 'bordered', navigationStyle: 'sticky' } },
+  { id: 'classic', name: '经典教程', description: '当前网站模板。三列教程卡片、稳重蓝色和衬线标题，恢复现有首页外观。', colors: ['#11567f', '#142844', '#f8f9fa'], values: { primaryColor: '#11567f', secondaryColor: '#142844', headerBackgroundColor: '#ffffff', surfaceColor: '#f8f9fa', cardBackgroundColor: '#ffffff', bodyFont: 'system', headingFont: 'serif', contentWidth: 768, homepageMaxWidth: 1480, cardRadius: 6, cardStyle: 'elevated', navigationStyle: 'sticky', cardColumns: 3, cardGap: 24, cardImageHeight: 150 } },
+  { id: 'minimal', name: '极简蓝白', description: '现代无衬线排版、四列紧凑卡片和更大留白，适合内容数量较多的网站。', colors: ['#2563eb', '#111827', '#ffffff'], values: { primaryColor: '#2563eb', secondaryColor: '#111827', headerBackgroundColor: '#ffffff', surfaceColor: '#ffffff', cardBackgroundColor: '#ffffff', bodyFont: 'sans', headingFont: 'sans', contentWidth: 800, homepageMaxWidth: 1560, cardRadius: 14, cardStyle: 'bordered', navigationStyle: 'sticky', cardColumns: 4, cardGap: 20, cardImageHeight: 170 } },
+  { id: 'editorial', name: '暖色杂志', description: '两列大图卡片、暖色衬线排版，适合长文章、专栏和观点内容。', colors: ['#9a3412', '#3f2a1d', '#fbf7f2'], values: { primaryColor: '#9a3412', secondaryColor: '#3f2a1d', headerBackgroundColor: '#fffdf9', surfaceColor: '#fbf7f2', cardBackgroundColor: '#fffdf9', bodyFont: 'serif', headingFont: 'serif', contentWidth: 720, homepageMaxWidth: 1320, cardRadius: 4, cardStyle: 'flat', navigationStyle: 'static', cardColumns: 2, cardGap: 32, cardImageHeight: 240 } },
+  { id: 'forest', name: '森林知识库', description: '三列资源卡片、沉静绿色和清晰无衬线标题，适合课程与知识文档。', colors: ['#047857', '#16352d', '#f4f8f5'], values: { primaryColor: '#047857', secondaryColor: '#16352d', headerBackgroundColor: '#ffffff', surfaceColor: '#f4f8f5', cardBackgroundColor: '#ffffff', bodyFont: 'system', headingFont: 'sans', contentWidth: 820, homepageMaxWidth: 1480, cardRadius: 10, cardStyle: 'bordered', navigationStyle: 'sticky', cardColumns: 3, cardGap: 24, cardImageHeight: 180 } },
 ]
+
+const colorFields = ['primaryColor', 'secondaryColor', 'headerBackgroundColor', 'surfaceColor', 'cardBackgroundColor']
+const templateFields = [...colorFields, 'themePreset', 'bodyFont', 'headingFont', 'contentWidth', 'homepageMaxWidth', 'cardRadius', 'cardStyle', 'navigationStyle', 'cardColumns', 'cardGap', 'cardImageHeight']
 
 const key = () => crypto.randomUUID().replace(/-/g, '').slice(0, 12)
 const slug = (prefix: string) => `${prefix}-${Date.now().toString(36)}`
@@ -27,17 +30,34 @@ export function ThemeTemplateCenter() {
   const toast = useToast()
   const [activeTheme, setActiveTheme] = useState('classic')
   const [busy, setBusy] = useState('')
+  const [backup, setBackup] = useState<Record<string, unknown> | null>(null)
 
-  useEffect(() => { client.fetch<string | null>('*[_id == "site-settings"][0].themePreset').then(value => setActiveTheme(value || 'classic')).catch(() => undefined) }, [client])
+  useEffect(() => { client.fetch<{ themePreset?: string; themeBackup?: Record<string, unknown> } | null>('*[_id == "site-settings"][0]{themePreset,themeBackup}').then(value => { setActiveTheme(value?.themePreset || 'classic'); setBackup(value?.themeBackup || null) }).catch(() => undefined) }, [client])
 
   async function applyTheme(theme: ThemePreset) {
     setBusy(theme.id)
     try {
-      const { primaryColor, secondaryColor, ...values } = theme.values
-      await client.patch('site-settings').setIfMissing({ _type: 'siteSettings' }).set({ ...values, themePreset: theme.id, primaryColor: { _type: 'color', hex: String(primaryColor), alpha: 1 }, secondaryColor: { _type: 'color', hex: String(secondaryColor), alpha: 1 } }).commit()
+      const current = await client.fetch<Record<string, unknown> | null>(`*[_id == "site-settings"][0]{${templateFields.join(',')}}`)
+      const values = Object.fromEntries(Object.entries(theme.values).map(([field, value]) => colorFields.includes(field) ? [field, { _type: 'color', hex: String(value), alpha: 1 }] : [field, value]))
+      const snapshot = { _type: 'themeBackup', ...(current || {}) }
+      await client.patch('site-settings').setIfMissing({ _type: 'siteSettings' }).set({ ...values, themePreset: theme.id, themeBackup: snapshot }).commit()
+      setBackup(snapshot)
       setActiveTheme(theme.id)
-      toast.push({ status: 'success', title: `已应用“${theme.name}”`, description: '前台将在缓存刷新后显示新主题，可随时恢复经典主题。' })
+      toast.push({ status: 'success', title: `已应用“${theme.name}”`, description: '颜色、字体、首页宽度、卡片列数和间距已一起更新，可使用“撤销上次更换”。' })
     } catch (error) { toast.push({ status: 'error', title: '主题应用失败', description: error instanceof Error ? error.message : '请稍后重试' }) }
+    finally { setBusy('') }
+  }
+
+  async function restoreTheme() {
+    if (!backup) return
+    setBusy('restore')
+    try {
+      const restored = Object.fromEntries(Object.entries(backup).filter(([field]) => field !== '_type'))
+      await client.patch('site-settings').set(restored).unset(['themeBackup']).commit()
+      setActiveTheme(typeof restored.themePreset === 'string' ? restored.themePreset : 'classic')
+      setBackup(null)
+      toast.push({ status: 'success', title: '已撤销上次模板更换', description: '网站已恢复到更换前的模板参数。' })
+    } catch (error) { toast.push({ status: 'error', title: '恢复失败', description: error instanceof Error ? error.message : '请稍后重试' }) }
     finally { setBusy('') }
   }
 
@@ -62,7 +82,7 @@ export function ThemeTemplateCenter() {
 
   return <Box padding={5}><Stack space={6}>
     <Stack space={2}><Heading size={3}>主题与模板中心</Heading><Text muted>像 WordPress 一样选择经过验证的外观和模板，但所有包都经过固定字段限制，不执行第三方代码。</Text></Stack>
-    <Stack space={4}><Heading size={2}>网站主题</Heading><Grid columns={[1, 1, 2]} gap={4}>{themes.map(theme => <Card key={theme.id} padding={4} radius={3} border tone={activeTheme === theme.id ? 'primary' : 'default'}><Stack space={4}><Flex gap={2}>{theme.colors.map(color => <Box key={color} style={{ background: color, width: 48, height: 36, borderRadius: 6, border: '1px solid rgba(0,0,0,.1)' }} />)}</Flex><Stack space={2}><Flex align="center" gap={2}><Heading size={1}>{theme.name}</Heading>{activeTheme === theme.id ? <Text size={1} muted>当前主题</Text> : null}</Flex><Text size={1}>{theme.description}</Text></Stack><Button text={activeTheme === theme.id ? '当前已应用' : '一键应用'} tone="primary" disabled={activeTheme === theme.id || Boolean(busy)} loading={busy === theme.id} onClick={() => applyTheme(theme)} /></Stack></Card>)}</Grid></Stack>
+    <Stack space={4}><Flex align="center" justify="space-between" gap={3} wrap="wrap"><Heading size={2}>网站模板包</Heading><Flex gap={2}><Button as="a" href="/presentation" text="打开网站预览" mode="ghost" /><Button text="撤销上次更换" tone="caution" disabled={!backup || Boolean(busy)} loading={busy === 'restore'} onClick={restoreTheme} /></Flex></Flex><Grid columns={[1, 1, 2]} gap={4}>{themes.map(theme => <Card key={theme.id} padding={4} radius={3} border tone={activeTheme === theme.id ? 'primary' : 'default'}><Stack space={4}><Flex gap={2}>{theme.colors.map(color => <Box key={color} style={{ background: color, width: 48, height: 36, borderRadius: 6, border: '1px solid rgba(0,0,0,.1)' }} />)}</Flex><Stack space={2}><Flex align="center" gap={2}><Heading size={1}>{theme.name}</Heading>{activeTheme === theme.id ? <Text size={1} muted>当前模板</Text> : null}</Flex><Text size={1}>{theme.description}</Text></Stack><Button text={activeTheme === theme.id ? '当前已应用' : '预设并应用'} tone="primary" disabled={activeTheme === theme.id || Boolean(busy)} loading={busy === theme.id} onClick={() => applyTheme(theme)} /></Stack></Card>)}</Grid><Text size={1} muted>更换模板只修改经过审核的布局参数，不覆盖文章、页面、导航或首页可视化区块。</Text></Stack>
     <Stack space={4}><Heading size={2}>内容模板包</Heading><Grid columns={[1, 1, 3]} gap={4}>{[
       ['tutorial', '分步教程', '标题、介绍、操作步骤、提示和总结，适合 Word 教程。'],
       ['landing', '着陆页面', '首屏、图文介绍、常见问题和行动按钮。'],
