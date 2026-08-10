@@ -28,6 +28,16 @@ export type SanityPost = {
   teaser: string
   stripe_price_id: string | null
   source: 'sanity'
+  custom_fields: SanityCustomField[]
+}
+
+export type SanityCustomField = {
+  key: string
+  label: string
+  type: string
+  placement: 'beforeContent' | 'afterContent'
+  displayOnPage: boolean
+  value: string | number | boolean
 }
 
 export type SanityNavigationItem = {
@@ -59,6 +69,7 @@ export type SanityPage = {
   published_at: string | null
   meta_title: string | null
   meta_description: string | null
+  custom_fields: SanityCustomField[]
 }
 
 export type PublicSiteSettings = {
@@ -248,6 +259,7 @@ type SanityResponse = {
   accessLevel?: 'public' | 'member' | 'paid'
   teaser?: string
   stripePriceId?: string
+  customFields?: Array<Record<string, unknown>>
 }
 
 type SanityPageResponse = {
@@ -263,6 +275,16 @@ type SanityPageResponse = {
   publishedAt?: string
   metaTitle?: string
   metaDescription?: string
+  customFields?: Array<Record<string, unknown>>
+}
+
+function toCustomFields(items: Array<Record<string, unknown>> | undefined): SanityCustomField[] {
+  return (items || []).map(item => {
+    const type = typeof item.type === 'string' ? item.type : 'text'
+    const value = type === 'number' ? Number(item.valueNumber || 0) : type === 'boolean' ? Boolean(item.valueBoolean) : typeof item.valueString === 'string' ? item.valueString : ''
+    const placement: SanityCustomField['placement'] = item.placement === 'beforeContent' ? 'beforeContent' : 'afterContent'
+    return { key: typeof item.key === 'string' ? item.key : '', label: typeof item.label === 'string' ? item.label : '', type, placement, displayOnPage: item.displayOnPage !== false, value }
+  }).filter(item => item.key && item.label)
 }
 
 function toPost(item: SanityResponse): SanityPost | null {
@@ -293,6 +315,7 @@ function toPost(item: SanityResponse): SanityPost | null {
     teaser: item.teaser || '',
     stripe_price_id: item.stripePriceId || null,
     source: 'sanity',
+    custom_fields: toCustomFields(item.customFields),
   }
 }
 
@@ -340,6 +363,15 @@ const sectionProjection = `{
     body[]${portableProjection}
   }`
 
+const customFieldsProjection = `customFields[]{
+  ...,
+  "key": definition->fieldKey,
+  "label": definition->title,
+  "type": definition->fieldType,
+  "displayOnPage": coalesce(definition->displayOnPage, true),
+  "placement": coalesce(definition->placement, "afterContent")
+}`
+
 const projection = `{
   _id,
   title,
@@ -364,6 +396,7 @@ const projection = `{
   ,accessLevel
   ,teaser
   ,stripePriceId
+  ,${customFieldsProjection}
 }`
 
 export async function getSanityLatestPosts(limit = 12): Promise<SanityPost[]> {
@@ -425,7 +458,7 @@ export async function getSanityCategories(): Promise<SanityCategory[]> {
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {
   const preview = await isDraftPreview()
-  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
+  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, ${customFieldsProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
   if (!item?.title || !item.slug || (!item.content && !item.body?.length && !item.sections?.length)) return null
   return {
     id: item._id,
@@ -441,6 +474,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
     published_at: item.publishedAt || item._createdAt || null,
     meta_title: item.metaTitle || null,
     meta_description: item.metaDescription || null,
+    custom_fields: toCustomFields(item.customFields),
   }
 }
 

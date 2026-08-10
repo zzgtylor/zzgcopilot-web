@@ -19,6 +19,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
 
   return <div className={`space-y-12 ${className}`}>
     {sections.map((section, index) => {
+      if (section.hidden === true) return null
       const type = text(section._type)
       const key = text(section._key) || `${type}-${index}`
 
