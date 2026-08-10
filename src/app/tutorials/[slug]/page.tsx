@@ -3,12 +3,13 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { getSanityPost, getSanitySiteSettings } from '@/lib/sanity-content'
+import { getSanityPost, getSanityPublishedPosts, getSanitySiteSettings } from '@/lib/sanity-content'
 import { PortableContent } from '@/components/PortableContent'
 import { Comments } from '@/components/Comments'
 import { CheckoutButton } from '@/components/CheckoutButton'
 import { currentMember } from '@/lib/member-auth'
 import { platformDb } from '@/lib/platform'
+import { ArticleEnhancements } from '@/components/ArticleEnhancements'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,6 +85,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const post = await getPost(slug)
   if (!post) notFound()
   const settings = await getSanitySiteSettings()
+  const relatedPosts = settings.relatedPostsEnabled
+    ? (await getSanityPublishedPosts({ limit: 4 })).filter(item => item.slug !== post.slug).slice(0, 3)
+    : []
   const restricted = post.access_level && post.access_level !== 'public'
   const member = restricted ? await currentMember() : null
   let canRead = !restricted || (post.access_level === 'member' && Boolean(member))
@@ -97,7 +101,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     <main className="min-h-screen bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
       <div className="mx-auto px-6 py-12" style={{ maxWidth: 'var(--site-content-width)' }}>
-        <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← 返回首页</Link>
+        {settings.breadcrumbsEnabled ? <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← 返回首页</Link> : null}
 
         <header className="mt-6 mb-8">
           {post.category_name && (
@@ -119,6 +123,10 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-[var(--site-primary)] prose-img:rounded-xl">
           {!canRead ? <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center"><h2 className="text-xl font-bold">{post.access_level === 'paid' ? '付费会员内容' : '会员内容'}</h2><p className="mt-3 text-gray-600">{post.teaser || '此内容需要会员权限。'}</p>{!member ? <Link href="/account" className="mt-5 inline-block rounded bg-[var(--site-primary)] px-5 py-2.5 text-white no-underline">登录会员账户</Link> : post.access_level === 'paid' && settings.paidContentEnabled ? <CheckoutButton slug={post.slug}/> : null}</div> : post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
         </article>
+        {canRead ? <ArticleEnhancements title={post.title} readingProgress={settings.readingProgressEnabled} shareButtons={settings.shareButtonsEnabled} backToTop={settings.backToTopEnabled} /> : null}
+        {canRead && settings.authorBoxEnabled ? <section className="mt-10 rounded-xl border border-gray-200 bg-gray-50 p-6"><p className="text-xs font-semibold uppercase tracking-wider text-[var(--site-primary)]">作者</p><h2 className="mt-2 text-lg font-bold text-gray-900">{post.author_name || settings.organizationName}</h2><p className="mt-2 text-sm leading-6 text-gray-600">由 {post.author_name || settings.organizationName} 整理和维护本站教程内容。</p></section> : null}
+        {canRead && settings.newsletterEnabled && settings.newsletterHref ? <section className="mt-10 rounded-2xl bg-[var(--site-secondary)] p-7 text-white"><h2 className="text-xl font-bold">{settings.newsletterTitle}</h2><p className="mt-2 text-sm leading-6 text-white/80">{settings.newsletterText}</p><a href={settings.newsletterHref} className="mt-5 inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-[var(--site-secondary)] no-underline">{settings.newsletterButtonLabel}</a></section> : null}
+        {canRead && relatedPosts.length ? <section className="mt-12"><h2 className="text-xl font-bold text-gray-900">相关文章</h2><div className="mt-5 grid gap-4 sm:grid-cols-3">{relatedPosts.map(item => <Link key={item.id} href={`/tutorials/${item.slug}`} className="site-card block p-4"><span className="line-clamp-2 font-semibold text-gray-900">{item.title}</span>{item.category_name ? <span className="mt-3 block text-xs text-[var(--site-primary)]">{item.category_name}</span> : null}</Link>)}</div></section> : null}
         {canRead && settings.commentsEnabled && post.comments_enabled ? <Comments contentId={post.id} slug={post.slug} siteKey={settings.turnstileSiteKey} /> : null}
       </div>
     </main>

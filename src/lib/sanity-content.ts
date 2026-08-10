@@ -111,6 +111,17 @@ export type PublicSiteSettings = {
   themePreset: string
   cardStyle: string
   navigationStyle: string
+  breadcrumbsEnabled: boolean
+  shareButtonsEnabled: boolean
+  readingProgressEnabled: boolean
+  backToTopEnabled: boolean
+  relatedPostsEnabled: boolean
+  authorBoxEnabled: boolean
+  newsletterEnabled: boolean
+  newsletterTitle: string
+  newsletterText: string
+  newsletterButtonLabel: string
+  newsletterHref: string
 }
 
 export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
@@ -163,6 +174,17 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   themePreset: 'classic',
   cardStyle: 'elevated',
   navigationStyle: 'sticky',
+  breadcrumbsEnabled: true,
+  shareButtonsEnabled: false,
+  readingProgressEnabled: false,
+  backToTopEnabled: false,
+  relatedPostsEnabled: false,
+  authorBoxEnabled: false,
+  newsletterEnabled: false,
+  newsletterTitle: '获取最新教程',
+  newsletterText: '订阅更新，不错过新的实用教程。',
+  newsletterButtonLabel: '立即订阅',
+  newsletterHref: '',
 }
 
 export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
@@ -184,6 +206,11 @@ function valueFromEnvironment(key: string): string {
   } catch {
     return ''
   }
+}
+
+function safePublicHref(value: string | undefined): string {
+  const href = value?.trim() || ''
+  return href.startsWith('/') || href.startsWith('#') || href.startsWith('https://') || href.startsWith('http://') || href.startsWith('mailto:') ? href : ''
 }
 
 export function getSanityConfig(): SanityConfig | null {
@@ -418,7 +445,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle }`)
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -429,7 +456,7 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     homepageSectionTitle: item?.homepageSectionTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSectionTitle,
     homepageSearchPlaceholder: item?.homepageSearchPlaceholder?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSearchPlaceholder,
     homepageCtaLabel: item?.homepageCtaLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageCtaLabel,
-    homepageCtaHref: item?.homepageCtaHref?.trim() || '',
+    homepageCtaHref: safePublicHref(item?.homepageCtaHref),
     showHeaderSearch: item?.showHeaderSearch !== false,
     showHeaderCta: item?.showHeaderCta !== false,
     homepageIntroText: item?.homepageIntroText?.trim() || '',
@@ -469,6 +496,17 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     themePreset: item?.themePreset || DEFAULT_PUBLIC_SITE_SETTINGS.themePreset,
     cardStyle: item?.cardStyle || DEFAULT_PUBLIC_SITE_SETTINGS.cardStyle,
     navigationStyle: item?.navigationStyle || DEFAULT_PUBLIC_SITE_SETTINGS.navigationStyle,
+    breadcrumbsEnabled: item?.breadcrumbsEnabled !== false,
+    shareButtonsEnabled: item?.shareButtonsEnabled === true,
+    readingProgressEnabled: item?.readingProgressEnabled === true,
+    backToTopEnabled: item?.backToTopEnabled === true,
+    relatedPostsEnabled: item?.relatedPostsEnabled === true,
+    authorBoxEnabled: item?.authorBoxEnabled === true,
+    newsletterEnabled: item?.newsletterEnabled === true,
+    newsletterTitle: item?.newsletterTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.newsletterTitle,
+    newsletterText: item?.newsletterText?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.newsletterText,
+    newsletterButtonLabel: item?.newsletterButtonLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.newsletterButtonLabel,
+    newsletterHref: safePublicHref(item?.newsletterHref),
   }
 }
 
