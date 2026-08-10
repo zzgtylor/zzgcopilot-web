@@ -36,13 +36,23 @@ a {
 [data-site-theme="forest"] { --site-surface: #f4f8f5; }
 [data-site-theme="minimal"] { --site-surface: #ffffff; }
 
-.site-nav { position: sticky; top: 0; }
+.site-nav { position: sticky; top: 0; background: var(--site-header-bg, #fff); }
 [data-nav-style="static"] .site-nav { position: static; }
+
+.site-shell { max-width: var(--site-home-width, 1480px); }
+.site-card-grid { gap: var(--site-card-gap, 24px); }
+.site-card-image { height: var(--site-card-image-height, 150px); }
+
+@media (min-width: 1024px) {
+  [data-card-columns="2"] .site-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  [data-card-columns="3"] .site-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  [data-card-columns="4"] .site-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 
 .site-card {
   border-radius: var(--site-card-radius, 6px);
   border: 1px solid rgba(33, 30, 25, 0.07);
-  background: #fff;
+  background: var(--site-card-bg, #fff);
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
@@ -52,6 +62,8 @@ a {
 [data-card-style="bordered"] .site-card { border-color: color-mix(in srgb, var(--site-primary) 22%, transparent); }
 [data-card-style="bordered"] .site-card:hover { border-color: var(--site-primary); }
 [data-card-style="flat"] .site-card { border-color: transparent; box-shadow: none; }
+
+.site-footer { background: var(--site-header-bg, #fff); }
 
 @media (prefers-color-scheme: dark) {
   html {

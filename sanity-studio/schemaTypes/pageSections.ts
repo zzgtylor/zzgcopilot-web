@@ -96,9 +96,10 @@ export const pageSectionMembers = () => [
   }),
 ]
 
-export const pageSectionsField = (name = 'sections', title = '页面区块') => defineField({
+export const pageSectionsField = (name = 'sections', title = '页面区块', group?: string) => defineField({
   name,
   title,
+  group,
   description: '按顺序添加区块，前台将按照此顺序显示。未添加区块时，网站会保持现有模板与正文显示方式。',
   type: 'array',
   of: pageSectionMembers(),

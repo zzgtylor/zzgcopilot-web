@@ -48,22 +48,23 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   const resolvedSearchParams = await searchParams
   const query = (Array.isArray(resolvedSearchParams?.q) ? resolvedSearchParams?.q[0] : resolvedSearchParams?.q || '').trim().slice(0, 80)
   const requestedPage = Number(Array.isArray(resolvedSearchParams?.page) ? resolvedSearchParams?.page[0] : resolvedSearchParams?.page || '1')
-  const pageSize = 9
+  const settings = await getSanitySiteSettings()
+  const pageSize = settings.postsPerPage
   const totalPosts = await getSanityPublishedPostCount({ search: query })
   const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize))
   const currentPage = Math.min(Math.max(Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 1, 1), totalPages)
-  const [posts, navigation, settings] = await Promise.all([
+  const [posts, navigation] = await Promise.all([
     getSanityPublishedPosts({ limit: pageSize, offset: (currentPage - 1) * pageSize, search: query }),
     getNavigation(),
-    getSanitySiteSettings(),
   ])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
+  const ctaHref = !settings.homepageCtaHref || settings.homepageCtaHref === '__latest_tutorial__' ? tutorialHref : settings.homepageCtaHref
   const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
 
   return (
     <div className="site-home min-h-screen overflow-x-hidden text-[#211e19]">
       {/* NAV */}
-      <nav className="site-nav z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 bg-white px-5 py-4 sm:px-8">
+      <nav className="site-nav z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 px-5 py-4 sm:px-8">
         <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl font-bold text-[#211e19] sm:text-3xl">
           {settings.homepageBrandName}
         </Link>
@@ -76,7 +77,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         </div>
 
         <div className="flex shrink-0 items-center gap-3.5">
-          <form action="/" method="get" className="relative hidden sm:block">
+          {settings.showHeaderSearch ? <form action="/" method="get" className="relative hidden sm:block">
             <input
               type="search"
               name="q"
@@ -86,28 +87,29 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[var(--site-primary)]"
             />
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a39a8a]" />
-          </form>
+          </form> : null}
 
-          <Link
-            href={tutorialHref}
+          {settings.showHeaderCta ? <Link
+            href={ctaHref}
             data-analytics-event="cta"
             data-analytics-label={settings.homepageCtaLabel}
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[var(--site-primary)] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[var(--site-secondary)]"
           >
             {settings.homepageCtaLabel}
-          </Link>
+          </Link> : null}
         </div>
       </nav>
 
       {/* 主体：网格 + 侧边栏。默认保持现有首页，只有手动关闭时才隐藏。 */}
-      {settings.showDefaultLatestPosts ? <div className="mx-auto grid max-w-[1480px] items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
+      {settings.showDefaultLatestPosts ? <div className="site-shell mx-auto grid items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
         {/* 左：主内容区 */}
         <main>
           <div className="mb-[26px] flex flex-wrap items-baseline justify-between gap-2.5">
             <h1 className="font-serif text-2xl font-bold text-[#1a160f]">{settings.homepageSectionTitle}</h1>
+            {settings.homepageIntroText ? <p className="w-full max-w-3xl text-sm leading-6 text-[#797266]">{settings.homepageIntroText}</p> : null}
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="site-card-grid grid grid-cols-1 sm:grid-cols-2">
             {posts.length > 0
               ? posts.map((post) => (
                   <Link
@@ -115,24 +117,24 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                     href={`/tutorials/${post.slug}`}
                     className="site-card flex flex-col"
                   >
-                    <div className="relative h-[150px] bg-[#f5f5f7]">
+                    <div className="site-card-image relative bg-[#f5f5f7]">
                       <img
                         src={post.cover_image || settings.defaultCoverImageUrl || legacyTutorial.coverImage}
                         alt={post.title}
                         className="h-full w-full object-cover"
                         loading="eager"
                       />
-                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
+                      {settings.showCardCategory ? <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
                         {post.category_name || legacyTutorial.category}
-                      </span>
+                      </span> : null}
                     </div>
 
                     <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
                       <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{post.title}</h3>
-                      <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
-                        <span className="whitespace-nowrap font-mono">{formatCardDate(post.published_at || post.created_at)}</span>
-                        <span className="whitespace-nowrap">{post.reading_time || legacyTutorial.readingTime} 分钟</span>
-                      </div>
+                      {settings.showCardDate || settings.showCardReadingTime ? <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
+                        {settings.showCardDate ? <span className="whitespace-nowrap font-mono">{formatCardDate(post.published_at || post.created_at)}</span> : null}
+                        {settings.showCardReadingTime ? <span className="whitespace-nowrap">{post.reading_time || legacyTutorial.readingTime} 分钟</span> : null}
+                      </div> : null}
                     </div>
                   </Link>
                 ))
@@ -145,19 +147,19 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                     href={legacyTutorial.href}
                     className="site-card flex flex-col"
                   >
-                    <div className="relative h-[150px] bg-[#f5f5f7]">
+                    <div className="site-card-image relative bg-[#f5f5f7]">
                       {settings.defaultCoverImageUrl ? <img src={settings.defaultCoverImageUrl} alt={legacyTutorial.title} className="h-full w-full object-cover" loading="eager" /> : null}
-                      <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
+                      {settings.showCardCategory ? <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
                         {legacyTutorial.category}
-                      </span>
+                      </span> : null}
                     </div>
 
                     <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
                       <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{legacyTutorial.title}</h3>
-                      <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
-                        <span className="whitespace-nowrap font-mono">{legacyTutorial.date}</span>
-                        <span className="whitespace-nowrap">{legacyTutorial.readingTime} 分钟</span>
-                      </div>
+                      {settings.showCardDate || settings.showCardReadingTime ? <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
+                        {settings.showCardDate ? <span className="whitespace-nowrap font-mono">{legacyTutorial.date}</span> : null}
+                        {settings.showCardReadingTime ? <span className="whitespace-nowrap">{legacyTutorial.readingTime} 分钟</span> : null}
+                      </div> : null}
                     </div>
                   </Link>
                 )}
@@ -182,16 +184,16 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         <aside className="sticky top-[88px] hidden flex-col gap-7 lg:flex" />
       </div> : null}
 
-      {settings.homepageSections.length > 0 ? <VisualSections sections={settings.homepageSections} className="mx-auto max-w-[1480px] px-5 py-11 sm:px-8 lg:px-10 lg:py-[44px]" /> : null}
+      {settings.homepageSections.length > 0 ? <VisualSections sections={settings.homepageSections} className="site-shell mx-auto px-5 py-11 sm:px-8 lg:px-10 lg:py-[44px]" /> : null}
       {settings.contactFormEnabled ? <ContactForm siteKey={settings.turnstileSiteKey} /> : null}
 
       {/* FOOTER */}
-      <footer className="border-t border-[#211e19]/10 bg-white px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
-        <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4">
+      {settings.showFooter ? <footer className="site-footer border-t border-[#211e19]/10 px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
+        <div className="site-shell mx-auto flex flex-wrap items-center justify-between gap-4">
           <span className="text-[13px] text-[#797266]">{settings.homepageFooterBrand}</span>
           <span className="font-mono text-xs text-[#a39a8a]">{settings.homepageFooterNote}</span>
         </div>
-      </footer>
+      </footer> : null}
     </div>
   )
 }
