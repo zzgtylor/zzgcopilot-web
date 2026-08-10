@@ -23,8 +23,8 @@ export const structure: StructureResolver = (S) => S.list()
     S.documentTypeListItem('category').title('分类'),
     S.documentTypeListItem('navigationItem').title('导航菜单'),
     S.documentTypeListItem('redirect').title('网址重定向'),
-    S.listItem().id('site-settings').title('站点与首页设置').child(
-      S.document().id('site-settings-editor').schemaType('siteSettings').documentId('site-settings').title('站点与首页设置'),
+    S.listItem().id('site-settings').title('网站设置中心').child(
+      S.document().id('site-settings-editor').schemaType('siteSettings').documentId('site-settings').title('网站设置中心'),
     ),
   ])
 

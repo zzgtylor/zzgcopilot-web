@@ -71,15 +71,31 @@ export type PublicSiteSettings = {
   homepageSectionTitle: string
   homepageSearchPlaceholder: string
   homepageCtaLabel: string
+  homepageCtaHref: string
+  showHeaderSearch: boolean
+  showHeaderCta: boolean
+  homepageIntroText: string
   homepageFooterBrand: string
   homepageFooterNote: string
+  showFooter: boolean
   showDefaultLatestPosts: boolean
+  postsPerPage: number
+  homepageMaxWidth: number
+  cardColumns: number
+  cardGap: number
+  cardImageHeight: number
+  showCardCategory: boolean
+  showCardDate: boolean
+  showCardReadingTime: boolean
   homepageSections: Array<Record<string, unknown>>
   canonicalBaseUrl: string
   organizationName: string
   twitterHandle: string
   primaryColor: string
   secondaryColor: string
+  headerBackgroundColor: string
+  surfaceColor: string
+  cardBackgroundColor: string
   bodyFont: string
   headingFont: string
   contentWidth: number
@@ -107,15 +123,31 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   homepageSectionTitle: '最新教程',
   homepageSearchPlaceholder: '搜索教程…',
   homepageCtaLabel: '从零开始学习 →',
+  homepageCtaHref: '',
+  showHeaderSearch: true,
+  showHeaderCta: true,
+  homepageIntroText: '',
   homepageFooterBrand: 'Tyler博客',
   homepageFooterNote: '本站内容独立编写整理，非 Microsoft 官方文档',
+  showFooter: true,
   showDefaultLatestPosts: true,
+  postsPerPage: 9,
+  homepageMaxWidth: 1480,
+  cardColumns: 3,
+  cardGap: 24,
+  cardImageHeight: 150,
+  showCardCategory: true,
+  showCardDate: true,
+  showCardReadingTime: true,
   homepageSections: [],
   canonicalBaseUrl: 'https://zzgcopilot.com',
   organizationName: 'Tyler博客',
   twitterHandle: '',
   primaryColor: '#11567f',
   secondaryColor: '#142844',
+  headerBackgroundColor: '#ffffff',
+  surfaceColor: '#f8f9fa',
+  cardBackgroundColor: '#ffffff',
   bodyFont: 'system',
   headingFont: 'serif',
   contentWidth: 768,
@@ -386,7 +418,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageFooterBrand, homepageFooterNote, showDefaultLatestPosts, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle }`)
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle }`)
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -397,15 +429,31 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     homepageSectionTitle: item?.homepageSectionTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSectionTitle,
     homepageSearchPlaceholder: item?.homepageSearchPlaceholder?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSearchPlaceholder,
     homepageCtaLabel: item?.homepageCtaLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageCtaLabel,
+    homepageCtaHref: item?.homepageCtaHref?.trim() || '',
+    showHeaderSearch: item?.showHeaderSearch !== false,
+    showHeaderCta: item?.showHeaderCta !== false,
+    homepageIntroText: item?.homepageIntroText?.trim() || '',
     homepageFooterBrand: item?.homepageFooterBrand?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterBrand,
     homepageFooterNote: item?.homepageFooterNote?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageFooterNote,
+    showFooter: item?.showFooter !== false,
     showDefaultLatestPosts: item?.showDefaultLatestPosts !== false,
+    postsPerPage: item?.postsPerPage || DEFAULT_PUBLIC_SITE_SETTINGS.postsPerPage,
+    homepageMaxWidth: item?.homepageMaxWidth || DEFAULT_PUBLIC_SITE_SETTINGS.homepageMaxWidth,
+    cardColumns: item?.cardColumns || DEFAULT_PUBLIC_SITE_SETTINGS.cardColumns,
+    cardGap: item?.cardGap ?? DEFAULT_PUBLIC_SITE_SETTINGS.cardGap,
+    cardImageHeight: item?.cardImageHeight || DEFAULT_PUBLIC_SITE_SETTINGS.cardImageHeight,
+    showCardCategory: item?.showCardCategory !== false,
+    showCardDate: item?.showCardDate !== false,
+    showCardReadingTime: item?.showCardReadingTime !== false,
     homepageSections: Array.isArray(item?.homepageSections) ? item.homepageSections : [],
     canonicalBaseUrl: item?.canonicalBaseUrl?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.canonicalBaseUrl,
     organizationName: item?.organizationName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.organizationName,
     twitterHandle: item?.twitterHandle?.trim() || '',
     primaryColor: item?.primaryColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.primaryColor,
     secondaryColor: item?.secondaryColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.secondaryColor,
+    headerBackgroundColor: item?.headerBackgroundColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.headerBackgroundColor,
+    surfaceColor: item?.surfaceColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.surfaceColor,
+    cardBackgroundColor: item?.cardBackgroundColor?.hex || DEFAULT_PUBLIC_SITE_SETTINGS.cardBackgroundColor,
     bodyFont: item?.bodyFont || DEFAULT_PUBLIC_SITE_SETTINGS.bodyFont,
     headingFont: item?.headingFont || DEFAULT_PUBLIC_SITE_SETTINGS.headingFont,
     contentWidth: item?.contentWidth || DEFAULT_PUBLIC_SITE_SETTINGS.contentWidth,

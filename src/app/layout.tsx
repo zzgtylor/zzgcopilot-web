@@ -33,7 +33,7 @@ export default async function RootLayout({
   const bodyFont = settings.bodyFont === 'serif' ? 'Georgia, serif' : settings.bodyFont === 'sans' ? 'Arial, sans-serif' : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
   const headingFont = settings.headingFont === 'sans' ? 'Arial, sans-serif' : 'Georgia, serif'
   return (
-    <html lang="zh-CN" data-site-theme={settings.themePreset} data-card-style={settings.cardStyle} data-nav-style={settings.navigationStyle} style={{ '--site-primary': settings.primaryColor, '--site-secondary': settings.secondaryColor, '--site-content-width': `${settings.contentWidth}px`, '--site-card-radius': `${settings.cardRadius}px`, '--site-body-font': bodyFont, '--site-heading-font': headingFont } as React.CSSProperties}>
+    <html lang="zh-CN" data-site-theme={settings.themePreset} data-card-style={settings.cardStyle} data-nav-style={settings.navigationStyle} data-card-columns={settings.cardColumns} style={{ '--site-primary': settings.primaryColor, '--site-secondary': settings.secondaryColor, '--site-header-bg': settings.headerBackgroundColor, '--site-surface': settings.surfaceColor, '--site-card-bg': settings.cardBackgroundColor, '--site-content-width': `${settings.contentWidth}px`, '--site-home-width': `${settings.homepageMaxWidth}px`, '--site-card-radius': `${settings.cardRadius}px`, '--site-card-gap': `${settings.cardGap}px`, '--site-card-image-height': `${settings.cardImageHeight}px`, '--site-body-font': bodyFont, '--site-heading-font': headingFont } as React.CSSProperties}>
       <body>{children}{settings.analyticsEnabled ? <AnalyticsBeacon /> : null}</body>
     </html>
   )

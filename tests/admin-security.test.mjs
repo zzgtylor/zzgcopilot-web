@@ -17,6 +17,22 @@ test('homepage retains the existing visual shell while reading navigation from S
   assert.match(home, /pageHref/)
 })
 
+test('unified Sanity settings center controls the homepage without changing its defaults', () => {
+  const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
+  const content = read('src/lib/sanity-content.ts')
+  const layout = read('src/app/layout.tsx')
+  const home = read('src/app/page.tsx')
+  const css = read('src/app/globals.css')
+  assert.match(read('sanity-studio/structure.ts'), /网站设置中心/)
+  for (const field of ['showHeaderSearch', 'showHeaderCta', 'postsPerPage', 'homepageMaxWidth', 'cardColumns', 'cardGap', 'cardImageHeight', 'showCardCategory', 'showCardDate', 'showCardReadingTime', 'showFooter']) {
+    assert.match(settings, new RegExp(`name: '${field}'`))
+    assert.match(content, new RegExp(field))
+  }
+  assert.match(layout, /data-card-columns/)
+  assert.match(home, /site-card-grid/)
+  assert.match(css, /--site-card-image-height/)
+})
+
 test('all public content routes use Sanity-only readers', () => {
   assert.match(read('src/app/tutorials/[slug]/page.tsx'), /getSanityPost/)
   assert.match(read('src/app/pages/[slug]/page.tsx'), /getSanityPage/)
