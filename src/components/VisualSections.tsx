@@ -87,6 +87,40 @@ export function VisualSections({ sections, className = '' }: { sections: Section
         </section>
       }
 
+      if (type === 'featureGrid') {
+        const columns = Number(section.columns) === 2 ? 'md:grid-cols-2' : Number(section.columns) === 4 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'
+        return <section key={key}>
+          {text(section.title) ? <h2 className="mb-6 font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2> : null}
+          <div className={`grid gap-5 ${columns}`}>{list(section.items).map((item, itemIndex) => <article key={text(item._key) || itemIndex} className="rounded-xl border border-[#211e19]/10 bg-white p-6"><div className="mb-4 h-1 w-12 rounded-full bg-[var(--site-primary)]" /><h3 className="font-serif text-lg font-bold text-[#1a160f]">{text(item.title)}</h3>{text(item.text) ? <p className="mt-2 text-sm leading-6 text-[#5b554b]">{text(item.text)}</p> : null}</article>)}</div>
+        </section>
+      }
+
+      if (type === 'statsGrid') {
+        return <section key={key} className="rounded-2xl bg-[var(--site-secondary)] px-6 py-9 text-white sm:px-10">
+          {text(section.title) ? <h2 className="mb-7 text-center font-serif text-3xl font-bold">{text(section.title)}</h2> : null}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{list(section.items).map((item, itemIndex) => <div key={text(item._key) || itemIndex} className="text-center"><p className="font-serif text-4xl font-bold">{text(item.value)}</p><p className="mt-2 text-sm text-white/75">{text(item.label)}</p></div>)}</div>
+        </section>
+      }
+
+      if (type === 'testimonialGrid') {
+        return <section key={key}>
+          {text(section.title) ? <h2 className="mb-6 font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2> : null}
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{list(section.items).map((item, itemIndex) => <figure key={text(item._key) || itemIndex} className="rounded-xl border border-[#211e19]/10 bg-white p-6"><blockquote className="leading-7 text-[#38332b]">“{text(item.quote)}”</blockquote><figcaption className="mt-5 text-sm"><strong className="text-[#1a160f]">{text(item.name)}</strong>{text(item.role) ? <span className="ml-2 text-[#777064]">{text(item.role)}</span> : null}</figcaption></figure>)}</div>
+        </section>
+      }
+
+      if (type === 'pricingTable') {
+        return <section key={key}>
+          {text(section.title) ? <h2 className="mb-6 text-center font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2> : null}
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{list(section.plans).map((plan, planIndex) => <article key={text(plan._key) || planIndex} className="flex flex-col rounded-2xl border border-[#211e19]/10 bg-white p-6"><h3 className="font-serif text-xl font-bold text-[#1a160f]">{text(plan.name)}</h3><p className="mt-3 text-3xl font-bold text-[var(--site-primary)]">{text(plan.price)}</p>{text(plan.description) ? <p className="mt-3 text-sm leading-6 text-[#5b554b]">{text(plan.description)}</p> : null}<ul className="my-5 flex-1 space-y-2 text-sm text-[#38332b]">{(Array.isArray(plan.features) ? plan.features : []).map((feature, featureIndex) => <li key={featureIndex}>✓ {text(feature)}</li>)}</ul><ActionLink label={plan.label} href={plan.href} /></article>)}</div>
+        </section>
+      }
+
+      if (type === 'dividerBlock') {
+        const spacing = text(section.spacing) === 'small' ? 'py-3' : text(section.spacing) === 'large' ? 'py-12' : 'py-7'
+        return <div key={key} className={spacing} aria-hidden="true">{section.line === false ? null : <hr className="border-0 border-t border-[#211e19]/10" />}</div>
+      }
+
       return null
     })}
   </div>

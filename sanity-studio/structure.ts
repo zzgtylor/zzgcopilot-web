@@ -24,6 +24,7 @@ export const structure: StructureResolver = (S) => S.list()
     S.documentTypeListItem('navigationItem').title('导航菜单'),
     S.documentTypeListItem('redirect').title('网址重定向'),
     S.documentTypeListItem('customFieldDefinition').title('自定义字段管理'),
+    S.documentTypeListItem('pluginAudit').title('插件操作日志'),
     S.listItem().id('site-settings').title('网站设置中心').child(
       S.document().id('site-settings-editor').schemaType('siteSettings').documentId('site-settings').title('网站设置中心'),
     ),

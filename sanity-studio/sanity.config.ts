@@ -13,6 +13,7 @@ import { AnalyticsCenter } from './components/AnalyticsCenter'
 import { ContentModelCenter } from './components/ContentModelCenter'
 import { PageDesignerCenter } from './components/PageDesignerCenter'
 import { TemplateComparisonCenter } from './components/TemplateComparisonCenter'
+import { ServiceConnectionCenter } from './components/ServiceConnectionCenter'
 
 export default defineConfig({
   name: 'zzgcopilot',
@@ -65,6 +66,7 @@ export default defineConfig({
     { name: 'analytics', title: '数据报表', component: AnalyticsCenter },
     { name: 'themes', title: '主题与模板', component: ThemeTemplateCenter },
     { name: 'features', title: '功能中心', component: FeatureCenter },
+    { name: 'connections', title: '服务连接', component: ServiceConnectionCenter },
     { name: 'models', title: '内容模型', component: ContentModelCenter },
     ...previous,
   ],

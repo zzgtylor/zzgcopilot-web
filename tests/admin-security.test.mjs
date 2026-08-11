@@ -122,6 +122,41 @@ test('visual page designer, dynamic fields, and side-by-side template comparison
   assert.doesNotMatch(designer + fieldInput + comparison, /eval\(|new Function|dangerouslySetInnerHTML/)
 })
 
+test('controlled plugin and block marketplaces include permissions, audit, rollback, and safe renderers', () => {
+  const features = read('sanity-studio/components/FeatureCenter.tsx')
+  const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
+  const audit = read('sanity-studio/schemaTypes/pluginAuditType.ts')
+  const sections = read('sanity-studio/schemaTypes/pageSections.ts')
+  const designer = read('sanity-studio/components/PageDesignerCenter.tsx')
+  const renderer = read('src/components/VisualSections.tsx')
+  assert.match(features, /useCurrentUser/)
+  assert.match(features, /permissions/)
+  assert.match(features, /回滚上次操作/)
+  assert.match(features, /更新版本/)
+  assert.match(features, /pluginAudit/)
+  assert.match(settings, /pluginInstallations/)
+  assert.match(audit, /actorName/)
+  assert.match(designer, /区块市场/)
+  for (const type of ['featureGrid', 'statsGrid', 'testimonialGrid', 'pricingTable', 'dividerBlock']) {
+    assert.match(sections, new RegExp(type))
+    assert.match(renderer, new RegExp(type))
+  }
+  assert.doesNotMatch(features + designer + renderer, /eval\(|new Function|dangerouslySetInnerHTML|npm install/)
+})
+
+test('service connection center reports readiness without returning secret values', () => {
+  const center = read('sanity-studio/components/ServiceConnectionCenter.tsx')
+  const route = read('src/app/api/integrations/status/route.ts')
+  const config = read('sanity-studio/sanity.config.ts')
+  assert.match(center, /服务连接/)
+  assert.match(center, /永远不读取或展示密钥内容/)
+  assert.match(center, /api\/integrations\/status/)
+  assert.match(config, /ServiceConnectionCenter/)
+  assert.match(route, /Boolean\(platformValue/)
+  assert.match(route, /Cache-Control.*no-store/)
+  assert.doesNotMatch(route, /get-secret-value|secret\s*:/i)
+})
+
 test('analytics reporting includes privacy-safe events, protected reports, trends, and CSV export', () => {
   const migration = read('migrations/0006_analytics_reporting.sql')
   const beacon = read('src/components/AnalyticsBeacon.tsx')
