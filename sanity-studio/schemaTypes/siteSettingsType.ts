@@ -102,6 +102,20 @@ export const siteSettingsType = defineType({
     defineField({ name: 'membershipEnabled', title: '启用会员登录', type: 'boolean', group: 'features', initialValue: false }),
     defineField({ name: 'paidContentEnabled', title: '启用付费内容', description: '需要同时配置 Stripe 密钥与 Webhook。', type: 'boolean', group: 'features', initialValue: false }),
     defineField({ name: 'turnstileSiteKey', title: 'Cloudflare Turnstile Site Key', description: '公开站点密钥；Secret Key 必须配置在 Cloudflare 环境变量。', type: 'string', group: 'features' }),
+    defineField({
+      name: 'pluginInstallations',
+      title: '受控插件安装记录',
+      type: 'array',
+      group: 'features',
+      hidden: true,
+      of: [{ type: 'object', name: 'pluginInstallation', fields: [
+        defineField({ name: 'pluginId', title: '插件 ID', type: 'string' }),
+        defineField({ name: 'version', title: '版本', type: 'string' }),
+        defineField({ name: 'status', title: '状态', type: 'string' }),
+        defineField({ name: 'installedAt', title: '安装时间', type: 'datetime' }),
+        defineField({ name: 'updatedAt', title: '更新时间', type: 'datetime' }),
+      ] }],
+    }),
   ],
   preview: { select: { title: 'siteName', subtitle: 'seoDefaultTitle' } },
 })
