@@ -1,0 +1,46 @@
+image: node:22-bookworm
+
+stages:
+  - validate
+  - backup
+
+variables:
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+  CLOUDFLARE_ACCOUNT_ID: "ef44acba9dcdaf04615c9e00373add45"
+  SANITY_PROJECT_ID: "o9d9rhdt"
+  SANITY_DATASET: "production"
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+
+validate:
+  stage: validate
+  interruptible: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - npm run typecheck
+    - npm test
+    - npm run pages:build
+    - cd sanity-studio
+    - npm ci --cache ../.npm --prefer-offline
+    - npx sanity build --yes
+
+monthly_backup:
+  stage: backup
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_BACKUP == "true"'
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends sqlite3
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - npm run backup:cloudflare
