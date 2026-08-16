@@ -134,3 +134,12 @@ openssl rand -base64 32
 
 ## 📜 License
 MIT
+# Deployment notes
+
+## Sanity cache revalidation
+
+Configure the Cloudflare Pages production secret `SANITY_REVALIDATE_SECRET` and configure a Sanity webhook to `POST /api/revalidate` with the same value in the `x-sanity-revalidate-secret` header. The endpoint only invalidates the affected content tags; draft-preview requests remain uncached.
+
+## D1 migrations
+
+The production GitLab pipeline applies `wrangler d1 migrations apply zzgcopilot-db --remote` after validation and before the Pages deployment. The Cloudflare API token used by CI must have D1 edit permission. Do not run this job from merge-request pipelines.

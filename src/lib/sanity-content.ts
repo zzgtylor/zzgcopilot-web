@@ -327,7 +327,7 @@ async function isDraftPreview(): Promise<boolean> {
   }
 }
 
-async function query<T>(groq: string, params: Record<string, string | number> = {}): Promise<T | null> {
+async function query<T>(groq: string, params: Record<string, string | number> = {}, tags: string[] = ['sanity']): Promise<T | null> {
   const config = getSanityConfig()
   if (!config) return null
   const preview = await isDraftPreview()
@@ -341,7 +341,7 @@ async function query<T>(groq: string, params: Record<string, string | number> = 
   try {
     const response = await fetch(url, preview
       ? { cache: 'no-store', headers: { authorization: `Bearer ${config.token}` } }
-      : { next: { revalidate: 60 } })
+      : { next: { revalidate: 60, tags } })
     if (!response.ok) return null
     const body = await response.json() as { result?: T }
     return body.result ?? null
@@ -420,7 +420,7 @@ export async function getSanityPublishedPosts({ limit = 20, offset = 0, category
   if (category) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
   const visibility = preview ? 'true' : publicVisibility
-  const data = await query<SanityResponse[]>(`*[_type == "post" && ${visibility}${categoryFilter}${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, params)
+  const data = await query<SanityResponse[]>(`*[_type == "post" && ${visibility}${categoryFilter}${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, params, ['sanity', 'sanity:posts'])
   return (data || []).map(toPost).filter((post): post is SanityPost => Boolean(post))
 }
 
@@ -432,17 +432,17 @@ export async function getSanityPublishedPostCount({ category, search }: { catego
   const params: Record<string, string> = {}
   if (category) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
-  return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params) || 0
+  return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params, ['sanity', 'sanity:posts']) || 0
 }
 
 export async function getSanityPost(slug: string): Promise<SanityPost | null> {
   const preview = await isDraftPreview()
-  const data = await query<SanityResponse | null>(`*[_type == "post" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] ${projection}`, { slug })
+  const data = await query<SanityResponse | null>(`*[_type == "post" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] ${projection}`, { slug }, ['sanity', `sanity:post:${slug}`])
   return data ? toPost(data) : null
 }
 
 export async function getSanityNavigation(): Promise<SanityNavigationItem[]> {
-  const data = await query<Array<{ _id: string; label?: string; href?: string; isVisible?: boolean; openNewTab?: boolean }>>(`*[_type == "navigationItem" && isVisible != false] | order(sortOrder asc, _createdAt asc) { _id, label, href, isVisible, openNewTab }`)
+  const data = await query<Array<{ _id: string; label?: string; href?: string; isVisible?: boolean; openNewTab?: boolean }>>(`*[_type == "navigationItem" && isVisible != false] | order(sortOrder asc, _createdAt asc) { _id, label, href, isVisible, openNewTab }`, {}, ['sanity', 'sanity:navigation'])
   const navigation = (data || [])
     .filter(item => item.label && item.href)
     .map(item => ({ id: item._id, label: item.label!, href: item.href!, is_visible: 1, open_new_tab: item.openNewTab ? 1 : 0 }))
@@ -450,7 +450,7 @@ export async function getSanityNavigation(): Promise<SanityNavigationItem[]> {
 }
 
 export async function getSanityCategories(): Promise<SanityCategory[]> {
-  const data = await query<Array<{ _id: string; title?: string; slug?: string; description?: string }>>(`*[_type == "category" && defined(slug.current)] | order(title asc) { _id, title, "slug": slug.current, description }`)
+  const data = await query<Array<{ _id: string; title?: string; slug?: string; description?: string }>>(`*[_type == "category" && defined(slug.current)] | order(title asc) { _id, title, "slug": slug.current, description }`, {}, ['sanity', 'sanity:categories'])
   return (data || [])
     .filter(item => item.title && item.slug)
     .map(item => ({ id: item._id, name: item.title!, slug: item.slug!, description: item.description || '' }))
@@ -458,7 +458,7 @@ export async function getSanityCategories(): Promise<SanityCategory[]> {
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {
   const preview = await isDraftPreview()
-  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, ${customFieldsProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
+  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, ${customFieldsProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug }, ['sanity', `sanity:page:${slug}`])
   if (!item?.title || !item.slug || (!item.content && !item.body?.length && !item.sections?.length)) return null
   return {
     id: item._id,
@@ -479,7 +479,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`)
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`, {}, ['sanity', 'sanity:settings'])
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -545,13 +545,13 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
 }
 
 export async function getSanityRedirect(path: string): Promise<{ target: string; status: 307 | 308 } | null> {
-  const item = await query<{ targetPath?: string; statusCode?: number } | null>(`*[_type == "redirect" && enabled == true && sourcePath == $path][0] { targetPath, statusCode }`, { path })
+  const item = await query<{ targetPath?: string; statusCode?: number } | null>(`*[_type == "redirect" && enabled == true && sourcePath == $path][0] { targetPath, statusCode }`, { path }, ['sanity', 'sanity:redirects'])
   if (!item?.targetPath) return null
   return { target: item.targetPath, status: item.statusCode === 307 ? 307 : 308 }
 }
 
 export async function getSanitySitemapEntries(): Promise<Array<{ path: string; updatedAt: string }>> {
-  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && ${publicVisibility} && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`)
+  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && ${publicVisibility} && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`, {}, ['sanity', 'sanity:sitemap'])
   return (data || [])
     .filter(item => item.slug && (item.type === 'post' || item.type === 'page'))
     .map(item => ({ path: item.type === 'post' ? `/tutorials/${encodeURIComponent(item.slug!)}` : `/pages/${encodeURIComponent(item.slug!)}`, updatedAt: item.updatedAt || new Date().toISOString() }))

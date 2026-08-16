@@ -177,6 +177,23 @@ test('analytics reporting includes privacy-safe events, protected reports, trend
   assert.match(read('src/app/api/reports/analytics.csv/route.ts'), /text\/csv/)
 })
 
+test('Sanity revalidation is signed and invalidates narrow content tags', () => {
+  const route = read('src/app/api/revalidate/route.ts')
+  const content = read('src/lib/sanity-content.ts')
+  assert.match(route, /x-sanity-revalidate-secret/)
+  assert.match(route, /revalidateTag\(tag, 'max'\)/)
+  assert.match(route, /sanity:post:/)
+  assert.match(content, /next: \{ revalidate: 60, tags \}/)
+})
+
+test('production CI applies D1 migrations before deployment', () => {
+  const ci = read('.gitlab-ci.yml')
+  assert.match(ci, /migrate_production_db:/)
+  assert.match(ci, /d1 migrations apply zzgcopilot-db --remote/)
+  assert.match(ci, /needs: \["validate", "migrate_production_db"\]/)
+  assert.match(read('migrations/0007_analytics_rate_limit.sql'), /idx_analytics_events_visitor_created/)
+})
+
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {
   const middleware = read('src/middleware.ts')
   assert.match(middleware, /SANITY_STUDIO_URL/)

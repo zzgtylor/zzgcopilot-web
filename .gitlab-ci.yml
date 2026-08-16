@@ -2,6 +2,7 @@ image: node:22-bookworm
 
 stages:
   - validate
+  - migrate
   - deploy
   - backup
 
@@ -34,9 +35,21 @@ validate:
     - npm ci --cache ../.npm --prefer-offline
     - npx sanity build --yes
 
+migrate_production_db:
+  stage: migrate
+  needs: ["validate"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  environment:
+    name: production
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - npx wrangler d1 migrations apply zzgcopilot-db --remote --config wrangler.toml
+
 deploy_cloudflare_pages:
   stage: deploy
-  needs: ["validate"]
+  needs: ["validate", "migrate_production_db"]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   environment:
