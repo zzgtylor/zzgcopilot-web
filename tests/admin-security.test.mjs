@@ -24,12 +24,15 @@ test('unified Sanity settings center controls the homepage without changing its 
   const home = read('src/app/page.tsx')
   const css = read('src/app/globals.css')
   assert.match(read('sanity-studio/structure.ts'), /网站设置中心/)
-  for (const field of ['showHeaderSearch', 'showHeaderCta', 'postsPerPage', 'homepageMaxWidth', 'cardColumns', 'cardGap', 'cardImageHeight', 'showCardCategory', 'showCardDate', 'showCardReadingTime', 'showFooter']) {
+  for (const field of ['showHeaderSearch', 'showHeaderCta', 'showHomepageHero', 'homepageHeroTitle', 'homepageHeroDescription', 'homepageHeroImage', 'homepageHeroPrimaryLabel', 'homepageHeroSecondaryLabel', 'postsPerPage', 'homepageMaxWidth', 'cardColumns', 'cardGap', 'cardImageHeight', 'showCardCategory', 'showCardDate', 'showCardReadingTime', 'showFooter']) {
     assert.match(settings, new RegExp(`name: '${field}'`))
     assert.match(content, new RegExp(field))
   }
   assert.match(layout, /data-card-columns/)
   assert.match(home, /site-card-grid/)
+  assert.match(home, /id="latest-tutorials"/)
+  assert.match(css, /site-hero-orb/)
+  assert.match(css, /prefers-reduced-motion/)
   assert.match(css, /--site-card-image-height/)
 })
 

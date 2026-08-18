@@ -79,6 +79,15 @@ export type PublicSiteSettings = {
   seoDefaultOgImage: string
   defaultCoverImageUrl: string
   homepageBrandName: string
+  showHomepageHero: boolean
+  homepageHeroEyebrow: string
+  homepageHeroTitle: string
+  homepageHeroDescription: string
+  homepageHeroPrimaryLabel: string
+  homepageHeroPrimaryHref: string
+  homepageHeroSecondaryLabel: string
+  homepageHeroSecondaryHref: string
+  homepageHeroImageUrl: string
   homepageSectionTitle: string
   homepageSearchPlaceholder: string
   homepageCtaLabel: string
@@ -142,6 +151,15 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   seoDefaultOgImage: '',
   defaultCoverImageUrl: '',
   homepageBrandName: 'Tyler博客',
+  showHomepageHero: true,
+  homepageHeroEyebrow: 'WORD · OFFICE · PRODUCTIVITY',
+  homepageHeroTitle: '把 Word 学明白，\n也把工作做轻松',
+  homepageHeroDescription: '从基础操作到专业排版，用清晰、可执行的中文教程解决真实办公问题。',
+  homepageHeroPrimaryLabel: '开始学习 Word',
+  homepageHeroPrimaryHref: '__latest_tutorial__',
+  homepageHeroSecondaryLabel: '浏览全部教程',
+  homepageHeroSecondaryHref: '#latest-tutorials',
+  homepageHeroImageUrl: '',
   homepageSectionTitle: '最新教程',
   homepageSearchPlaceholder: '搜索教程…',
   homepageCtaLabel: '从零开始学习 →',
@@ -479,7 +497,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`, {}, ['sanity', 'sanity:settings'])
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, showHomepageHero, homepageHeroEyebrow, homepageHeroTitle, homepageHeroDescription, homepageHeroPrimaryLabel, homepageHeroPrimaryHref, homepageHeroSecondaryLabel, homepageHeroSecondaryHref, "homepageHeroImageUrl": homepageHeroImage.asset->url, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`, {}, ['sanity', 'sanity:settings'])
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -487,6 +505,15 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     seoDefaultOgImage: item?.seoDefaultOgImage?.trim() || '',
     defaultCoverImageUrl: item?.defaultCoverImageUrl?.trim() || '',
     homepageBrandName: item?.homepageBrandName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageBrandName,
+    showHomepageHero: item?.showHomepageHero !== false,
+    homepageHeroEyebrow: item?.homepageHeroEyebrow?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroEyebrow,
+    homepageHeroTitle: item?.homepageHeroTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroTitle,
+    homepageHeroDescription: item?.homepageHeroDescription?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroDescription,
+    homepageHeroPrimaryLabel: item?.homepageHeroPrimaryLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroPrimaryLabel,
+    homepageHeroPrimaryHref: safePublicHref(item?.homepageHeroPrimaryHref) || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroPrimaryHref,
+    homepageHeroSecondaryLabel: item?.homepageHeroSecondaryLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroSecondaryLabel,
+    homepageHeroSecondaryHref: safePublicHref(item?.homepageHeroSecondaryHref) || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroSecondaryHref,
+    homepageHeroImageUrl: item?.homepageHeroImageUrl?.trim() || '',
     homepageSectionTitle: item?.homepageSectionTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSectionTitle,
     homepageSearchPlaceholder: item?.homepageSearchPlaceholder?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSearchPlaceholder,
     homepageCtaLabel: item?.homepageCtaLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageCtaLabel,

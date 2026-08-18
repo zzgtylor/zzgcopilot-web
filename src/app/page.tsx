@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { ArrowDown, ArrowRight, BookOpen, Search, Sparkles } from 'lucide-react'
 import { VisualSections } from '@/components/VisualSections'
 import { ContactForm } from '@/components/ContactForm'
 import { DEFAULT_NAVIGATION, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
@@ -59,6 +59,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   ])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
   const ctaHref = !settings.homepageCtaHref || settings.homepageCtaHref === '__latest_tutorial__' ? tutorialHref : settings.homepageCtaHref
+  const heroPrimaryHref = settings.homepageHeroPrimaryHref === '__latest_tutorial__' ? tutorialHref : settings.homepageHeroPrimaryHref
+  const heroSecondaryHref = settings.homepageHeroSecondaryHref === '__latest_tutorial__' ? tutorialHref : settings.homepageHeroSecondaryHref
   const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
 
   return (
@@ -100,9 +102,66 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         </div>
       </nav>
 
-      {/* 主体：网格 + 侧边栏。默认保持现有首页，只有手动关闭时才隐藏。 */}
-      {settings.showDefaultLatestPosts ? <div className="site-shell mx-auto grid items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
-        {/* 左：主内容区 */}
+      {settings.showHomepageHero && !query ? <section className="site-hero relative isolate overflow-hidden border-b border-[#211e19]/10">
+        <div className="site-hero-orb site-hero-orb-one" />
+        <div className="site-hero-orb site-hero-orb-two" />
+        <div className="site-shell relative z-10 mx-auto grid min-h-[590px] items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1.02fr_.98fr] lg:px-10 lg:py-20">
+          <div className="site-hero-copy max-w-2xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--site-primary)]/20 bg-white/75 px-3.5 py-2 text-[11px] font-bold tracking-[0.18em] text-[var(--site-primary)] shadow-sm backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" />
+              {settings.homepageHeroEyebrow}
+            </div>
+            <h1 className="whitespace-pre-line font-serif text-[clamp(2.75rem,6vw,5.8rem)] font-bold leading-[.98] tracking-[-0.045em] text-[#172b43]">
+              {settings.homepageHeroTitle}
+            </h1>
+            <p className="mt-7 max-w-xl text-base leading-8 text-[#5d6670] sm:text-lg">
+              {settings.homepageHeroDescription}
+            </p>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <Link href={heroPrimaryHref} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--site-primary)] px-6 py-3 text-sm font-bold text-white shadow-[0_16px_35px_-18px_var(--site-primary)] transition hover:-translate-y-0.5 hover:bg-[var(--site-secondary)]">
+                {settings.homepageHeroPrimaryLabel}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href={heroSecondaryHref} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-[#172b43]/15 bg-white/70 px-6 py-3 text-sm font-bold text-[#172b43] backdrop-blur transition hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">
+                {settings.homepageHeroSecondaryLabel}
+                <ArrowDown className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#69727b]">
+              <span><strong className="mr-1 text-xl text-[#172b43]">{totalPosts}</strong> 篇动态教程</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" />Sanity 后台发布即更新</span>
+            </div>
+          </div>
+
+          <div className="site-hero-visual relative mx-auto w-full max-w-[620px]">
+            <div className="site-hero-window overflow-hidden rounded-[28px] border border-white/70 bg-white/80 p-3 shadow-[0_40px_100px_-48px_rgba(17,86,127,.55)] backdrop-blur-xl sm:p-4">
+              <div className="mb-3 flex items-center gap-1.5 px-2 py-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#ff7a6b]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#ffcc5c]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#63c98b]" />
+                <span className="ml-auto rounded-full bg-[#eef5f8] px-3 py-1 text-[10px] font-bold tracking-wider text-[var(--site-primary)]">TYLER · WORD 教程</span>
+              </div>
+              {settings.homepageHeroImageUrl ? <img src={settings.homepageHeroImageUrl} alt={settings.homepageHeroTitle.replace(/\n/g, ' ')} className="aspect-[4/3] w-full rounded-[20px] object-cover" loading="eager" /> : <div className="site-hero-demo aspect-[4/3] rounded-[20px] p-5 sm:p-7">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--site-primary)] text-white shadow-lg"><BookOpen className="h-6 w-6" /></div>
+                  <span className="text-xs font-bold tracking-[0.18em] text-[#7990a0]">学习路线</span>
+                </div>
+                <div className="mt-8 space-y-3">
+                  {(posts.length ? posts.slice(0, 3) : [{ id: 'legacy', title: legacyTutorial.title }]).map((post, index) => <div key={post.id} className="site-hero-demo-row flex items-center gap-4 rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
+                    <span className="font-mono text-xs font-bold text-[var(--site-primary)]">0{index + 1}</span>
+                    <span className="line-clamp-1 flex-1 font-serif text-sm font-bold text-[#24384c] sm:text-base">{post.title}</span>
+                    <ArrowRight className="h-4 w-4 text-[#8da0ad]" />
+                  </div>)}
+                </div>
+              </div>}
+            </div>
+            <div className="site-hero-chip absolute -bottom-5 -left-3 rounded-2xl border border-white/80 bg-white/90 px-4 py-3 text-xs font-bold text-[#31485a] shadow-xl backdrop-blur sm:-left-8">发布文章 → 自动生成卡片</div>
+          </div>
+        </div>
+      </section> : null}
+
+      {/* 动态教程卡片：内容全部来自 Sanity，发布后自动进入网格。 */}
+      {settings.showDefaultLatestPosts ? <div id="latest-tutorials" className="site-shell mx-auto px-5 py-14 sm:px-8 lg:px-10 lg:py-20">
         <main>
           <div className="mb-[26px] flex flex-wrap items-baseline justify-between gap-2.5">
             <h1 className="font-serif text-2xl font-bold text-[#1a160f]">{settings.homepageSectionTitle}</h1>
@@ -111,11 +170,12 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
           <div className="site-card-grid grid grid-cols-1 sm:grid-cols-2">
             {posts.length > 0
-              ? posts.map((post) => (
+              ? posts.map((post, index) => (
                   <Link
                     key={post.id}
                     href={`/tutorials/${post.slug}`}
-                    className="site-card flex flex-col"
+                    className="site-card site-card-reveal flex flex-col"
+                    style={{ animationDelay: `${Math.min(index, 8) * 70}ms` }}
                   >
                     <div className="site-card-image relative bg-[#f5f5f7]">
                       <img
@@ -131,6 +191,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
                     <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
                       <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{post.title}</h3>
+                      {post.excerpt ? <p className="line-clamp-2 text-[13px] leading-5 text-[#797266]">{post.excerpt}</p> : null}
                       {settings.showCardDate || settings.showCardReadingTime ? <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
                         {settings.showCardDate ? <span className="whitespace-nowrap font-mono">{formatCardDate(post.published_at || post.created_at)}</span> : null}
                         {settings.showCardReadingTime ? <span className="whitespace-nowrap">{post.reading_time || legacyTutorial.readingTime} 分钟</span> : null}
@@ -179,9 +240,6 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             </nav>
           ) : null}
         </main>
-
-        {/* 右：侧边栏（预留位，暂无内容） */}
-        <aside className="sticky top-[88px] hidden flex-col gap-7 lg:flex" />
       </div> : null}
 
       {settings.homepageSections.length > 0 ? <VisualSections sections={settings.homepageSections} className="site-shell mx-auto px-5 py-11 sm:px-8 lg:px-10 lg:py-[44px]" /> : null}
