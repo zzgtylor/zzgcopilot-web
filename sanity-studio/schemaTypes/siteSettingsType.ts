@@ -107,7 +107,7 @@ export const siteSettingsType = defineType({
       name: 'pluginInstallations',
       title: '受控插件安装记录',
       type: 'array',
-      group: 'features',
+      group: 'general',
       hidden: true,
       of: [{ type: 'object', name: 'pluginInstallation', fields: [
         defineField({ name: 'pluginId', title: '插件 ID', type: 'string' }),
