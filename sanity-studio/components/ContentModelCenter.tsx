@@ -18,7 +18,7 @@ const span = (text: string) => ({ _type: 'span', _key: key(), text, marks: [] })
 const block = (text: string, style = 'normal') => ({ _type: 'block', _key: key(), style, markDefs: [], children: [span(text)] })
 
 function postBase(title: string, prefix: string, excerpt: string, body: Array<Record<string, unknown>>) {
-  return { _type: 'post', title, slug: { _type: 'slug', current: slug(prefix) }, excerpt, editorialStage: 'writing', status: 'draft', authorName: 'Tyler', readingTime: 10, accessLevel: 'public', commentsEnabled: true, body }
+  return { _type: 'post', title, slug: { _type: 'slug', current: slug(prefix) }, excerpt, editorialStage: 'writing', status: 'draft', authorName: 'Tyler', readingTime: 10, body }
 }
 
 function pageBase(title: string, prefix: string, excerpt: string, sections: Array<Record<string, unknown>>) {

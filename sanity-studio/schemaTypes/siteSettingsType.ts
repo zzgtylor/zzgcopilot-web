@@ -14,7 +14,6 @@ export const siteSettingsType = defineType({
     { name: 'theme', title: '颜色与字体' },
     { name: 'article', title: '文章页面' },
     { name: 'seo', title: 'SEO' },
-    { name: 'features', title: '功能开关' },
   ],
   fields: [
     defineField({ name: 'siteName', title: '站点名称', type: 'string', group: 'general', validation: rule => rule.required().max(120) }),
@@ -104,13 +103,6 @@ export const siteSettingsType = defineType({
     defineField({ name: 'newsletterText', title: '订阅区说明', type: 'text', rows: 2, group: 'article', initialValue: '订阅更新，不错过新的实用教程。', hidden: ({ document }) => !document?.newsletterEnabled, validation: rule => rule.max(240) }),
     defineField({ name: 'newsletterButtonLabel', title: '订阅按钮文字', type: 'string', group: 'article', initialValue: '立即订阅', hidden: ({ document }) => !document?.newsletterEnabled, validation: rule => rule.max(40) }),
     defineField({ name: 'newsletterHref', title: '订阅按钮链接', description: '可填写邮件订阅页面、表单链接或 mailto 地址。', type: 'string', group: 'article', hidden: ({ document }) => !document?.newsletterEnabled, validation: rule => rule.max(500).uri({ allowRelative: true, scheme: ['http', 'https', 'mailto'] }) }),
-    defineField({ name: 'analyticsEnabled', title: '启用隐私友好访问统计', type: 'boolean', group: 'features', initialValue: false }),
-    defineField({ name: 'commentsEnabled', title: '启用文章评论', type: 'boolean', group: 'features', initialValue: false }),
-    defineField({ name: 'commentsRequireApproval', title: '评论需要审核', type: 'boolean', group: 'features', initialValue: true, hidden: ({ document }) => !document?.commentsEnabled }),
-    defineField({ name: 'contactFormEnabled', title: '启用联系表单', type: 'boolean', group: 'features', initialValue: false }),
-    defineField({ name: 'membershipEnabled', title: '启用会员登录', type: 'boolean', group: 'features', initialValue: false }),
-    defineField({ name: 'paidContentEnabled', title: '启用付费内容', description: '需要同时配置 Stripe 密钥与 Webhook。', type: 'boolean', group: 'features', initialValue: false }),
-    defineField({ name: 'turnstileSiteKey', title: 'Cloudflare Turnstile Site Key', description: '公开站点密钥；Secret Key 必须配置在 Cloudflare 环境变量。', type: 'string', group: 'features' }),
     defineField({
       name: 'pluginInstallations',
       title: '受控插件安装记录',

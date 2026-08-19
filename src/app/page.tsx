@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { ArrowDown, ArrowRight, BookOpen, Search, Sparkles } from 'lucide-react'
 import { VisualSections } from '@/components/VisualSections'
-import { ContactForm } from '@/components/ContactForm'
 import { DEFAULT_NAVIGATION, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
@@ -243,8 +242,6 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
       </div> : null}
 
       {settings.homepageSections.length > 0 ? <VisualSections sections={settings.homepageSections} className="site-shell mx-auto px-5 py-11 sm:px-8 lg:px-10 lg:py-[44px]" /> : null}
-      {settings.contactFormEnabled ? <ContactForm siteKey={settings.turnstileSiteKey} /> : null}
-
       {/* FOOTER */}
       {settings.showFooter ? <footer className="site-footer border-t border-[#211e19]/10 px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
         <div className="site-shell mx-auto flex flex-wrap items-center justify-between gap-4">

@@ -2,7 +2,6 @@ image: node:22-bookworm
 
 stages:
   - validate
-  - migrate
   - deploy
   - backup
 
@@ -35,21 +34,9 @@ validate:
     - npm ci --cache ../.npm --prefer-offline
     - npx sanity build --yes
 
-migrate_production_db:
-  stage: migrate
-  needs: ["validate"]
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  environment:
-    name: production
-  before_script:
-    - npm ci --cache .npm --prefer-offline
-  script:
-    - npx wrangler d1 migrations apply zzgcopilot-db --remote --config wrangler.toml
-
 deploy_cloudflare_pages:
   stage: deploy
-  needs: ["validate", "migrate_production_db"]
+  needs: ["validate"]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   environment:
@@ -61,14 +48,25 @@ deploy_cloudflare_pages:
     - npm run pages:build
     - npx wrangler pages deploy .open-next --project-name zzgcopilot-web-gitlab-ci --branch "$CI_COMMIT_BRANCH" --commit-hash "$CI_COMMIT_SHA" --commit-message "$CI_COMMIT_TITLE"
 
-monthly_backup:
+deploy_sanity_studio:
+  stage: deploy
+  needs: ["validate"]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  environment:
+    name: production
+  before_script:
+    - cd sanity-studio
+    - npm ci --cache ../.npm --prefer-offline
+  script:
+    - npx sanity deploy --yes
+
+monthly_sanity_backup:
   stage: backup
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_BACKUP == "true"'
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends sqlite3
     - npm ci --cache .npm --prefer-offline
   script:
-    - npm run backup:cloudflare
+    - npm run backup:sanity

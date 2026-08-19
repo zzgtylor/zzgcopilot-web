@@ -44,19 +44,18 @@ test('all public content routes use Sanity-only readers', () => {
   assert.doesNotMatch(read('src/lib/sanity-content.ts'), /view_count|getDb|getR2/)
 })
 
-test('extended editor experience covers SEO, design, redirects, engagement, and gated content', () => {
+test('lightweight editor keeps SEO, design, redirects, and public tutorials', () => {
   const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
   const post = read('sanity-studio/schemaTypes/postType.ts')
   const config = read('sanity-studio/sanity.config.ts')
   assert.match(settings, /primaryColor/)
-  assert.match(settings, /commentsEnabled/)
-  assert.match(settings, /membershipEnabled/)
-  assert.match(post, /accessLevel/)
+  assert.doesNotMatch(settings, /commentsEnabled|membershipEnabled|paidContentEnabled|analyticsEnabled/)
+  assert.doesNotMatch(post, /accessLevel|stripePriceId|commentsEnabled/)
   assert.match(post, /seoFields/)
   assert.match(config, /FeatureCenter/)
   assert.match(read('sanity-studio/schemaTypes/redirectType.ts'), /sourcePath/)
-  assert.match(read('migrations/0005_engagement_membership.sql'), /analytics_daily/)
-  assert.match(read('src/lib/platform.ts'), /TURNSTILE_SECRET_KEY/)
+  assert.doesNotMatch(read('src/app/layout.tsx'), /AnalyticsBeacon/)
+  assert.doesNotMatch(read('src/app/page.tsx'), /ContactForm/)
 })
 
 test('controlled theme and template center provides safe one-click presets without third-party code execution', () => {
@@ -152,7 +151,7 @@ test('service connection center reports readiness without returning secret value
   const route = read('src/app/api/integrations/status/route.ts')
   const config = read('sanity-studio/sanity.config.ts')
   assert.match(center, /服务连接/)
-  assert.match(center, /永远不读取或展示密钥内容/)
+  assert.match(center, /不会读取或展示密钥内容/)
   assert.match(center, /api\/integrations\/status/)
   assert.match(config, /ServiceConnectionCenter/)
   assert.match(route, /Boolean\(platformValue/)
@@ -160,24 +159,17 @@ test('service connection center reports readiness without returning secret value
   assert.doesNotMatch(route, /get-secret-value|secret\s*:/i)
 })
 
-test('analytics reporting includes privacy-safe events, protected reports, trends, and CSV export', () => {
-  const migration = read('migrations/0006_analytics_reporting.sql')
-  const beacon = read('src/components/AnalyticsBeacon.tsx')
-  const report = read('src/lib/analytics-report.ts')
-  const dashboard = read('src/app/admin/analytics/page.tsx')
-  const studio = read('sanity-studio/sanity.config.ts')
-  assert.match(migration, /analytics_daily_visitors/)
-  assert.match(migration, /analytics_events/)
-  assert.doesNotMatch(migration, /raw_ip|ip_address/)
-  assert.match(beacon, /page_view/)
-  assert.match(beacon, /search/)
-  assert.match(beacon, /external_click/)
-  assert.match(report, /热门页面/)
-  assert.match(report, /reportCsv/)
-  assert.match(dashboard, /浏览趋势/)
-  assert.match(dashboard, /adminEmail/)
-  assert.match(studio, /AnalyticsCenter/)
-  assert.match(read('src/app/api/reports/analytics.csv/route.ts'), /text\/csv/)
+test('lightweight runtime removes D1 and R2 bindings while retaining Sanity backups', () => {
+  const wrangler = read('wrangler.toml')
+  const ci = read('.gitlab-ci.yml')
+  assert.doesNotMatch(wrangler, /\[\[d1_databases\]\]|\[\[r2_buckets\]\]/)
+  assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
+  assert.match(ci, /monthly_sanity_backup/)
+  assert.match(ci, /deploy_sanity_studio/)
+  assert.match(read('package.json'), /backup:sanity/)
+  assert.match(read('scripts/backup-sanity.sh'), /backup-sanity-assets/)
+  assert.match(read('scripts/backup-sanity.sh'), /zzgcopilot-backups/)
+  assert.doesNotMatch(read('src/app/tutorials/[slug]/page.tsx'), /Comments|CheckoutButton|currentMember|platformDb/)
 })
 
 test('Sanity revalidation is signed and invalidates narrow content tags', () => {
@@ -189,12 +181,11 @@ test('Sanity revalidation is signed and invalidates narrow content tags', () => 
   assert.match(content, /next: \{ revalidate: 60, tags \}/)
 })
 
-test('production CI applies D1 migrations before deployment', () => {
+test('production CI deploys after validation without a D1 migration stage', () => {
   const ci = read('.gitlab-ci.yml')
-  assert.match(ci, /migrate_production_db:/)
-  assert.match(ci, /d1 migrations apply zzgcopilot-db --remote/)
-  assert.match(ci, /needs: \["validate", "migrate_production_db"\]/)
-  assert.match(read('migrations/0007_analytics_rate_limit.sql'), /idx_analytics_events_visitor_created/)
+  assert.match(ci, /deploy_cloudflare_pages:/)
+  assert.match(ci, /needs: \["validate"\]/)
+  assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
 })
 
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {

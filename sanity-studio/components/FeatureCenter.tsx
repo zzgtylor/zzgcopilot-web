@@ -14,8 +14,6 @@ const plugins: PluginSpec[] = [
   { id: 'related-posts', field: 'relatedPostsEnabled', title: '相关文章', description: '在正文后推荐其他已发布文章。', category: '内容', version: '1.1.0', permissions: ['读取已发布文章'] },
   { id: 'author-box', field: 'authorBoxEnabled', title: '作者介绍框', description: '在正文后显示作者和网站署名。', category: '内容', version: '1.0.0', permissions: ['读取作者名称'] },
   { id: 'newsletter', field: 'newsletterEnabled', title: '邮件订阅行动区', description: '显示可配置标题、说明和订阅链接。', category: '营销', version: '1.1.0', permissions: ['读取订阅链接'], configKey: 'newsletterHref' },
-  { id: 'comments', field: 'commentsEnabled', title: '文章评论', description: '启用评论提交和后台审核队列。', category: '互动', version: '1.2.0', permissions: ['写入评论数据'] },
-  { id: 'analytics', field: 'analyticsEnabled', title: '隐私友好统计', description: '记录浏览、搜索和转化等站内事件。', category: '统计', version: '1.1.0', permissions: ['写入匿名统计'] },
 ]
 
 const categories = ['全部', ...Array.from(new Set(plugins.map(plugin => plugin.category)))]
@@ -35,7 +33,7 @@ export function FeatureCenter() {
   const canManage = roles.some(role => ['administrator', 'editor', 'developer'].includes(role))
 
   useEffect(() => {
-    client.fetch<Record<string, unknown> | null>('*[_id == "site-settings"][0]{breadcrumbsEnabled,shareButtonsEnabled,readingProgressEnabled,backToTopEnabled,relatedPostsEnabled,authorBoxEnabled,newsletterEnabled,newsletterHref,commentsEnabled,analyticsEnabled,pluginInstallations}')
+    client.fetch<Record<string, unknown> | null>('*[_id == "site-settings"][0]{breadcrumbsEnabled,shareButtonsEnabled,readingProgressEnabled,backToTopEnabled,relatedPostsEnabled,authorBoxEnabled,newsletterEnabled,newsletterHref,pluginInstallations}')
       .then(result => { const data = result || {}; setValues({ breadcrumbsEnabled: data.breadcrumbsEnabled !== false, ...data }); setInstallations(Array.isArray(data.pluginInstallations) ? data.pluginInstallations as Installation[] : []) })
       .catch(() => undefined)
   }, [client])
@@ -118,6 +116,6 @@ export function FeatureCenter() {
       const ready = configReady(plugin)
       return <Card key={plugin.id} padding={4} radius={3} border tone={status === 'active' ? 'positive' : 'default'}><Stack space={3}><Flex align="center" justify="space-between" gap={3}><Stack space={1}><Heading size={1}>{plugin.title}</Heading><Text size={1} muted>{plugin.category} · v{plugin.version}</Text></Stack><Text size={1} weight="semibold" tone={status === 'active' ? 'positive' : status === 'inactive' ? 'caution' : 'default'}>{status === 'active' ? '已启用' : status === 'inactive' ? '已安装' : '未安装'}</Text></Flex><Text size={1}>{plugin.description}</Text><Text size={1} muted>权限：{plugin.permissions.join('、')}</Text>{!ready ? <Text size={1} tone="caution">配置不完整，安装后暂时不能启用。</Text> : <Text size={1} tone="positive">健康检查：可以运行</Text>}<Flex gap={2} wrap="wrap">{status === 'uninstalled' ? <Button text="安装并启用" tone="primary" disabled={!canManage || Boolean(busy) || !ready} loading={busy === plugin.id} onClick={() => change(plugin, 'active', '安装并启用')} /> : status === 'active' ? <Button text="停用" tone="caution" disabled={!canManage || Boolean(busy)} loading={busy === plugin.id} onClick={() => change(plugin, 'inactive', '停用')} /> : <Button text="启用" tone="primary" disabled={!canManage || Boolean(busy) || !ready} loading={busy === plugin.id} onClick={() => change(plugin, 'active', '启用')} />}{needsUpdate ? <Button text="更新版本" mode="ghost" disabled={!canManage || Boolean(busy)} onClick={() => change(plugin, status, '更新')} /> : null}{status !== 'uninstalled' ? <Button text="卸载" mode="ghost" tone="critical" disabled={!canManage || Boolean(busy)} onClick={() => change(plugin, 'uninstalled', '卸载')} /> : null}</Flex></Stack></Card>
     })}</Grid>
-    <Card padding={4} radius={3} border><Flex align="center" justify="space-between" gap={3} wrap="wrap"><Stack space={2}><Heading size={1}>需要账户或密钥的服务</Heading><Text size={1}>Stripe、会员邮件、Turnstile 和外部统计请在“服务连接”中检查配置状态。</Text></Stack><Button as="a" href="/connections" text="打开服务连接" tone="primary" mode="ghost" /></Flex></Card>
+    <Card padding={4} radius={3} border><Flex align="center" justify="space-between" gap={3} wrap="wrap"><Stack space={2}><Heading size={1}>轻量博客模式</Heading><Text size={1}>评论、会员、支付和自建统计已从当前网站架构中停用；文章、页面和视觉功能继续由 Sanity 管理。</Text></Stack><Button as="a" href="/connections" text="查看服务连接" tone="primary" mode="ghost" /></Flex></Card>
   </Stack></Box>
 }
