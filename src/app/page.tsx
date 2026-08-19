@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowDown, ArrowRight, BookOpen, Search, Sparkles } from 'lucide-react'
 import { VisualSections } from '@/components/VisualSections'
-import { DEFAULT_NAVIGATION, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
+import { DEFAULT_NAVIGATION, getSanityCategories, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,9 +35,10 @@ function formatCardDate(value: string | null) {
   return value.slice(0, 10)
 }
 
-function pageHref(page: number, query: string) {
+function pageHref(page: number, query: string, category: string) {
   const params = new URLSearchParams()
   if (query) params.set('q', query)
+  if (category) params.set('category', category)
   if (page > 1) params.set('page', String(page))
   const suffix = params.toString()
   return suffix ? `/?${suffix}` : '/'
@@ -46,14 +47,17 @@ function pageHref(page: number, query: string) {
 export default async function HomePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const resolvedSearchParams = await searchParams
   const query = (Array.isArray(resolvedSearchParams?.q) ? resolvedSearchParams?.q[0] : resolvedSearchParams?.q || '').trim().slice(0, 80)
+  const requestedCategory = (Array.isArray(resolvedSearchParams?.category) ? resolvedSearchParams?.category[0] : resolvedSearchParams?.category || '').trim().slice(0, 96)
   const requestedPage = Number(Array.isArray(resolvedSearchParams?.page) ? resolvedSearchParams?.page[0] : resolvedSearchParams?.page || '1')
   const settings = await getSanitySiteSettings()
   const pageSize = settings.postsPerPage
-  const totalPosts = await getSanityPublishedPostCount({ search: query })
+  const categories = await getSanityCategories()
+  const category = categories.some(item => item.slug === requestedCategory) ? requestedCategory : ''
+  const totalPosts = await getSanityPublishedPostCount({ search: query, category: category || undefined })
   const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize))
   const currentPage = Math.min(Math.max(Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 1, 1), totalPages)
   const [posts, navigation] = await Promise.all([
-    getSanityPublishedPosts({ limit: pageSize, offset: (currentPage - 1) * pageSize, search: query }),
+    getSanityPublishedPosts({ limit: pageSize, offset: (currentPage - 1) * pageSize, search: query, category: category || undefined }),
     getNavigation(),
   ])
   const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
@@ -167,6 +171,11 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             {settings.homepageIntroText ? <p className="w-full max-w-3xl text-sm leading-6 text-[#797266]">{settings.homepageIntroText}</p> : null}
           </div>
 
+          {categories.length > 0 ? <nav aria-label="教程分类" className="mb-7 flex flex-wrap gap-2">
+            <Link href={pageHref(1, query, '')} aria-current={!category ? 'page' : undefined} className={`site-filter-chip ${!category ? 'site-filter-chip-active' : ''}`}>全部教程</Link>
+            {categories.map(item => <Link key={item.id} href={pageHref(1, query, item.slug)} aria-current={category === item.slug ? 'page' : undefined} className={`site-filter-chip ${category === item.slug ? 'site-filter-chip-active' : ''}`}>{item.name}</Link>)}
+          </nav> : null}
+
           <div className="site-card-grid grid grid-cols-1 sm:grid-cols-2">
             {posts.length > 0
               ? posts.map((post, index) => (
@@ -200,7 +209,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                 ))
               : query ? (
                   <div className="col-span-full rounded-md border border-[#211e19]/[0.07] bg-white px-6 py-12 text-center text-sm text-[#797266]">
-                    没有找到与“{query}”相关的教程
+                    没有找到{category ? '此分类中' : ''}与“{query}”相关的教程
                   </div>
                 ) : (
                   <Link
@@ -228,13 +237,13 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           {totalPosts > 0 ? (
             <nav aria-label="教程分页" className="mt-12 flex flex-wrap items-center justify-center gap-2 font-mono text-[13px]">
               {currentPage > 1
-                ? <Link href={pageHref(currentPage - 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">← 上一页</Link>
+                ? <Link href={pageHref(currentPage - 1, query, category)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">← 上一页</Link>
                 : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">← 上一页</span>}
               {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => page === currentPage
                 ? <span key={page} aria-current="page" className="cursor-default select-none rounded border border-[var(--site-primary)] bg-[var(--site-primary)] px-3.5 py-2 text-white">{page}</span>
-                : <Link key={page} href={pageHref(page, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">{page}</Link>)}
+                : <Link key={page} href={pageHref(page, query, category)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">{page}</Link>)}
               {currentPage < totalPages
-                ? <Link href={pageHref(currentPage + 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">下一页 →</Link>
+                ? <Link href={pageHref(currentPage + 1, query, category)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">下一页 →</Link>
                 : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">下一页 →</span>}
             </nav>
           ) : null}

@@ -96,7 +96,7 @@ export const siteSettingsType = defineType({
     defineField({ name: 'shareButtonsEnabled', title: '显示文章分享按钮', type: 'boolean', group: 'article', initialValue: false }),
     defineField({ name: 'readingProgressEnabled', title: '显示阅读进度条', type: 'boolean', group: 'article', initialValue: false }),
     defineField({ name: 'backToTopEnabled', title: '显示返回顶部按钮', type: 'boolean', group: 'article', initialValue: false }),
-    defineField({ name: 'relatedPostsEnabled', title: '显示相关文章', type: 'boolean', group: 'article', initialValue: false }),
+    defineField({ name: 'relatedPostsEnabled', title: '显示相关文章', description: '优先推荐同一分类的教程，再补充最新文章。', type: 'boolean', group: 'article', initialValue: true }),
     defineField({ name: 'authorBoxEnabled', title: '显示作者介绍框', type: 'boolean', group: 'article', initialValue: false }),
     defineField({ name: 'newsletterEnabled', title: '显示邮件订阅行动区', type: 'boolean', group: 'article', initialValue: false }),
     defineField({ name: 'newsletterTitle', title: '订阅区标题', type: 'string', group: 'article', initialValue: '获取最新教程', hidden: ({ document }) => !document?.newsletterEnabled, validation: rule => rule.max(80) }),

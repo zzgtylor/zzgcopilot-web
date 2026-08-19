@@ -9,9 +9,11 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL('https://zzgcopilot.com'),
     title: settings.seoDefaultTitle,
     description: settings.seoDefaultDescription,
+    alternates: { canonical: '/' },
     openGraph: {
       title: settings.seoDefaultTitle,
       description: settings.seoDefaultDescription,
+      url: '/',
       images: settings.seoDefaultOgImage ? [settings.seoDefaultOgImage] : undefined,
       siteName: settings.siteName,
     },
@@ -21,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: settings.seoDefaultDescription,
       images: settings.seoDefaultOgImage ? [settings.seoDefaultOgImage] : undefined,
     },
+    robots: { index: true, follow: true },
   }
 }
 

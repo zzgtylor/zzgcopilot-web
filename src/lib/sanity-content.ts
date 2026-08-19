@@ -16,6 +16,7 @@ export type SanityPost = {
   status: 'published'
   category_name: string | null
   category_slug: string | null
+  tags: string[]
   meta_title: string | null
   meta_description: string | null
   og_image: string | null
@@ -266,6 +267,7 @@ type SanityResponse = {
   publishedAt?: string
   categoryName?: string
   categorySlug?: string
+  tags?: string[]
   metaTitle?: string
   metaDescription?: string
   ogImage?: string
@@ -321,6 +323,7 @@ function toPost(item: SanityResponse): SanityPost | null {
     status: 'published',
     category_name: item.categoryName || null,
     category_slug: item.categorySlug || null,
+    tags: Array.isArray(item.tags) ? item.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0) : [],
     meta_title: item.metaTitle || null,
     meta_description: item.metaDescription || null,
     og_image: item.ogImage || null,
@@ -403,6 +406,7 @@ const projection = `{
   publishedAt,
   "categoryName": category->title,
   "categorySlug": category->slug.current,
+  tags,
   metaTitle,
   metaDescription,
   ogImage,
@@ -451,6 +455,23 @@ export async function getSanityPublishedPostCount({ category, search }: { catego
   if (category) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
   return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params, ['sanity', 'sanity:posts']) || 0
+}
+
+/** Prefer tutorials in the same category, then fill the remaining cards with newer tutorials. */
+export async function getSanityRelatedPosts(post: Pick<SanityPost, 'slug'> & { category_slug?: string | null }, limit = 3): Promise<SanityPost[]> {
+  const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 6)
+  const sameCategory = post.category_slug
+    ? (await getSanityPublishedPosts({ limit: safeLimit + 1, category: post.category_slug })).filter(item => item.slug !== post.slug)
+    : []
+  if (sameCategory.length >= safeLimit) return sameCategory.slice(0, safeLimit)
+
+  const selected = new Map(sameCategory.map(item => [item.slug, item]))
+  const latest = await getSanityPublishedPosts({ limit: safeLimit + 6 })
+  for (const item of latest) {
+    if (item.slug !== post.slug && !selected.has(item.slug)) selected.set(item.slug, item)
+    if (selected.size >= safeLimit) break
+  }
+  return Array.from(selected.values()).slice(0, safeLimit)
 }
 
 export async function getSanityPost(slug: string): Promise<SanityPost | null> {

@@ -13,6 +13,8 @@ test('homepage retains the existing visual shell while reading navigation from S
   assert.match(home, /settings\.homepageSectionTitle/)
   assert.match(home, /settings\.homepageCtaLabel/)
   assert.match(home, /getSanityPublishedPostCount/)
+  assert.match(home, /getSanityCategories/)
+  assert.match(home, /aria-label="教程分类"/)
   assert.match(home, /name="q"/)
   assert.match(home, /pageHref/)
 })
@@ -98,6 +100,7 @@ test('template, module, and content-model centers provide reversible no-code ope
   assert.match(settings, /relatedPostsEnabled/)
   assert.match(article, /ArticleEnhancements/)
   assert.match(article, /相关文章/)
+  assert.match(article, /getSanityRelatedPosts/)
   assert.doesNotMatch(features, /eval\(|new Function|npm install/)
 })
 
@@ -210,6 +213,18 @@ test('Sanity schemas own posts, settings, and image assets', () => {
   assert.match(settings, /type: 'image'/)
   assert.match(settings, /name: 'homepageSectionTitle'/)
   assert.match(settings, /name: 'homepageFooterNote'/)
+})
+
+test('SEO uses a public sitemap and article recommendations prefer dynamic Sanity content', () => {
+  const content = read('src/lib/sanity-content.ts')
+  const sitemap = read('src/app/sitemap.ts')
+  const article = read('src/app/tutorials/[slug]/page.tsx')
+  assert.match(sitemap, /getSanitySitemapEntries/)
+  assert.match(sitemap, /changeFrequency/)
+  assert.match(content, /getSanityRelatedPosts/)
+  assert.match(content, /sameCategory/)
+  assert.match(article, /articleSection/)
+  assert.match(article, /keywords/)
 })
 
 test('WordPress-style editing tools include media, preview, scheduling, and review queues', () => {

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { getSanityPost, getSanityPublishedPosts, getSanitySiteSettings } from '@/lib/sanity-content'
+import { getSanityPost, getSanityRelatedPosts, getSanitySiteSettings } from '@/lib/sanity-content'
 import { PortableContent } from '@/components/PortableContent'
 import { ArticleEnhancements } from '@/components/ArticleEnhancements'
 import { CustomFieldDisplay } from '@/components/CustomFieldDisplay'
@@ -25,6 +25,7 @@ type Post = {
   author_name?: string
   category_name?: string
   category_slug?: string
+  tags?: string[]
   meta_title?: string
   meta_description?: string
   og_image?: string
@@ -82,9 +83,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   if (!post) notFound()
   const settings = await getSanitySiteSettings()
   const relatedPosts = settings.relatedPostsEnabled
-    ? (await getSanityPublishedPosts({ limit: 4 })).filter(item => item.slug !== post.slug).slice(0, 3)
+    ? await getSanityRelatedPosts(post, 3)
     : []
-  const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
+  const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, dateModified: post.published_at || post.created_at, image: post.og_image || post.cover_image || undefined, articleSection: post.category_name || undefined, keywords: post.tags?.join(', ') || undefined, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, publisher: { '@type': 'Organization', name: settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
 
   return (
     <main className="min-h-screen bg-white">
