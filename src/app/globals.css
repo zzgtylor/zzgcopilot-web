@@ -152,6 +152,8 @@ a {
 .site-footer { background: var(--site-header-bg, #fff); }
 
 .tyler-shell {
+  margin-left: auto;
+  margin-right: auto;
   width: min(1248px, calc(100% - 2rem));
 }
 
@@ -166,8 +168,9 @@ a {
 }
 
 @media (max-width: 639px) {
-  .tyler-shell { width: 100%; }
-  .tyler-cover { width: calc(100% - 2rem); }
+  .tyler-shell { width: calc(100% - 2rem); }
+  .tyler-header .tyler-shell,
+  #site-footer .tyler-shell { width: 100%; }
 }
 
 .tutorial-prose {
