@@ -169,6 +169,8 @@ await client.transaction()
 await client.createIfNotExists({ _id: 'site-settings', _type: 'siteSettings', siteName: 'Tyler博客' })
 await client.patch('site-settings').set({
   siteName: 'Tyler博客',
+  seoDefaultTitle: 'Tyler博客｜软件与互联网技术教程',
+  seoDefaultDescription: '记录软件、互联网技术与效率工具的实用中文教程。',
   homepageBrandName: 'Tyler博客',
   homepageSectionTitle: '最新教程',
   homepageSearchPlaceholder: '搜索教程…',
