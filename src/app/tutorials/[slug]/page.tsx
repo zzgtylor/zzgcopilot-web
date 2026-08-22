@@ -7,6 +7,7 @@ import { getSanityPost, getSanityRelatedPosts, getSanitySiteSettings } from '@/l
 import { PortableContent } from '@/components/PortableContent'
 import { ArticleEnhancements } from '@/components/ArticleEnhancements'
 import { CustomFieldDisplay } from '@/components/CustomFieldDisplay'
+import { TylerFooter, TylerHeader } from '@/components/TylerSiteChrome'
 import type { SanityCustomField } from '@/lib/sanity-content'
 
 export const dynamic = 'force-dynamic'
@@ -88,18 +89,20 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, dateModified: post.published_at || post.created_at, image: post.og_image || post.cover_image || undefined, articleSection: post.category_name || undefined, keywords: post.tags?.join(', ') || undefined, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, publisher: { '@type': 'Organization', name: settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
 
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#faf8f3] text-[#182533]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
-      <div className="mx-auto px-6 py-12" style={{ maxWidth: 'var(--site-content-width)' }}>
+      <TylerHeader settings={settings} />
+      <main className="mx-auto px-5 py-10 sm:px-6 sm:py-14" style={{ maxWidth: 'var(--site-content-width)' }}>
         {settings.breadcrumbsEnabled ? <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← 返回首页</Link> : null}
 
-        <header className="mt-6 mb-8">
+        <header className="mb-9 mt-6 border-b border-[#e3ddd3] pb-8">
           {post.category_name && (
             <Link href={`/?category=${post.category_slug}`} className="text-xs font-medium text-blue-600">
               {post.category_name}
             </Link>
           )}
-          <h1 className="mt-2 text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">{post.title}</h1>
+          <h1 className="tyler-wordmark mt-3 text-4xl font-semibold leading-tight tracking-[-0.035em] text-[#182533] sm:text-5xl">{post.title}</h1>
+          {post.excerpt ? <p className="mt-5 max-w-2xl text-base leading-8 text-[#66717b]">{post.excerpt}</p> : null}
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-400">
             {post.author_name && <span>{post.author_name}</span>}
             <span>{formatDate(post.published_at || post.created_at)}</span>
@@ -112,7 +115,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
         <CustomFieldDisplay fields={post.custom_fields} placement="beforeContent" />
 
-        <article className="prose prose-gray max-w-none prose-headings:font-bold prose-a:text-[var(--site-primary)] prose-img:rounded-xl">
+        <article className="tutorial-prose max-w-none">
           {post.body.length > 0 ? <PortableContent value={post.body} /> : <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>}
         </article>
         <CustomFieldDisplay fields={post.custom_fields} placement="afterContent" />
@@ -120,7 +123,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         {settings.authorBoxEnabled ? <section className="mt-10 rounded-xl border border-gray-200 bg-gray-50 p-6"><p className="text-xs font-semibold uppercase tracking-wider text-[var(--site-primary)]">作者</p><h2 className="mt-2 text-lg font-bold text-gray-900">{post.author_name || settings.organizationName}</h2><p className="mt-2 text-sm leading-6 text-gray-600">由 {post.author_name || settings.organizationName} 整理和维护本站教程内容。</p></section> : null}
         {settings.newsletterEnabled && settings.newsletterHref ? <section className="mt-10 rounded-2xl bg-[var(--site-secondary)] p-7 text-white"><h2 className="text-xl font-bold">{settings.newsletterTitle}</h2><p className="mt-2 text-sm leading-6 text-white/80">{settings.newsletterText}</p><a href={settings.newsletterHref} className="mt-5 inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-[var(--site-secondary)] no-underline">{settings.newsletterButtonLabel}</a></section> : null}
         {relatedPosts.length ? <section className="mt-12"><h2 className="text-xl font-bold text-gray-900">相关文章</h2><div className="mt-5 grid gap-4 sm:grid-cols-3">{relatedPosts.map(item => <Link key={item.id} href={`/tutorials/${item.slug}`} className="site-card block p-4"><span className="line-clamp-2 font-semibold text-gray-900">{item.title}</span>{item.category_name ? <span className="mt-3 block text-xs text-[var(--site-primary)]">{item.category_name}</span> : null}</Link>)}</div></section> : null}
-      </div>
-    </main>
+      </main>
+      {settings.showFooter ? <TylerFooter settings={settings} /> : null}
+    </div>
   )
 }
