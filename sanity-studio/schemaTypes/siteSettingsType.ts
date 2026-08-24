@@ -42,7 +42,7 @@ export const siteSettingsType = defineType({
     defineField({ name: 'homepageSectionTitle', title: '文章区标题', type: 'string', group: 'homepage', validation: rule => rule.max(80) }),
     defineField({ name: 'homepageIntroText', title: '文章区简介', type: 'text', rows: 2, group: 'homepage', validation: rule => rule.max(240) }),
     defineField({ name: 'showDefaultLatestPosts', title: '显示默认“最新教程”卡片区', description: '默认开启，关闭后首页只显示下方添加的可视化首页区块。', type: 'boolean', group: 'homepage', initialValue: true }),
-    defineField({ name: 'postsPerPage', title: '每页显示文章数', type: 'number', group: 'homepage', initialValue: 9, validation: rule => rule.integer().min(3).max(24) }),
+    defineField({ name: 'postsPerPage', title: '每页显示文章数', description: '推荐保持 16，对应桌面端 4 列 × 4 行；第 17 篇自动进入下一页。', type: 'number', group: 'homepage', initialValue: 16, validation: rule => rule.integer().min(4).max(24) }),
     defineField({ name: 'homepageMaxWidth', title: '首页最大宽度（像素）', type: 'number', group: 'homepage', initialValue: 1480, validation: rule => rule.integer().min(960).max(1800) }),
     pageSectionsField('homepageSections', '首页可视化区块', 'homepage'),
     defineField({ name: 'cardColumns', title: '桌面端每行卡片数', type: 'number', group: 'cards', initialValue: 3, options: { list: [{ title: '2 列', value: 2 }, { title: '3 列', value: 3 }, { title: '4 列', value: 4 }] } }),

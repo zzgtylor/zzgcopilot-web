@@ -227,6 +227,24 @@ test('SEO uses a public sitemap and article recommendations prefer dynamic Sanit
   assert.match(article, /keywords/)
 })
 
+test('homepage uses a 4 by 4 page and automatically groups Microsoft tutorials', () => {
+  const homepage = read('src/app/page.tsx')
+  const content = read('src/lib/sanity-content.ts')
+  const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
+  const importer = read('sanity-studio/scripts/import-word-tutorial-html.mjs')
+  assert.match(homepage, /lg:grid-cols-4/)
+  assert.match(homepage, /settings\.postsPerPage \|\| 16/)
+  assert.match(settings, /initialValue: 16/)
+  assert.match(settings, /4 列 × 4 行/)
+  assert.match(importer, /postsPerPage: 16/)
+  assert.match(content, /MICROSOFT_CATEGORY_NAME = '微软办公软件'/)
+  assert.match(content, /MICROSOFT_CATEGORY_SLUG = 'microsoft-office'/)
+  for (const product of ['Word', 'Excel', 'PowerPoint', 'Microsoft 365', 'Microsoft Teams']) {
+    assert.match(content, new RegExp(product))
+  }
+  assert.match(content, /pt::text\(body\) match/)
+})
+
 test('WordPress-style editing tools include media, preview, scheduling, and review queues', () => {
   const config = read('sanity-studio/sanity.config.ts')
   const structure = read('sanity-studio/structure.ts')

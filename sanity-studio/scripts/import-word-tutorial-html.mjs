@@ -127,10 +127,15 @@ const postId = 'post-word-software-complete-guide'
 await client.createIfNotExists({
   _id: categoryId,
   _type: 'category',
-  title: 'Word 教程',
-  slug: { _type: 'slug', current: 'word-tutorials' },
-  description: 'Microsoft Word 从入门到进阶的完整教程。',
+  title: '微软办公软件',
+  slug: { _type: 'slug', current: 'microsoft-office' },
+  description: 'Microsoft Word、Excel、PowerPoint、Microsoft 365 等微软产品教程。',
 })
+await client.patch(categoryId).set({
+  title: '微软办公软件',
+  slug: { _type: 'slug', current: 'microsoft-office' },
+  description: 'Microsoft Word、Excel、PowerPoint、Microsoft 365 等微软产品教程。',
+}).commit()
 
 const post = {
   _id: postId,
@@ -182,7 +187,7 @@ await client.patch('site-settings').set({
   showHeaderCta: false,
   showFooter: true,
   showDefaultLatestPosts: true,
-  postsPerPage: 8,
+  postsPerPage: 16,
   homepageMaxWidth: 1248,
   cardColumns: 4,
   cardGap: 24,

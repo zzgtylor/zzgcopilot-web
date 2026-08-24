@@ -56,6 +56,51 @@ export type SanityCategory = {
   description: string
 }
 
+export const MICROSOFT_CATEGORY_NAME = '微软办公软件'
+export const MICROSOFT_CATEGORY_SLUG = 'microsoft-office'
+
+const MICROSOFT_CATEGORY_LEGACY_SLUG = 'word-tutorials'
+const MICROSOFT_CATEGORY_ID = 'category-word-tutorials'
+const MICROSOFT_PRODUCT_TERMS = [
+  'Microsoft',
+  '微软',
+  'Word',
+  'Excel',
+  'PowerPoint',
+  'Power Point',
+  'PPT',
+  'Outlook',
+  'OneNote',
+  'OneDrive',
+  'SharePoint',
+  'Microsoft Teams',
+  'Microsoft Access',
+  'Microsoft Visio',
+  'Microsoft Project',
+  'Microsoft Publisher',
+  'Microsoft 365',
+  'Office 365',
+  'Windows',
+  'Microsoft Edge',
+  'Azure',
+  'Visual Studio',
+  'GitHub Copilot',
+  'Microsoft Copilot',
+] as const
+
+const microsoftProductExpression = `(
+  category->_id == "${MICROSOFT_CATEGORY_ID}" ||
+  category->slug.current in ["${MICROSOFT_CATEGORY_SLUG}", "${MICROSOFT_CATEGORY_LEGACY_SLUG}"] ||
+  ${MICROSOFT_PRODUCT_TERMS.map(term => {
+    const pattern = `*${term}*`
+    return `(title match "${pattern}" || excerpt match "${pattern}" || tags match "${pattern}" || content match "${pattern}" || pt::text(body) match "${pattern}")`
+  }).join(' ||\n  ')}
+)`
+
+function isMicrosoftCategory(category?: string): boolean {
+  return category === MICROSOFT_CATEGORY_SLUG || category === MICROSOFT_CATEGORY_LEGACY_SLUG
+}
+
 export type SanityPage = {
   id: string
   title: string
@@ -172,7 +217,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   homepageFooterNote: '本站内容独立编写整理，非 Microsoft 官方文档',
   showFooter: true,
   showDefaultLatestPosts: true,
-  postsPerPage: 9,
+  postsPerPage: 16,
   homepageMaxWidth: 1480,
   cardColumns: 3,
   cardGap: 24,
@@ -280,6 +325,7 @@ type SanityResponse = {
   teaser?: string
   stripePriceId?: string
   customFields?: Array<Record<string, unknown>>
+  isMicrosoftProduct?: boolean
 }
 
 type SanityPageResponse = {
@@ -309,6 +355,7 @@ function toCustomFields(items: Array<Record<string, unknown>> | undefined): Sani
 
 function toPost(item: SanityResponse): SanityPost | null {
   if (!item.title || !item.slug) return null
+  const microsoftProduct = item.isMicrosoftProduct === true
   return {
     id: item._id,
     title: item.title,
@@ -321,8 +368,8 @@ function toPost(item: SanityResponse): SanityPost | null {
     created_at: item._createdAt || new Date(0).toISOString(),
     published_at: item.publishedAt || item._createdAt || null,
     status: 'published',
-    category_name: item.categoryName || null,
-    category_slug: item.categorySlug || null,
+    category_name: microsoftProduct ? MICROSOFT_CATEGORY_NAME : item.categoryName || null,
+    category_slug: microsoftProduct ? MICROSOFT_CATEGORY_SLUG : item.categorySlug || null,
     tags: Array.isArray(item.tags) ? item.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0) : [],
     meta_title: item.metaTitle || null,
     meta_description: item.metaDescription || null,
@@ -406,6 +453,7 @@ const projection = `{
   publishedAt,
   "categoryName": category->title,
   "categorySlug": category->slug.current,
+  "isMicrosoftProduct": ${microsoftProductExpression},
   tags,
   metaTitle,
   metaDescription,
@@ -435,11 +483,13 @@ export async function getSanityPublishedPosts({ limit = 20, offset = 0, category
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
   const safeOffset = Math.max(Math.floor(offset), 0)
   const preview = await isDraftPreview()
-  const categoryFilter = category ? ' && category->slug.current == $category' : ''
+  const categoryFilter = isMicrosoftCategory(category)
+    ? ` && ${microsoftProductExpression}`
+    : category ? ' && category->slug.current == $category' : ''
   const cleanedSearch = searchPattern(search)
   const searchFilter = cleanedSearch ? ' && (title match $search || excerpt match $search || pt::text(body) match $search || content match $search)' : ''
   const params: Record<string, string> = {}
-  if (category) params.category = category
+  if (category && !isMicrosoftCategory(category)) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
   const visibility = preview ? 'true' : publicVisibility
   const data = await query<SanityResponse[]>(`*[_type == "post" && ${visibility}${categoryFilter}${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, params, ['sanity', 'sanity:posts'])
@@ -448,11 +498,13 @@ export async function getSanityPublishedPosts({ limit = 20, offset = 0, category
 
 export async function getSanityPublishedPostCount({ category, search }: { category?: string; search?: string } = {}): Promise<number> {
   const preview = await isDraftPreview()
-  const categoryFilter = category ? ' && category->slug.current == $category' : ''
+  const categoryFilter = isMicrosoftCategory(category)
+    ? ` && ${microsoftProductExpression}`
+    : category ? ' && category->slug.current == $category' : ''
   const cleanedSearch = searchPattern(search)
   const searchFilter = cleanedSearch ? ' && (title match $search || excerpt match $search || pt::text(body) match $search || content match $search)' : ''
   const params: Record<string, string> = {}
-  if (category) params.category = category
+  if (category && !isMicrosoftCategory(category)) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
   return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params, ['sanity', 'sanity:posts']) || 0
 }
@@ -490,9 +542,12 @@ export async function getSanityNavigation(): Promise<SanityNavigationItem[]> {
 
 export async function getSanityCategories(): Promise<SanityCategory[]> {
   const data = await query<Array<{ _id: string; title?: string; slug?: string; description?: string }>>(`*[_type == "category" && defined(slug.current)] | order(title asc) { _id, title, "slug": slug.current, description }`, {}, ['sanity', 'sanity:categories'])
-  return (data || [])
+  const categories = (data || [])
     .filter(item => item.title && item.slug)
-    .map(item => ({ id: item._id, name: item.title!, slug: item.slug!, description: item.description || '' }))
+    .map(item => item._id === MICROSOFT_CATEGORY_ID || isMicrosoftCategory(item.slug)
+      ? { id: item._id, name: MICROSOFT_CATEGORY_NAME, slug: MICROSOFT_CATEGORY_SLUG, description: item.description || '微软产品与办公软件教程。' }
+      : { id: item._id, name: item.title!, slug: item.slug!, description: item.description || '' })
+  return Array.from(new Map(categories.map(item => [item.slug, item])).values())
 }
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {

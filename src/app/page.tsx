@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { TylerFooter, TylerHeader } from "@/components/TylerSiteChrome";
 import {
+  MICROSOFT_CATEGORY_SLUG,
   getSanityCategories,
   getSanityNavigation,
   getSanityPublishedPostCount,
@@ -24,7 +25,7 @@ const FALLBACK_TUTORIAL = {
   title: "Word 办公软件攻略解析",
   slug: "word-software-complete-guide",
   excerpt: "从基础操作到高效排版，系统掌握 Word 的核心功能与实用技巧。",
-  category_name: "Word 教程",
+  category_name: "微软办公软件",
   published_at: "2026-08-06T00:00:00.000Z",
   reading_time: 90,
   cover_image: "",
@@ -59,7 +60,8 @@ function CardArtwork({ index }: { index: number }) {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
-  const category = params.category?.trim() ?? "";
+  const requestedCategory = params.category?.trim() ?? "";
+  const category = requestedCategory === "word-tutorials" ? MICROSOFT_CATEGORY_SLUG : requestedCategory;
   const requestedPage = Number.parseInt(params.page ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [settings, navigation, categories] = await Promise.all([
@@ -67,7 +69,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     getSanityNavigation(),
     getSanityCategories(),
   ]);
-  const pageSize = settings.postsPerPage || 8;
+  const pageSize = settings.postsPerPage || 16;
 
   const [sanityPosts, total] = await Promise.all([
     getSanityPublishedPosts({
@@ -139,7 +141,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         ) : null}
 
         {posts.length > 0 ? (
-          <div className="site-card-grid grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="site-card-grid grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {posts.map((post, index) => {
               const href =
                 post.id === FALLBACK_TUTORIAL.id
