@@ -167,6 +167,19 @@ a {
   -webkit-font-smoothing: antialiased;
 }
 
+.tyler-tutorial-card {
+  aspect-ratio: 330 / 302;
+}
+
+.tyler-tutorial-card-media {
+  aspect-ratio: 16 / 9;
+  flex: 0 0 auto;
+}
+
+.tyler-tutorial-card-body {
+  overflow: hidden;
+}
+
 @media (max-width: 639px) {
   .tyler-shell { width: calc(100% - 2rem); }
   .tyler-header .tyler-shell,

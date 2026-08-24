@@ -191,7 +191,7 @@ await client.patch('site-settings').set({
   homepageMaxWidth: 1248,
   cardColumns: 4,
   cardGap: 24,
-  cardImageHeight: 190,
+  cardImageHeight: 186,
   homepageFooterBrand: 'Tyler博客',
   homepageFooterNote: '记录技术，也记录生活。',
   canonicalBaseUrl: 'https://zzgcopilot.com',
@@ -201,7 +201,7 @@ await client.patch('site-settings').set({
   headerBackgroundColor: { _type: 'color', hex: '#ffffff', alpha: 1 },
   surfaceColor: { _type: 'color', hex: '#faf8f3', alpha: 1 },
   cardBackgroundColor: { _type: 'color', hex: '#ffffff', alpha: 1 },
-  cardRadius: 18,
+  cardRadius: 10,
 }).commit()
 
 console.log(JSON.stringify({

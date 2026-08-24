@@ -230,6 +230,7 @@ test('SEO uses a public sitemap and article recommendations prefer dynamic Sanit
 test('homepage uses a 4 by 4 page and automatically groups Microsoft tutorials', () => {
   const homepage = read('src/app/page.tsx')
   const content = read('src/lib/sanity-content.ts')
+  const css = read('src/app/globals.css')
   const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
   const importer = read('sanity-studio/scripts/import-word-tutorial-html.mjs')
   assert.match(homepage, /lg:grid-cols-4/)
@@ -240,6 +241,10 @@ test('homepage uses a 4 by 4 page and automatically groups Microsoft tutorials',
   assert.match(importer, /postsPerPage: 16/)
   assert.match(content, /MICROSOFT_CATEGORY_NAME = '微软办公软件'/)
   assert.match(content, /MICROSOFT_CATEGORY_SLUG = 'microsoft-office'/)
+  assert.match(css, /aspect-ratio: 330 \/ 302/)
+  assert.match(css, /aspect-ratio: 16 \/ 9/)
+  assert.match(homepage, /line-clamp-2 text-\[16px\]/)
+  assert.doesNotMatch(homepage, /min-h-\[220px\]/)
   for (const product of ['Word', 'Excel', 'PowerPoint', 'Microsoft 365', 'Microsoft Teams']) {
     assert.match(content, new RegExp(product))
   }

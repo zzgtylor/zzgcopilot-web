@@ -237,7 +237,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   bodyFont: 'system',
   headingFont: 'serif',
   contentWidth: 768,
-  cardRadius: 6,
+  cardRadius: 10,
   imageQuality: 82,
   analyticsEnabled: false,
   commentsEnabled: false,

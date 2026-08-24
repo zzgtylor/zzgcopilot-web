@@ -45,7 +45,7 @@ function CardArtwork({ index }: { index: number }) {
   return (
     <div
       aria-hidden="true"
-      className="relative aspect-[16/10] overflow-hidden border-b border-[#e8e2d8]"
+      className="relative h-full w-full overflow-hidden"
       style={{ backgroundColor: backgrounds[index % backgrounds.length] }}
     >
       <div className="absolute left-[14%] top-[18%] h-[64%] w-[72%] border border-[#182533]/15 bg-white/80 shadow-[0_12px_30px_rgba(24,37,51,0.08)]" />
@@ -149,37 +149,38 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   : `/tutorials/${post.slug}`;
               return (
                 <Link
-                  className="site-card tyler-tutorial-card group overflow-hidden rounded-[18px] border border-[#e3ddd3] bg-white transition duration-200 hover:-translate-y-1 hover:border-[#cfc6b9] hover:shadow-[0_16px_34px_rgba(24,37,51,0.08)]"
+                  className="site-card tyler-tutorial-card group flex flex-col overflow-hidden border border-[#e3ddd3] bg-white transition duration-200 hover:-translate-y-1 hover:border-[#cfc6b9] hover:shadow-[0_16px_34px_rgba(24,37,51,0.08)]"
                   href={href}
                   key={post.id}
                 >
-                  {post.cover_image ? (
-                    // Sanity image URLs are already optimized by its CDN.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      alt=""
-                      className="aspect-[16/10] w-full border-b border-[#e8e2d8] object-cover transition duration-300 group-hover:scale-[1.015]"
-                      src={post.cover_image}
-                    />
-                  ) : (
-                    <CardArtwork index={index} />
-                  )}
-                  <div className="flex min-h-[220px] flex-col p-6">
-                    <p className="mb-4 text-xs font-medium tracking-[0.12em] text-[#1f52ad]">
-                      {post.category_name || "教程"}
-                    </p>
-                    <h3 className="tyler-wordmark text-[22px] font-semibold leading-snug tracking-[-0.025em] transition group-hover:text-[#1f52ad]">
+                  <div className="tyler-tutorial-card-media relative overflow-hidden border-b border-[#e8e2d8]">
+                    {post.cover_image ? (
+                      // Sanity image URLs are already optimized by its CDN.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt={post.title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.015]"
+                        src={post.cover_image}
+                      />
+                    ) : (
+                      <CardArtwork index={index} />
+                    )}
+                    {settings.showCardCategory && post.category_name ? (
+                      <span className="absolute bottom-3 left-3 max-w-[85%] truncate rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-[#1f52ad] shadow-sm backdrop-blur-sm">
+                        {post.category_name}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="tyler-tutorial-card-body flex min-h-0 flex-1 flex-col px-4 py-3.5 sm:px-5 sm:py-4">
+                    <h3 className="line-clamp-2 text-[16px] font-semibold leading-6 tracking-[-0.01em] text-[#25313d] transition group-hover:text-[#1f52ad]" title={post.title}>
                       {post.title}
                     </h3>
-                    {post.excerpt ? (
-                      <p className="mt-3 line-clamp-3 text-sm leading-7 text-[#66717b]">
-                        {post.excerpt}
-                      </p>
+                    {settings.showCardDate || settings.showCardReadingTime ? (
+                      <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-xs text-[#8a9095]">
+                        {settings.showCardDate ? <time>{formatDate(post.published_at)}</time> : <span />}
+                        {settings.showCardReadingTime ? <span>{post.reading_time || 10} 分钟</span> : null}
+                      </div>
                     ) : null}
-                    <div className="mt-auto flex items-center justify-between gap-3 pt-6 text-xs text-[#7a817f]">
-                      <time>{formatDate(post.published_at)}</time>
-                      <span>{post.reading_time || 10} 分钟</span>
-                    </div>
                   </div>
                 </Link>
               );
