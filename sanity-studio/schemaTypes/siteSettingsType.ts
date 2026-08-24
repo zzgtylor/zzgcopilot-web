@@ -45,7 +45,7 @@ export const siteSettingsType = defineType({
     defineField({ name: 'postsPerPage', title: '每页显示文章数', description: '推荐保持 16，对应桌面端 4 列 × 4 行；第 17 篇自动进入下一页。', type: 'number', group: 'homepage', initialValue: 16, validation: rule => rule.integer().min(4).max(24) }),
     defineField({ name: 'homepageMaxWidth', title: '首页最大宽度（像素）', type: 'number', group: 'homepage', initialValue: 1480, validation: rule => rule.integer().min(960).max(1800) }),
     pageSectionsField('homepageSections', '首页可视化区块', 'homepage'),
-    defineField({ name: 'cardColumns', title: '桌面端每行卡片数', type: 'number', group: 'cards', initialValue: 3, options: { list: [{ title: '2 列', value: 2 }, { title: '3 列', value: 3 }, { title: '4 列', value: 4 }] } }),
+    defineField({ name: 'cardColumns', title: '桌面端每行卡片数', type: 'number', group: 'cards', initialValue: 4, options: { list: [{ title: '2 列', value: 2 }, { title: '3 列', value: 3 }, { title: '4 列', value: 4 }] } }),
     defineField({ name: 'cardGap', title: '卡片间距（像素）', type: 'number', group: 'cards', initialValue: 24, validation: rule => rule.integer().min(8).max(48) }),
     defineField({ name: 'cardImageHeight', title: '卡片图片高度（像素）', type: 'number', group: 'cards', initialValue: 150, validation: rule => rule.integer().min(100).max(320) }),
     defineField({ name: 'showCardCategory', title: '显示文章分类', type: 'boolean', group: 'cards', initialValue: true }),

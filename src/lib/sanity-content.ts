@@ -219,7 +219,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   showDefaultLatestPosts: true,
   postsPerPage: 16,
   homepageMaxWidth: 1480,
-  cardColumns: 3,
+  cardColumns: 4,
   cardGap: 24,
   cardImageHeight: 150,
   showCardCategory: true,

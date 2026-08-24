@@ -236,6 +236,7 @@ test('homepage uses a 4 by 4 page and automatically groups Microsoft tutorials',
   assert.match(homepage, /settings\.postsPerPage \|\| 16/)
   assert.match(settings, /initialValue: 16/)
   assert.match(settings, /4 列 × 4 行/)
+  assert.match(settings, /name: 'cardColumns'.*initialValue: 4/)
   assert.match(importer, /postsPerPage: 16/)
   assert.match(content, /MICROSOFT_CATEGORY_NAME = '微软办公软件'/)
   assert.match(content, /MICROSOFT_CATEGORY_SLUG = 'microsoft-office'/)
