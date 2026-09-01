@@ -7,7 +7,6 @@ stages:
 
 variables:
   NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
-  CLOUDFLARE_ACCOUNT_ID: "ef44acba9dcdaf04615c9e00373add45"
   SANITY_PROJECT_ID: "o9d9rhdt"
   SANITY_DATASET: "production"
 
@@ -33,20 +32,6 @@ validate:
     - cd sanity-studio
     - npm ci --cache ../.npm --prefer-offline
     - npx sanity build --yes
-
-deploy_cloudflare_pages:
-  stage: deploy
-  needs: ["validate"]
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  environment:
-    name: production
-    url: https://zzgcopilot-web-gitlab-ci.pages.dev
-  before_script:
-    - npm ci --cache .npm --prefer-offline
-  script:
-    - npm run pages:build
-    - npx wrangler pages deploy .open-next --project-name zzgcopilot-web-gitlab-ci --branch "$CI_COMMIT_BRANCH" --commit-hash "$CI_COMMIT_SHA" --commit-message "$CI_COMMIT_TITLE"
 
 deploy_sanity_studio:
   stage: deploy

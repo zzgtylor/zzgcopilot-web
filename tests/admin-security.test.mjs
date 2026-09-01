@@ -187,8 +187,9 @@ test('Sanity revalidation is signed and invalidates narrow content tags', () => 
 
 test('production CI deploys after validation without a D1 migration stage', () => {
   const ci = read('.gitlab-ci.yml')
-  assert.match(ci, /deploy_cloudflare_pages:/)
+  assert.match(ci, /deploy_sanity_studio:/)
   assert.match(ci, /needs: \["validate"\]/)
+  assert.doesNotMatch(ci, /deploy_cloudflare_pages|pages\.dev|wrangler pages deploy/)
   assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
 })
 
