@@ -1,6 +1,5 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { adminEmail } from '@/lib/admin-auth'
 import { buildAnalyticsReport, reportRange, type MetricRow } from '@/lib/analytics-report'
 import { platformDb } from '@/lib/platform'
@@ -14,16 +13,11 @@ function Ranking({ title, rows }: { title: string; rows: MetricRow[] }) {
 
 export default async function AnalyticsAdmin({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const requestHeaders = await headers()
-  const host = requestHeaders.get('host')?.split(':')[0].toLowerCase()
   const params = await searchParams
-  if (host === 'zzgcopilot.com' || host === 'www.zzgcopilot.com') {
-    const rangeQuery = params.range ? `?range=${encodeURIComponent(params.range)}` : ''
-    redirect(`https://zzgcopilot-web-52s.pages.dev/admin/analytics${rangeQuery}`)
-  }
   const email = adminEmail(requestHeaders)
-  if (!email) return <main className="mx-auto max-w-2xl p-10"><h1 className="text-2xl font-bold">访问未授权</h1><p className="mt-3">请通过 Cloudflare Access 登录管理员邮箱。</p></main>
+  if (!email) return <main className="mx-auto max-w-2xl p-10"><h1 className="text-2xl font-bold">访问未授权</h1><p className="mt-3">请通过 Vercel 项目访问保护和管理员身份验证后再打开此报表。</p></main>
   const db = platformDb()
-  if (!db) return <main className="p-10">D1 尚未连接。</main>
+  if (!db) return <main className="p-10">Neon 数据库尚未连接。</main>
   const range = reportRange(params.range || null), report = await buildAnalyticsReport(db, range)
   const maxTrend = Math.max(1, ...report.trends.map(row => Number(row.views)))
   const summary = [
@@ -33,5 +27,5 @@ export default async function AnalyticsAdmin({ searchParams }: { searchParams: P
     <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">{summary.map(([label, value]) => <section key={label} className="rounded-xl border border-gray-200 bg-white p-4"><p className="text-sm text-gray-500">{label}</p><strong className="mt-2 block text-2xl">{typeof value === 'number' ? value.toLocaleString() : value}</strong></section>)}</div>
     <section className="mt-6 rounded-xl border border-gray-200 bg-white p-5"><h2 className="font-bold">浏览趋势</h2><div className="mt-5 flex h-48 items-end gap-1 overflow-x-auto" aria-label="每日浏览量趋势">{report.trends.map(row => <div key={row.date} className="group flex min-w-2 flex-1 flex-col items-center justify-end" title={`${row.date}: ${row.views} 浏览 / ${row.visitors} 访客`}><div className="w-full min-w-2 rounded-t bg-[var(--site-primary)]" style={{ height: `${Math.max(row.views ? 4 : 1, row.views / maxTrend * 100)}%` }} /><span className="mt-2 hidden text-[10px] text-gray-400 lg:block">{row.date.slice(5)}</span></div>)}</div></section>
     <div className="mt-6 grid gap-5 lg:grid-cols-2"><Ranking title="热门页面" rows={report.topPages}/><Ranking title="搜索关键词" rows={report.searches}/><Ranking title="访问来源" rows={report.referrers}/><Ranking title="国家和地区" rows={report.countries}/><Ranking title="设备类型" rows={report.devices}/><Ranking title="业务事件" rows={report.events}/></div>
-    <p className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-900">报表使用每日单向哈希进行访客去重，不保存原始 IP。Cloudflare Web Analytics 可在 Cloudflare 控制台查看 Core Web Vitals、浏览器和操作系统等边缘指标。</p></div></main>
+    <p className="mt-6 rounded-lg bg-blue-50 p-4 text-sm text-blue-900">报表使用每日单向哈希进行访客去重，不保存原始 IP。页面和接口运行在 Vercel，业务统计数据存储在 Neon。</p></div></main>
 }

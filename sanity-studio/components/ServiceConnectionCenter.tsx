@@ -43,7 +43,7 @@ export function ServiceConnectionCenter() {
   const services: Array<{ title: string; description: string; state: State }> = [
     { title: 'Sanity 内容数据库', description: '文章、页面、媒体、主题和后台配置。', state: remote.sanity ? 'connected' : 'missing' },
     { title: '邮件订阅链接', description: '连接外部邮件营销表单或订阅页面。', state: settings.newsletterHref ? 'connected' : 'missing' },
-    { title: 'Cloudflare Access', description: '保护管理报表和内部管理页面。', state: remote.adminAccess ? 'connected' : 'missing' },
+    { title: 'Vercel 访问保护', description: '保护管理报表和内部管理页面。', state: remote.adminAccess ? 'connected' : 'missing' },
   ]
 
   return <Box padding={5}><Stack space={6}>
