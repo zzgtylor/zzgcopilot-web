@@ -69,4 +69,5 @@ monthly_sanity_backup:
   before_script:
     - npm ci --cache .npm --prefer-offline
   script:
+    - test -n "$BLOB_READ_WRITE_TOKEN"
     - npm run backup:sanity

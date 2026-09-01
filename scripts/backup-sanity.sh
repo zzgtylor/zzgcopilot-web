@@ -31,5 +31,11 @@ NODE
 (cd "$backup_dir" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS)
 archive_path="${backup_dir}.tar.gz"
 tar -C "$(dirname "$backup_dir")" -czf "$archive_path" "$(basename "$backup_dir")"
-npx wrangler r2 object put "zzgcopilot-backups/${timestamp}.tar.gz" --remote --file "$archive_path"
-echo "Sanity backup complete: $archive_path"
+
+restore_test_dir=$(mktemp -d)
+trap 'rm -rf "$restore_test_dir"' EXIT
+tar -xzf "$archive_path" -C "$restore_test_dir"
+(cd "$restore_test_dir/$(basename "$backup_dir")" && shasum -a 256 -c SHA256SUMS)
+
+node scripts/upload-backup-to-vercel-blob.mjs "$archive_path" "backups/sanity/${timestamp}.tar.gz"
+echo "Sanity backup complete and stored in private Vercel Blob: $archive_path"

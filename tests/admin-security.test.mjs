@@ -162,7 +162,7 @@ test('service connection center reports readiness without returning secret value
   assert.doesNotMatch(route, /get-secret-value|secret\s*:/i)
 })
 
-test('lightweight runtime removes D1 and R2 bindings while retaining Sanity backups', () => {
+test('lightweight runtime removes D1 and R2 bindings while retaining Sanity backups in Vercel Blob', () => {
   const wrangler = read('wrangler.toml')
   const ci = read('.gitlab-ci.yml')
   assert.doesNotMatch(wrangler, /\[\[d1_databases\]\]|\[\[r2_buckets\]\]/)
@@ -171,7 +171,8 @@ test('lightweight runtime removes D1 and R2 bindings while retaining Sanity back
   assert.match(ci, /deploy_sanity_studio/)
   assert.match(read('package.json'), /backup:sanity/)
   assert.match(read('scripts/backup-sanity.sh'), /backup-sanity-assets/)
-  assert.match(read('scripts/backup-sanity.sh'), /zzgcopilot-backups/)
+  assert.match(read('scripts/backup-sanity.sh'), /upload-backup-to-vercel-blob/)
+  assert.doesNotMatch(read('scripts/backup-sanity.sh'), /wrangler\s+r2/)
   assert.doesNotMatch(read('src/app/tutorials/[slug]/page.tsx'), /Comments|CheckoutButton|currentMember|platformDb/)
 })
 
@@ -273,12 +274,16 @@ test('WordPress-style editing tools include media, preview, scheduling, and revi
 })
 
 test('recovery backups include drafts, published documents, and image binaries', () => {
-  const backup = read('scripts/backup-cloudflare.sh')
+  const backup = read('scripts/backup-sanity.sh')
   assert.match(backup, /export-sanity-content\.mjs/)
   assert.match(backup, /backup-sanity-assets\.mjs/)
+  assert.match(backup, /upload-backup-to-vercel-blob\.mjs/)
   assert.match(read('scripts/backup-sanity-assets.mjs'), /cdn\.sanity\.io/)
   assert.match(read('scripts/backup-sanity-assets.mjs'), /bodyAssets/)
   assert.match(read('scripts/export-sanity-content.mjs'), /perspective', 'raw'/)
   assert.match(read('scripts/export-sanity-content.mjs'), /SANITY_AUTH_TOKEN/)
-  assert.match(read('.github/workflows/monthly-cloudflare-backup.yml'), /SANITY_BACKUP_TOKEN/)
+  const backupWorkflow = read('.github/workflows/monthly-vercel-blob-backup.yml')
+  assert.match(backupWorkflow, /SANITY_BACKUP_TOKEN/)
+  assert.match(backupWorkflow, /VERCEL_BLOB_READ_WRITE_TOKEN/)
+  assert.doesNotMatch(backupWorkflow, /CLOUDFLARE_API_TOKEN/)
 })
