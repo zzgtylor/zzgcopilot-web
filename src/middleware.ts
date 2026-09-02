@@ -18,11 +18,11 @@ async function managedRedirect(pathname: string): Promise<{ targetPath: string; 
 export default async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if ((pathname.startsWith('/admin') && pathname !== '/admin/engagement' && pathname !== '/admin/analytics') || pathname === '/login' || pathname === '/register') {
+    if ((pathname.startsWith('/admin') && !['/admin/engagement', '/admin/analytics', '/admin/login'].includes(pathname)) || pathname === '/login' || pathname === '/register') {
         return NextResponse.redirect(SANITY_STUDIO_URL, 307)
     }
 
-    if (pathname.startsWith('/api/admin')) {
+    if (pathname.startsWith('/api/admin') && !['/api/admin/login', '/api/admin/logout'].includes(pathname)) {
         return NextResponse.json({ error: '原 Cloudflare 内容后台已停用，请使用 Sanity Studio。' }, { status: 410 })
     }
 
@@ -57,6 +57,7 @@ export default async function middleware(request: NextRequest) {
         pathname.startsWith('/api') ||
         pathname === '/admin/engagement' ||
         pathname === '/admin/analytics' ||
+        pathname === '/admin/login' ||
         pathname === '/account' ||
         pathname.startsWith('/_next') ||
         pathname.startsWith('/tutorials/') ||

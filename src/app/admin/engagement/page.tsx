@@ -5,8 +5,8 @@ import { platformDb } from '@/lib/platform'
 export const dynamic = 'force-dynamic'
 
 export default async function EngagementAdmin() {
-  const email = adminEmail(await headers())
-  if (!email) return <main className="mx-auto max-w-2xl p-10"><h1 className="text-2xl font-bold">访问未授权</h1><p className="mt-3">请通过 Vercel 访问保护，并使用管理员访问令牌登录。</p></main>
+  const email = await adminEmail(await headers())
+  if (!email) return <main className="mx-auto max-w-2xl p-10"><h1 className="text-2xl font-bold">访问未授权</h1><p className="mt-3">请先通过 Vercel 项目访问保护，再<a className="ml-1 underline" href="/admin/login">登录管理员后台</a>。</p></main>
   const db = platformDb()
   if (!db) return <main className="p-10">Neon 数据库尚未连接。</main>
   const [comments, forms, members, views] = await Promise.all([

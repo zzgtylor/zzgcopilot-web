@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -201,6 +201,25 @@ test('legacy admin and account entry points are retired in favor of Sanity Studi
   assert.match(middleware, /pathname\.startsWith\('\/api\/admin'\)/)
   assert.match(middleware, /status: 410/)
   assert.doesNotMatch(middleware, /pathname\.startsWith\('\/uploads'\)/)
+})
+
+test('administrator reports use a Vercel-compatible signed browser session', () => {
+  const auth = read('src/lib/admin-auth.ts')
+  const login = read('src/app/api/admin/login/route.ts')
+  const logout = read('src/app/api/admin/logout/route.ts')
+  const middleware = read('src/middleware.ts')
+  assert.match(auth, /ADMIN_ACCESS_TOKEN/)
+  assert.match(auth, /ADMIN_SESSION_COOKIE/)
+  assert.match(login, /httpOnly: true/)
+  assert.match(login, /maxAge: 60 \* 60 \* 8/)
+  assert.match(logout, /maxAge: 0/)
+  assert.match(middleware, /'\/admin\/login'/)
+  assert.match(middleware, /'\/api\/admin\/login'/)
+  assert.doesNotMatch(auth, /cf-access-authenticated-user-email/)
+})
+
+test('GitHub does not retain a Cloudflare Pages deployment workflow', () => {
+  assert.equal(existsSync('.github/workflows/deploy-cloudflare-pages.yml'), false)
 })
 
 test('Sanity schemas own posts, settings, and image assets', () => {
