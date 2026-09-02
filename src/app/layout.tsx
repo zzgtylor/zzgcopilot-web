@@ -3,6 +3,7 @@ import './globals.css'
 import { getSanitySiteSettings } from '@/lib/sanity-content'
 import { TemplatePreviewBridge } from '@/components/TemplatePreviewBridge'
 import { GoogleAnalytics } from '@/components/GoogleAnalytics'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSanitySiteSettings()
@@ -38,7 +39,7 @@ export default async function RootLayout({
   const headingFont = settings.headingFont === 'sans' ? 'Arial, sans-serif' : 'Georgia, serif'
   return (
     <html lang="zh-CN" data-site-theme={settings.themePreset} data-card-style={settings.cardStyle} data-nav-style={settings.navigationStyle} data-card-columns={settings.cardColumns} style={{ '--site-primary': settings.primaryColor, '--site-secondary': settings.secondaryColor, '--site-header-bg': settings.headerBackgroundColor, '--site-surface': settings.surfaceColor, '--site-card-bg': settings.cardBackgroundColor, '--site-content-width': `${settings.contentWidth}px`, '--site-home-width': `${settings.homepageMaxWidth}px`, '--site-card-radius': `${settings.cardRadius}px`, '--site-card-gap': `${settings.cardGap}px`, '--site-card-image-height': `${settings.cardImageHeight}px`, '--site-body-font': bodyFont, '--site-heading-font': headingFont } as React.CSSProperties}>
-      <body><TemplatePreviewBridge /><GoogleAnalytics />{children}</body>
+      <body><TemplatePreviewBridge /><GoogleAnalytics /><SpeedInsights />{children}</body>
     </html>
   )
 }
