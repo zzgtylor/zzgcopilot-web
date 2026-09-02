@@ -37,5 +37,9 @@ trap 'rm -rf "$restore_test_dir"' EXIT
 tar -xzf "$archive_path" -C "$restore_test_dir"
 (cd "$restore_test_dir/$(basename "$backup_dir")" && shasum -a 256 -c SHA256SUMS)
 
-node scripts/upload-backup-to-vercel-blob.mjs "$archive_path" "backups/sanity/${timestamp}.tar.gz"
-echo "Sanity backup complete and stored in private Vercel Blob: $archive_path"
+if [[ "${BACKUP_STORAGE:-vercel-blob}" == "gitlab-artifact" ]]; then
+  echo "Sanity backup complete and ready for GitLab artifact retention: $archive_path"
+else
+  node scripts/upload-backup-to-vercel-blob.mjs "$archive_path" "backups/sanity/${timestamp}.tar.gz"
+  echo "Sanity backup complete and stored in private Vercel Blob: $archive_path"
+fi

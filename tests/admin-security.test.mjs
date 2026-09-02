@@ -168,7 +168,7 @@ test('lightweight runtime removes D1 and R2 bindings while retaining Sanity back
   assert.doesNotMatch(wrangler, /\[\[d1_databases\]\]|\[\[r2_buckets\]\]/)
   assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
   assert.match(ci, /monthly_sanity_backup/)
-  assert.match(ci, /deploy_sanity_studio/)
+  assert.doesNotMatch(ci, /deploy_sanity_studio/)
   assert.match(read('package.json'), /backup:sanity/)
   assert.match(read('scripts/backup-sanity.sh'), /backup-sanity-assets/)
   assert.match(read('scripts/backup-sanity.sh'), /upload-backup-to-vercel-blob/)
@@ -185,10 +185,10 @@ test('Sanity revalidation is signed and invalidates narrow content tags', () => 
   assert.match(content, /next: \{ revalidate: 60, tags \}/)
 })
 
-test('production CI deploys after validation without a D1 migration stage', () => {
+test('production CI validates code while Vercel performs the production deployment', () => {
   const ci = read('.gitlab-ci.yml')
-  assert.match(ci, /deploy_sanity_studio:/)
-  assert.match(ci, /needs: \["validate"\]/)
+  assert.match(ci, /npm run build/)
+  assert.doesNotMatch(ci, /deploy_sanity_studio:/)
   assert.doesNotMatch(ci, /deploy_cloudflare_pages|pages\.dev|wrangler pages deploy/)
   assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
 })
