@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { TylerFooter, TylerHeader } from "@/components/TylerSiteChrome";
 import {
@@ -155,11 +156,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 >
                   <div className="tyler-tutorial-card-media relative overflow-hidden border-b border-[#e8e2d8]">
                     {post.cover_image ? (
-                      // Sanity image URLs are already optimized by its CDN.
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         alt={post.title}
                         className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.015]"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         src={post.cover_image}
                       />
                     ) : (

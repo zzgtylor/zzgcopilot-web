@@ -1,4 +1,5 @@
 import { PortableText, type PortableTextComponents } from '@portabletext/react'
+import Image from 'next/image'
 
 type PortableContentValue = Array<Record<string, unknown>>
 
@@ -26,7 +27,7 @@ const components: PortableTextComponents = {
   types: {
     image: ({ value }) => value.url ? (
       <figure className="my-8">
-        <img src={value.url} alt={value.alt || ''} className="w-full rounded-xl" loading="lazy" />
+        <Image src={value.url} alt={value.alt || ''} width={1600} height={1000} className="h-auto w-full rounded-xl" loading="lazy" />
         {value.caption ? <figcaption className="mt-2 text-center text-sm text-gray-500">{value.caption}</figcaption> : null}
       </figure>
     ) : null,

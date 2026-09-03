@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getSanityPost, getSanityRelatedPosts, getSanitySiteSettings } from '@/lib/sanity-content'
@@ -110,7 +111,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </header>
 
         {post.cover_image && (
-          <img src={post.cover_image} alt={post.title} className="mb-10 w-full rounded-2xl object-cover" />
+          <Image src={post.cover_image} alt={post.title} width={1600} height={900} className="mb-10 h-auto w-full rounded-2xl object-cover" />
         )}
 
         <CustomFieldDisplay fields={post.custom_fields} placement="beforeContent" />
