@@ -1,7 +1,9 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { Pool, PoolClient } from 'pg'
 
 type PgRow = Record<string, unknown>
+export type DbResult<T> = { results: T[]; success: boolean; meta: Record<string, unknown> }
+export type DbPrepared = { bind(...values: unknown[]): DbPrepared; first<T = unknown>(column?: string): Promise<T | null>; all<T = unknown>(): Promise<DbResult<T>>; run(): Promise<DbResult<unknown>>; raw<T = unknown[]>(): Promise<T> }
+export type AppDatabase = { prepare(sql: string): DbPrepared; batch<T = unknown>(statements: DbPrepared[]): Promise<DbResult<T>[]> }
 
 function postgresSql(sql: string): string {
   let i = 0
@@ -21,11 +23,11 @@ class PgPrepared {
     const row = (await this.client.query(postgresSql(this.sql), this.values)).rows[0] as PgRow | undefined
     return (column ? row?.[column] : row) as T || null
   }
-  async all<T = unknown>(): Promise<D1Result<T>> {
+  async all<T = unknown>(): Promise<DbResult<T>> {
     const result = await this.client.query(postgresSql(this.sql), this.values)
     return { results: result.rows as T[], success: true, meta: { changes: result.rowCount || 0, duration: 0, last_row_id: 0, rows_read: result.rowCount || 0, rows_written: 0 } as any }
   }
-  async run(): Promise<D1Result<unknown>> {
+  async run(): Promise<DbResult<unknown>> {
     const result = await this.client.query(postgresSql(this.sql), this.values)
     return { results: [], success: true, meta: { changes: result.rowCount || 0, duration: 0, last_row_id: 0, rows_read: 0, rows_written: result.rowCount || 0 } as any }
   }
@@ -35,30 +37,23 @@ class PgPrepared {
 class PgCompat {
   constructor(private readonly pool: Pool) {}
   prepare(sql: string): any { return new PgPrepared(this.pool, sql) }
-  async batch<T = unknown>(statements: any[]): Promise<D1Result<T>[]> {
+  async batch<T = unknown>(statements: DbPrepared[]): Promise<DbResult<T>[]> {
     const client = await this.pool.connect()
-    try { await client.query('BEGIN'); const results: D1Result<T>[] = []; for (const statement of statements) { const s = statement as PgPrepared; const result = await client.query(postgresSql((s as any).sql), (s as any).values); results.push({ results: result.rows as T[], success: true, meta: { changes: result.rowCount || 0, duration: 0, last_row_id: 0, rows_read: result.rowCount || 0, rows_written: result.rowCount || 0 } as any }) } await client.query('COMMIT'); return results } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+    try { await client.query('BEGIN'); const results: DbResult<T>[] = []; for (const statement of statements) { const s = statement as PgPrepared; const result = await client.query(postgresSql((s as any).sql), (s as any).values); results.push({ results: result.rows as T[], success: true, meta: { changes: result.rowCount || 0, duration: 0, rows_read: result.rowCount || 0, rows_written: result.rowCount || 0 } }) } await client.query('COMMIT'); return results } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
   }
 }
 
 let postgresPool: Pool | null = null
 
-export function platformEnv(): Record<string, unknown> {
-  try { return getCloudflareContext().env as Record<string, unknown> } catch { return process.env }
-}
-
 export function platformValue(key: string): string {
-  const value = process.env[key] || platformEnv()[key]
-  return typeof value === 'string' ? value : ''
+  return process.env[key] || ''
 }
 
-export function platformDb(): D1Database | null {
-  const value = platformEnv().DB
-  if (value && typeof value === 'object') return value as D1Database
+export function platformDb(): AppDatabase | null {
   const url = platformValue('DATABASE_URL') || platformValue('POSTGRES_URL') || platformValue('DATABASE_URL_UNPOOLED')
   if (!url) return null
   postgresPool ||= new Pool({ connectionString: url, max: 5, idleTimeoutMillis: 10_000, ssl: { rejectUnauthorized: false } })
-  return new PgCompat(postgresPool) as unknown as D1Database
+  return new PgCompat(postgresPool)
 }
 
 export async function sha256(value: string): Promise<string> {
@@ -80,5 +75,5 @@ export async function validateTurnstile(token: string, remoteIp?: string): Promi
 }
 
 export function requestIp(request: Request): string {
-  return request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || ''
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || ''
 }

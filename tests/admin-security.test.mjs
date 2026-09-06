@@ -163,9 +163,9 @@ test('service connection center reports readiness without returning secret value
 })
 
 test('lightweight runtime removes D1 and R2 bindings while retaining Sanity backups in Vercel Blob', () => {
-  const wrangler = read('wrangler.toml')
   const ci = read('.gitlab-ci.yml')
-  assert.doesNotMatch(wrangler, /\[\[d1_databases\]\]|\[\[r2_buckets\]\]/)
+  assert.equal(existsSync('wrangler.toml'), false)
+  assert.equal(existsSync('open-next.config.ts'), false)
   assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
   assert.match(ci, /monthly_sanity_backup/)
   assert.doesNotMatch(ci, /deploy_sanity_studio/)
@@ -194,7 +194,7 @@ test('production CI validates code while Vercel performs the production deployme
 })
 
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {
-  const middleware = read('src/middleware.ts')
+  const middleware = read('src/proxy.ts')
   assert.match(middleware, /SANITY_STUDIO_URL/)
   assert.match(middleware, /pathname\.startsWith\('\/admin'\)/)
   assert.match(middleware, /pathname === '\/login'/)
@@ -207,7 +207,7 @@ test('administrator reports use a Vercel-compatible signed browser session', () 
   const auth = read('src/lib/admin-auth.ts')
   const login = read('src/app/api/admin/login/route.ts')
   const logout = read('src/app/api/admin/logout/route.ts')
-  const middleware = read('src/middleware.ts')
+  const middleware = read('src/proxy.ts')
   assert.match(auth, /ADMIN_ACCESS_TOKEN/)
   assert.match(auth, /ADMIN_SESSION_COOKIE/)
   assert.match(login, /httpOnly: true/)

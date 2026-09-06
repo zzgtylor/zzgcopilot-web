@@ -1,4 +1,3 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { cookies } from 'next/headers'
 import { perspectiveCookieName } from '@sanity/preview-url-secret/constants'
 
@@ -273,14 +272,7 @@ export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
 export type SanityConfig = { projectId: string; dataset: string; apiVersion: string; token: string }
 
 function valueFromEnvironment(key: string): string {
-  const fromProcess = process.env[key]
-  if (fromProcess) return fromProcess
-  try {
-    const value = (getCloudflareContext().env as Record<string, unknown>)[key]
-    return typeof value === 'string' ? value : ''
-  } catch {
-    return ''
-  }
+  return process.env[key] || ''
 }
 
 function safePublicHref(value: string | undefined): string {

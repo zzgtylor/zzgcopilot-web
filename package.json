@@ -6,12 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "opennextjs-cloudflare build && node scripts/pages-postbuild.mjs",
-    "preview": "npm run pages:build && opennextjs-cloudflare preview",
-    "deploy": "npm run pages:build && wrangler pages deploy",
     "backup:sanity": "bash scripts/backup-sanity.sh",
-    "migrate:d1-to-postgres": "node scripts/migrate-d1-to-postgres.mjs",
     "test": "node --test tests/*.test.mjs",
+    "test:smoke": "node tests/http-smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,8 +27,6 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240924.0",
-    "@opennextjs/cloudflare": "^1.20.2",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
@@ -39,7 +34,6 @@
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5",
-    "wrangler": "^4.86.0"
+    "typescript": "^5"
   }
 }

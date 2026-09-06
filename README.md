@@ -1,145 +1,69 @@
-# ZZGCopilot - AI 编程教程网站
+# ZZGCopilot
 
-> **全栈动态教程网站** - Next.js 14 + Cloudflare Pages + D1 数据库 + R2 存储
+ZZGCopilot 是一个基于 Next.js App Router 的动态教程网站。当前生产架构为：
 
-## 🚀 技术栈
+| 层级 | 当前服务 | 用途 |
+|---|---|---|
+| Web 与 API | Vercel | 页面、Route Handlers、CDN 与部署 |
+| 内容管理 | Sanity | 文章、首页配置、媒体元数据与编辑工作流 |
+| 业务数据库 | Neon PostgreSQL | 用户、评论、收藏、统计和业务数据 |
+| 文件与备份 | Vercel Blob | 上传文件、Sanity 导出和独立备份 |
+| 质量与版本 | GitLab | 源码、Issue、CI 校验和备份留存 |
+| 域名与 DNS | Cloudflare Registrar/DNS | 域名注册、DNS 与证书边界；不承载网站运行时 |
 
-| 层级 | 技术 | 说明 |
-|------|------|------|
-| 前端框架 | Next.js 14 (App Router) | React 服务端组件 + 客户端组件 |
-| 部署平台 | Cloudflare Pages | 全球 CDN + Edge Functions |
-| 数据库 | Cloudflare D1 (SQLite) | 用户、文章、评论、收藏数据 |
-| 文件存储 | Cloudflare R2 | 教程插图、演示视频 |
-| 认证 | NextAuth.js | 邮箱/密码登录 + JWT Session |
-| UI 样式 | Tailwind CSS + Lucide Icons | 响应式设计 |
-| 内容格式 | Markdown (react-markdown) | 教程内容渲染 |
+## 本地开发
 
-## ✨ 功能特性
-
-- **用户系统**: 注册、登录、个人资料管理
-- **教程浏览**: 分类筛选、搜索、标签
-- **互动功能**: 评论（支持回复嵌套）、收藏、点赞
-- **媒体管理**: 图片/视频上传到 R2，自动生成 URL
-- **后台管理系统**: 类似 WordPress 的管理界面（/admin）
-  - 文章 CRUD（Markdown 编辑器）
-  - 评论管理与审核
-  - 用户管理与权限分配
-  - 媒体库管理
-
-## 📁 项目结构
-
-```
-zzgcopilot-web/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── auth/[...nextauth]/route.ts  # NextAuth 认证
-│   │   │   ├── register/route.ts            # 用户注册
-│   │   │   ├── posts/route.ts               # 教程 API
-│   │   │   ├── comments/route.ts            # 评论 API
-│   │   │   ├── bookmarks/route.ts           # 收藏 API
-│   │   │   ├── upload/route.ts              # R2 文件上传
-│   │   │   └── admin/                       # 后台管理 API
-│   │   ├── admin/page.tsx                   # 后台管理界面
-│   │   ├── tutorials/                       # 教程页面
-│   │   ├── login/page.tsx                   # 登录页
-│   │   ├── register/page.tsx                # 注册页
-│   │   ├── globals.css                      # 全局样式
-│   │   ├── layout.tsx                       # 根布局
-│   │   └── page.tsx                         # 首页
-│   ├── components/
-│   │   ├── layout/Navbar.tsx                # 导航栏
-│   │   ├── layout/Footer.tsx                # 底部
-│   │   ├── providers/AuthProvider.tsx       # Session 提供者
-│   │   └── tutorial/                        # 教程相关组件
-│   ├── lib/
-│   │   ├── db.ts                            # D1 数据库操作层
-│   │   └── auth.ts                          # NextAuth 配置
-│   └── middleware.ts                        # 路由保护
-├── schema.sql                               # D1 数据库结构
-├── wrangler.toml                            # Cloudflare 配置
-├── next.config.js                           # Next.js 配置
-└── package.json                             # 依赖管理
-```
-
-## 🔧 部署步骤
-
-### 1. 已完成 ✅
-- [x] GitHub 仓库创建: `zzgtylor/zzgcopilot-web`
-- [x] D1 数据库创建: `zzgcopilot-db` (ID: f51cd6bd-fcb0-47ce-90ca-32209552c7bf)
-- [x] 数据库表结构初始化（users, posts, categories, comments, bookmarks, likes, media）
-- [x] R2 存储桶创建: `zzgcopilot-assets`
-- [x] 完整项目代码提交
-
-### 2. 需要手动完成
-
-#### A. 连接 Cloudflare Pages 到 GitHub
-1. 前往 [Cloudflare Dashboard > Workers & Pages > Create](https://dash.cloudflare.com/686b555829b94ccd904bd26e51b8b1c6/pages/new)
-2. 选择 "Pages" > "Connect to Git"
-3. 选择 GitHub 账户 `zzgtylor`，选择仓库 `zzgcopilot-web`
-4. 构建配置:
-   - **构建命令**: `npm run pages:build`
-   - **输出目录**: `.vercel/output/static`
-   - **Node.js 版本**: 20
-
-#### B. 配置环境变量（在 Cloudflare Pages 设置中）
-```
-NEXTAUTH_URL=https://zzgcopilot.com
-NEXTAUTH_SECRET=<生成一个32位以上的随机密钥>
-R2_PUBLIC_URL=https://assets.zzgcopilot.com
-```
-
-生成密钥方法:
 ```bash
-openssl rand -base64 32
+npm install
+npm run dev
 ```
 
-#### C. 绑定 D1 和 R2 到 Pages（在 Pages 设置 > 绑定中）
-- **D1 数据库绑定**:
-  - 变量名: `DB`
-  - 数据库: `zzgcopilot-db`
-- **R2 存储桶绑定**:
-  - 变量名: `R2`
-  - 存储桶: `zzgcopilot-assets`
+常用检查：
 
-#### D. 配置自定义域名
-1. 在 Cloudflare Pages 设置 > 自定义域
-2. 添加 `zzgcopilot.com`（您的 AWS 域名需要将 DNS 指向 Cloudflare）
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
-#### E. 初次部署后修改管理员密码
-默认管理员账号:
-- 邮箱: `admin@zzgcopilot.com`
-- 密码: `Admin@123456`
+## Vercel 环境变量
 
-**⚠️ 请立即修改默认密码！**
+生产和预览环境按需配置以下变量：
 
-### 3. R2 公开访问配置（可选）
-如需图片公开访问，在 R2 存储桶 Settings > Public Access 中启用公开访问并绑定自定义域 `assets.zzgcopilot.com`。
+- `DATABASE_URL` 或 `POSTGRES_URL`：Neon PostgreSQL 连接串
+- `BLOB_READ_WRITE_TOKEN`：Vercel Blob 上传和备份
+- `NEXT_PUBLIC_SANITY_PROJECT_ID`、`NEXT_PUBLIC_SANITY_DATASET`、`SANITY_API_VERSION`
+- `SANITY_API_TOKEN`、`SANITY_REVALIDATE_SECRET`
+- `ADMIN_ACCESS_TOKEN`、`ADMIN_ALLOWED_EMAILS`
+- `TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`（启用反滥用校验时）
+- `CRON_SECRET`（保护定时任务）
 
-## 🔑 管理员功能
-访问 `https://zzgcopilot.com/admin` 即可进入后台管理系统：
-- 创建/编辑/删除文章（Markdown 格式）
-- 管理分类和标签
-- 审核和删除评论
-- 查看和管理用户
-- 上传图片和视频到 R2
+敏感变量应使用 Vercel Secret 类型，并同时检查 Production、Preview 是否勾选正确。保存后需要重新部署才能让新值进入函数运行时。
 
-## 📝 发布新教程
-1. 登录后台 `/admin`
-2. 点击"新建文章"
-3. 输入标题（自动生成 URL Slug）
-4. 使用 Markdown 格式编写内容
-5. 选择分类和标签
-6. 点击"发布"即可
+## 内容和后台
 
-## 📜 License
-MIT
-# Deployment notes
+- 内容编辑入口：Sanity Studio。
+- 网站后台报告入口：`/admin`，由 Vercel 环境变量中的管理员令牌和允许邮箱控制。
+- 上传接口使用 Vercel Blob；不再使用 Cloudflare R2。
+- 登录、评论、统计接口使用 Vercel Functions + Neon PostgreSQL。
 
-## Sanity cache revalidation
+## 部署
 
-Configure the Cloudflare Pages production secret `SANITY_REVALIDATE_SECRET` and configure a Sanity webhook to `POST /api/revalidate` with the same value in the `x-sanity-revalidate-secret` header. The endpoint only invalidates the affected content tags; draft-preview requests remain uncached.
+项目连接 GitLab 后由 Vercel 负责 Preview/Production 部署。生产域名为 `https://zzgcopilot.com`；Cloudflare 只保留域名注册和 DNS，不再配置 Pages、Workers、D1 或 R2 作为活动部署链路。
 
-## D1 migrations
+## 备份
 
-The production GitLab pipeline applies `wrangler d1 migrations apply zzgcopilot-db --remote` after validation and before the Pages deployment. The Cloudflare API token used by CI must have D1 edit permission. Do not run this job from merge-request pipelines.
+`npm run backup:sanity` 将 Sanity 内容和媒体备份到私有 Vercel Blob。GitLab/GitHub 中的备份工作流可作为独立留存渠道；备份脚本会在缺少凭证时安全失败，不影响网站请求。
+
+仓库中保留的 `scripts/migrate-d1-to-postgres.mjs`、`scripts/migrate-passwords.mjs` 和历史 SQL 仅用于迁移审计或灾难恢复，不属于生产运行时，也不应在新部署中执行。
+
+## 目录概览
+
+```text
+src/app/                 页面与 API Route Handlers
+src/lib/platform.ts      Vercel/Neon 运行时适配层
+sanity-studio/           Sanity 内容编辑器
+migrations/              PostgreSQL 迁移脚本
+scripts/                 备份与一次性迁移工具
+tests/                   静态架构与安全回归测试
+```

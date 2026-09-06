@@ -17,12 +17,12 @@ export function reportRange(value: string | null): number {
   return [1, 7, 30, 90, 365].includes(range) ? range : 30
 }
 
-async function rows<T>(statement: D1PreparedStatement): Promise<T[]> {
+async function rows<T>(statement: DbPrepared): Promise<T[]> {
   const result = await statement.all<T>()
   return (result.results || []) as T[]
 }
 
-export async function buildAnalyticsReport(db: D1Database, range: number): Promise<AnalyticsReport> {
+export async function buildAnalyticsReport(db: AppDatabase, range: number): Promise<AnalyticsReport> {
   const modifier = `-${Math.max(0, range - 1)} days`
   const [summary, trends, topPages, searches, referrers, countries, devices, events] = await Promise.all([
     db.prepare(`SELECT
@@ -53,3 +53,4 @@ export function reportCsv(report: AnalyticsReport): string {
   for (const row of report.trends) lines.push([row.date, row.views, row.visitors].join(','))
   return `\uFEFF${lines.join('\n')}`
 }
+import type { AppDatabase, DbPrepared } from './platform'
