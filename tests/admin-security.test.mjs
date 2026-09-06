@@ -250,6 +250,8 @@ test('SEO uses a public sitemap and article recommendations prefer dynamic Sanit
 
 test('homepage uses a 4 by 4 page and automatically groups Microsoft tutorials', () => {
   const homepage = read('src/app/page.tsx')
+  assert.match(homepage, /export const revalidate = 60/)
+  assert.doesNotMatch(homepage, /dynamic\s*=\s*["']force-dynamic["']/)
   const content = read('src/lib/sanity-content.ts')
   const css = read('src/app/globals.css')
   const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')

@@ -48,3 +48,19 @@ monthly_sanity_backup:
     expire_in: 90 days
     paths:
       - backups/*.tar.gz
+
+monthly_neon_backup:
+  stage: backup
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $RUN_BACKUP == "true"'
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq postgresql-client
+  script:
+    - test -n "$NEON_DATABASE_URL"
+    - DATABASE_URL="$NEON_DATABASE_URL" BACKUP_STORAGE=gitlab-artifact npm run backup:neon
+  artifacts:
+    when: always
+    expire_in: 90 days
+    paths:
+      - backups/*.tar.gz

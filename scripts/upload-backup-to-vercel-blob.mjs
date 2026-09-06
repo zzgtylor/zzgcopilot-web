@@ -16,8 +16,8 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
 }
 
 const archiveName = basename(archivePath)
-if (archiveName !== basename(pathname) || !pathname.startsWith('backups/sanity/') || !pathname.endsWith('.tar.gz')) {
-  throw new Error('Backup pathname must be backups/sanity/<archive-name>.tar.gz')
+if (archiveName !== basename(pathname) || !/^backups\/(sanity|neon)\/.+\.tar\.gz$/.test(pathname)) {
+  throw new Error('Backup pathname must be backups/sanity/<archive-name>.tar.gz or backups/neon/<archive-name>.tar.gz')
 }
 
 const metadata = await stat(archivePath)

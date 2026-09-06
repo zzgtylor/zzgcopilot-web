@@ -53,7 +53,7 @@ npm run build
 
 ## 备份
 
-`npm run backup:sanity` 将 Sanity 内容和媒体备份到私有 Vercel Blob。GitLab/GitHub 中的备份工作流可作为独立留存渠道；备份脚本会在缺少凭证时安全失败，不影响网站请求。
+`npm run backup:sanity` 将 Sanity 内容和媒体备份到私有 Vercel Blob；`npm run backup:neon` 使用 `pg_dump` 创建可恢复的 Neon PostgreSQL 快照，并按配置写入私有 Vercel Blob 或 GitLab artifact。GitLab 定时任务使用 `NEON_DATABASE_URL`，不会把数据库连接串写入日志。备份脚本会在缺少凭证时安全失败，不影响网站请求。
 
 仓库中保留的 `scripts/migrate-d1-to-postgres.mjs`、`scripts/migrate-passwords.mjs` 和历史 SQL 仅用于迁移审计或灾难恢复，不属于生产运行时，也不应在新部署中执行。
 

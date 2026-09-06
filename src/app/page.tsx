@@ -11,7 +11,9 @@ import {
   getSanitySiteSettings,
 } from "@/lib/sanity-content";
 
-export const dynamic = "force-dynamic";
+// Public homepage content is cached at the Vercel edge and refreshed by the
+// Sanity revalidation webhook. Draft preview requests remain uncached.
+export const revalidate = 60;
 
 type HomePageProps = {
   searchParams?: Promise<{
