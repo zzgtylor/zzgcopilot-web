@@ -38,6 +38,8 @@ npm run build
 - `TURNSTILE_SITE_KEY`、`TURNSTILE_SECRET_KEY`（启用反滥用校验时）
 - `CRON_SECRET`（保护定时任务）
 
+`/api/cron/health` 仅接受 `Authorization: Bearer $CRON_SECRET`，并检查 PostgreSQL、Sanity 和 Vercel Blob 的可用/配置状态。它不会返回连接串或令牌；任一关键依赖不可用时返回 `503`，便于 Vercel Cron、GitLab CI 或外部监控告警。
+
 敏感变量应使用 Vercel Secret 类型，并同时检查 Production、Preview 是否勾选正确。保存后需要重新部署才能让新值进入函数运行时。
 
 ## 内容和后台
@@ -55,7 +57,7 @@ npm run build
 
 `npm run backup:sanity` 将 Sanity 内容和媒体备份到私有 Vercel Blob；`npm run backup:neon` 使用 `pg_dump` 创建可恢复的 Neon PostgreSQL 快照，并按配置写入私有 Vercel Blob 或 GitLab artifact。GitLab 定时任务使用 `NEON_DATABASE_URL`，不会把数据库连接串写入日志。备份脚本会在缺少凭证时安全失败，不影响网站请求。
 
-仓库中保留的 `scripts/migrate-d1-to-postgres.mjs`、`scripts/migrate-passwords.mjs` 和历史 SQL 仅用于迁移审计或灾难恢复，不属于生产运行时，也不应在新部署中执行。
+仓库中保留的历史迁移脚本和 SQL 仅用于迁移审计或灾难恢复，不属于生产运行时，也不应在新部署中执行。PostgreSQL 迁移说明见 `migrations/README.md`。
 
 ## 目录概览
 

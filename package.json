@@ -8,6 +8,7 @@
     "start": "next start",
     "backup:sanity": "bash scripts/backup-sanity.sh",
     "backup:neon": "bash scripts/backup-neon.sh",
+    "db:migrate": "node scripts/migrate-postgres.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:smoke": "node tests/http-smoke.mjs",
     "typecheck": "tsc --noEmit"

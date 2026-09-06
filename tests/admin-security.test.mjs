@@ -164,6 +164,7 @@ test('service connection center reports readiness without returning secret value
 
 test('lightweight runtime removes D1 and R2 bindings while retaining Sanity backups in Vercel Blob', () => {
   const ci = read('.gitlab-ci.yml')
+  const platform = read('src/lib/platform.ts')
   assert.equal(existsSync('wrangler.toml'), false)
   assert.equal(existsSync('open-next.config.ts'), false)
   assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
@@ -174,6 +175,11 @@ test('lightweight runtime removes D1 and R2 bindings while retaining Sanity back
   assert.match(read('scripts/backup-sanity.sh'), /upload-backup-to-vercel-blob/)
   assert.doesNotMatch(read('scripts/backup-sanity.sh'), /wrangler\s+r2/)
   assert.doesNotMatch(read('src/app/tutorials/[slug]/page.tsx'), /Comments|CheckoutButton|currentMember|platformDb/)
+  assert.match(platform, /class PostgresDatabase/)
+  assert.doesNotMatch(platform, /getCloudflareContext|D1Database|binding/i)
+  assert.match(read('package.json'), /db:migrate/)
+  assert.match(read('scripts/migrate-postgres.mjs'), /schema_migrations/)
+  assert.match(read('migrations/postgres/0002_runtime_baseline.sql'), /CREATE TABLE IF NOT EXISTS members/)
 })
 
 test('Sanity revalidation is signed and invalidates narrow content tags', () => {
@@ -191,6 +197,15 @@ test('production CI validates code while Vercel performs the production deployme
   assert.doesNotMatch(ci, /deploy_sanity_studio:/)
   assert.doesNotMatch(ci, /deploy_cloudflare_pages|pages\.dev|wrangler pages deploy/)
   assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
+})
+
+test('protected health checks verify PostgreSQL and required service configuration without exposing secrets', () => {
+  const health = read('src/app/api/cron/health/route.ts')
+  assert.match(health, /postgresConfigured/)
+  assert.match(health, /SELECT 1 AS ok/)
+  assert.match(health, /status: ok \? 200 : 503/)
+  assert.match(health, /Cache-Control.*no-store/)
+  assert.doesNotMatch(health, /Response\.json\([^)]*DATABASE_URL/)
 })
 
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {
