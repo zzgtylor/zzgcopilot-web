@@ -1,4 +1,4 @@
-import { postgresConfigured, sql } from '@/lib/postgres'
+import { postgresConfigured, sql, sqlOne } from '@/lib/postgres'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,8 +20,11 @@ export async function GET(request: Request) {
   }
 
   const postgres = await checkPostgres()
+  const backup = postgres.ok ? await sqlOne<{ status: string; created_at: string }>("SELECT status, created_at FROM backup_runs WHERE kind='neon' ORDER BY created_at DESC LIMIT 1").catch(() => null) : null
+  const backupFresh = Boolean(backup && backup.status === 'success' && Date.now() - new Date(backup.created_at).getTime() < 8 * 24 * 60 * 60 * 1000)
   const dependencies = {
     postgres,
+    backup: { ok: backupFresh, state: backup ? `${backup.status}:${backup.created_at}` : 'not_recorded' },
     sanity: { ok: Boolean(process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || process.env.SANITY_PROJECT_ID), state: (process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || process.env.SANITY_PROJECT_ID) ? 'configured' : 'not_configured' },
     blob: { ok: Boolean(process.env.BLOB_READ_WRITE_TOKEN), state: process.env.BLOB_READ_WRITE_TOKEN ? 'configured' : 'not_configured' },
   }
