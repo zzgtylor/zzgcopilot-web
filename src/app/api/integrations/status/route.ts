@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { platformValue } from '@/lib/platform'
+import { postgresConfigured } from '@/lib/postgres'
 
 const allowedOrigin = 'https://zzgcopilot.sanity.studio'
 
@@ -15,11 +16,17 @@ function headers(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const postgres = postgresConfigured()
+  const turnstile = Boolean(platformValue('TURNSTILE_SECRET_KEY'))
+  const memberEmail = Boolean(platformValue('RESEND_API_KEY') && platformValue('MEMBER_FROM_EMAIL'))
   const status = {
+    postgres,
     sanity: Boolean(platformValue('NEXT_PUBLIC_SANITY_PROJECT_ID') || platformValue('SANITY_PROJECT_ID')),
-    turnstile: Boolean(platformValue('TURNSTILE_SECRET_KEY')),
+    turnstile,
     stripe: Boolean(platformValue('STRIPE_SECRET_KEY') && platformValue('STRIPE_WEBHOOK_SECRET')),
-    memberEmail: Boolean(platformValue('RESEND_API_KEY') && platformValue('MEMBER_FROM_EMAIL')),
+    memberEmail,
+    comments: postgres && turnstile,
+    memberLogin: postgres && turnstile && memberEmail,
     adminAccess: Boolean(platformValue('ADMIN_ALLOWED_EMAILS')),
   }
   return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), services: status }, { headers: headers(request) })
