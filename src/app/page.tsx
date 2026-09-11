@@ -34,6 +34,17 @@ const FALLBACK_TUTORIAL = {
   cover_image: "",
 };
 
+const EXCEL_TUTORIAL = {
+  id: "excel-tutorial",
+  title: "Excel 从入门到精通",
+  slug: "excel",
+  excerpt: "从基础操作、函数公式到数据透视表、Power Query 与 VBA 的完整实战教程。",
+  category_name: "微软办公软件",
+  published_at: "2026-09-11T00:00:00.000Z",
+  reading_time: 120,
+  cover_image: "/excel-tutorial/figs/01_excel_interface.png",
+};
+
 function formatDate(value?: string) {
   if (!value) return "";
   return new Intl.DateTimeFormat("zh-CN", {
@@ -85,6 +96,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   ]);
 
   const posts = sanityPosts.length > 0 || query || category ? sanityPosts : [FALLBACK_TUTORIAL];
+  const homepagePosts = !query && !category && page === 1 ? [EXCEL_TUTORIAL, ...posts] : posts;
   const effectiveTotal = total > 0 || query || category ? total : posts.length;
   const totalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
 
@@ -143,11 +155,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </nav>
         ) : null}
 
-        {posts.length > 0 ? (
+        {homepagePosts.length > 0 ? (
           <div className="site-card-grid grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {posts.map((post, index) => {
+            {homepagePosts.map((post, index) => {
               const href =
-                post.id === FALLBACK_TUTORIAL.id
+                post.id === EXCEL_TUTORIAL.id
+                  ? "/tutorials/excel"
+                  : post.id === FALLBACK_TUTORIAL.id
                   ? "/word-tutorial/"
                   : `/tutorials/${post.slug}`;
               return (
