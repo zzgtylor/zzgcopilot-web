@@ -47,7 +47,7 @@ export function TylerFooter({ settings }: { settings?: PublicSiteSettings } = {}
       <div className="tyler-shell mx-auto grid gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.6fr_repeat(3,1fr)] lg:px-0 lg:py-16">
         <div><p className="tyler-wordmark text-2xl font-bold text-[#182533]">{settings?.homepageFooterBrand || 'Tyler博客'}</p><p className="mt-4 max-w-xs text-sm leading-7 text-[#5c6675]">{settings?.homepageFooterNote || '记录技术，也记录生活。'}</p></div>
         <FooterColumn title="学习" links={[["最新教程", "/#latest-tutorials"], ["全部教程", "/tutorials"], ["返回首页", "/"]]} />
-        <FooterColumn title="资源" links={[["Word 教程", "/?q=Word"], ["搜索教程", "/?q=教程"], ["内容后台", "https://zzgcopilot.sanity.studio/"]]} />
+        <FooterColumn title="资源" links={[["Excel 教程", "/tutorials/excel"], ["Word 教程", "/?q=Word"], ["搜索教程", "/?q=教程"], ["内容后台", "https://zzgcopilot.sanity.studio/"]]} />
         <FooterColumn title="关于" links={[["关于本站", "/#site-footer"], ["联系反馈", "/pages/contact"], ["站点地图", "/sitemap.xml"]]} />
       </div>
       <div className="tyler-shell mx-auto flex flex-wrap justify-between gap-3 border-t border-[#dbdedb] px-5 py-6 text-xs text-[#6f7782] sm:px-8 lg:px-0"><span>© 2026 Tyler博客</span><span>内容独立整理，非相关软件官方文档</span></div>

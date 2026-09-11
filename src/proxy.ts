@@ -18,6 +18,10 @@ async function managedRedirect(pathname: string): Promise<{ targetPath: string; 
 export default async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
+    if (pathname === '/excel-tutorial' || pathname.startsWith('/excel-tutorial/')) {
+        return NextResponse.next()
+    }
+
     if ((pathname.startsWith('/admin') && !['/admin/engagement', '/admin/analytics', '/admin/login'].includes(pathname)) || pathname === '/login' || pathname === '/register') {
         return NextResponse.redirect(SANITY_STUDIO_URL, 307)
     }
