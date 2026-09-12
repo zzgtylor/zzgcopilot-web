@@ -28,12 +28,11 @@ jobs:
   fetch-from-gitlab:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
       - name: Mirror GitLab production branch to gitlab-latest
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
