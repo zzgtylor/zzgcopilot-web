@@ -1,0 +1,42 @@
+name: GitLab Sync
+
+on:
+  push:
+    branches:
+      - v0-workspace
+  workflow_dispatch:
+
+env:
+  GITLAB_HOST: gitlab.com/five973939/zzgcopilot-web.git
+  GITLAB_PROD_BRANCH: cloudflare-main
+  GITLAB_REVIEW_BRANCH: github-sync
+
+jobs:
+  push-to-gitlab:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push v0 work to GitLab review branch
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          git push "https://oauth2:${GITLAB_TOKEN}@${GITLAB_HOST}" HEAD:refs/heads/${GITLAB_REVIEW_BRANCH} --force
+
+  fetch-from-gitlab:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Mirror GitLab production branch to gitlab-latest
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          git fetch "https://oauth2:${GITLAB_TOKEN}@${GITLAB_HOST}" "${GITLAB_PROD_BRANCH}"
+          git push origin FETCH_HEAD:refs/heads/gitlab-latest --force
