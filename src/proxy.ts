@@ -18,7 +18,11 @@ async function managedRedirect(pathname: string): Promise<{ targetPath: string; 
 export default async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if (pathname === '/excel-tutorial' || pathname.startsWith('/excel-tutorial/')) {
+    if (
+        pathname === '/excel-tutorial' ||
+        pathname.startsWith('/excel-tutorial/') ||
+        pathname.startsWith('/tutorial-covers/')
+    ) {
         return NextResponse.next()
     }
 
