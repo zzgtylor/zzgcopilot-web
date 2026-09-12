@@ -1,15 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-      // Required for OpenNext / Cloudflare Pages deployment
+      async headers() {
+              return [
+                  {
+                      source: '/(.*)',
+                      headers: [
+                          { key: 'X-Content-Type-Options', value: 'nosniff' },
+                          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+                          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+                          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+                      ],
+                  },
+              ]
+      },
       images: {
               remotePatterns: [
                   {
                               protocol: 'https',
-                              hostname: '*.r2.cloudflarestorage.com',
+                              hostname: '*.zzgcopilot.com',
                   },
                   {
                               protocol: 'https',
-                              hostname: '*.zzgcopilot.com',
+                              hostname: 'cdn.sanity.io',
                   },
                       ],
       },

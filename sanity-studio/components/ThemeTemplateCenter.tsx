@@ -65,7 +65,7 @@ export function ThemeTemplateCenter() {
     setBusy(template)
     try {
       const document = template === 'tutorial' ? {
-        _type: 'post', title: '新教程（请修改标题）', slug: { _type: 'slug', current: slug('new-tutorial') }, excerpt: '用一句话介绍这篇教程能帮助读者解决什么问题。', editorialStage: 'writing', status: 'draft', authorName: 'Tyler', readingTime: 10, accessLevel: 'public', commentsEnabled: true,
+        _type: 'post', title: '新教程（请修改标题）', slug: { _type: 'slug', current: slug('new-tutorial') }, excerpt: '用一句话介绍这篇教程能帮助读者解决什么问题。', editorialStage: 'writing', status: 'draft', authorName: 'Tyler', readingTime: 10,
         body: [block('教程标题', 'h2'), block('先介绍读者将学到什么，以及开始前需要准备的内容。'), { _type: 'tutorialStep', _key: key(), stepNumber: 1, title: '第一步', text: '在这里填写具体操作。' }, { _type: 'callout', _key: key(), tone: 'tip', title: '提示', text: '补充容易忽略的注意事项。' }, block('总结', 'h2'), block('总结关键步骤，并告诉读者下一步可以做什么。')],
       } : template === 'landing' ? {
         _type: 'page', title: '新着陆页（请修改标题）', slug: { _type: 'slug', current: slug('landing-page') }, excerpt: '用于产品、课程或活动介绍的页面模板。', editorialStage: 'writing', status: 'draft',

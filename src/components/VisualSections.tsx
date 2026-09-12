@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { PortableContent } from './PortableContent'
 
 type Section = Record<string, unknown>
@@ -33,7 +34,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
               {text(section.text) ? <p className="mt-4 max-w-xl whitespace-pre-wrap text-[15px] leading-7 text-white/80">{text(section.text)}</p> : null}
               <div className="mt-6"><ActionLink label={section.label} href={section.href} /></div>
             </div>
-            {imageUrl ? <img src={imageUrl} alt="" className="h-56 w-full rounded-xl object-cover sm:h-72" /> : null}
+            {imageUrl ? <div className="relative h-56 w-full overflow-hidden rounded-xl sm:h-72"><Image src={imageUrl} alt="" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" /></div> : null}
           </div>
         </section>
       }
@@ -55,7 +56,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
             {text(section.text) ? <p className="mt-4 whitespace-pre-wrap leading-7 text-[#5b554b]">{text(section.text)}</p> : null}
             <div className="mt-6"><ActionLink label={section.label} href={section.href} /></div>
           </div>
-          {imageUrl ? <img src={imageUrl} alt={text(section.imageAlt)} className={`h-64 w-full rounded-xl object-cover sm:h-80 ${reverse ? 'lg:order-1' : ''}`} /> : null}
+          {imageUrl ? <div className={`relative h-64 w-full overflow-hidden rounded-xl sm:h-80 ${reverse ? 'lg:order-1' : ''}`}><Image src={imageUrl} alt={text(section.imageAlt)} fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" /></div> : null}
         </section>
       }
 
@@ -81,7 +82,7 @@ export function VisualSections({ sections, className = '' }: { sections: Section
         return <section key={key}>
           {text(section.title) ? <h2 className="mb-6 font-serif text-3xl font-bold text-[#1a160f]">{text(section.title)}</h2> : null}
           <div className={`grid gap-5 ${columns}`}>{items.map((item, itemIndex) => <article key={text(item._key) || itemIndex} className="site-card">
-            {text(item.imageUrl) ? <img src={text(item.imageUrl)} alt="" className="h-40 w-full object-cover" loading="lazy" /> : null}
+            {text(item.imageUrl) ? <div className="relative h-40 w-full overflow-hidden"><Image src={text(item.imageUrl)} alt="" fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" loading="lazy" /></div> : null}
             <div className="p-5"><h3 className="font-serif text-lg font-bold text-[#1a160f]">{text(item.title)}</h3>{text(item.text) ? <p className="mt-2 text-sm leading-6 text-[#5b554b]">{text(item.text)}</p> : null}<div className="mt-4"><ActionLink label={item.label} href={item.href} /></div></div>
           </article>)}</div>
         </section>

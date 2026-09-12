@@ -15,15 +15,23 @@ async function managedRedirect(pathname: string): Promise<{ targetPath: string; 
     } catch { return null }
 }
 
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
-    if ((pathname.startsWith('/admin') && pathname !== '/admin/engagement' && pathname !== '/admin/analytics') || pathname === '/login' || pathname === '/register') {
+    if (
+        pathname === '/excel-tutorial' ||
+        pathname.startsWith('/excel-tutorial/') ||
+        pathname.startsWith('/tutorial-covers/')
+    ) {
+        return NextResponse.next()
+    }
+
+    if ((pathname.startsWith('/admin') && !['/admin/engagement', '/admin/analytics', '/admin/login'].includes(pathname)) || pathname === '/login' || pathname === '/register') {
         return NextResponse.redirect(SANITY_STUDIO_URL, 307)
     }
 
-    if (pathname.startsWith('/api/admin')) {
-        return NextResponse.json({ error: '原 Cloudflare 内容后台已停用，请使用 Sanity Studio。' }, { status: 410 })
+    if (pathname.startsWith('/api/admin') && !['/api/admin/login', '/api/admin/logout'].includes(pathname)) {
+        return NextResponse.json({ error: '旧版内容后台已停用，请使用 Sanity Studio。' }, { status: 410 })
     }
 
     if ((pathname === '/' || pathname.startsWith('/tutorials/') || pathname.startsWith('/pages/')) && ['classic', 'minimal', 'editorial', 'forest'].includes(request.nextUrl.searchParams.get('templatePreview') || '')) {
@@ -38,32 +46,11 @@ export default async function middleware(request: NextRequest) {
     const redirect = await managedRedirect(pathname)
     if (redirect?.targetPath) return NextResponse.redirect(new URL(redirect.targetPath, request.url), redirect.statusCode === 307 ? 307 : 308)
 
-    if (
-        pathname === '/word-tutorial' ||
-        pathname.startsWith('/word-tutorial/') ||
-        pathname === '/tutorials/word' ||
-        pathname.startsWith('/tutorials/word/')
-    ) {
-        return NextResponse.redirect(
-            new URL('/tutorials/word-software-complete-guide', request.url),
-            308
-        )
+    if (pathname === '/word-tutorial' || pathname.startsWith('/word-tutorial/') || pathname === '/tutorials/word' || pathname.startsWith('/tutorials/word/')) {
+        return NextResponse.redirect(new URL('/tutorials/word-software-complete-guide', request.url), 308)
     }
 
-    if (
-        pathname === '/' ||
-        pathname === '/tyler-home.html' ||
-        pathname === '/index.html' ||
-        pathname.startsWith('/api') ||
-        pathname === '/admin/engagement' ||
-        pathname === '/admin/analytics' ||
-        pathname === '/account' ||
-        pathname.startsWith('/_next') ||
-        pathname.startsWith('/tutorials/') ||
-        pathname.startsWith('/pages/') ||
-        pathname === '/favicon.ico'
-        || pathname === '/robots.txt'
-    ) {
+    if (pathname === '/' || pathname === '/tyler-home.html' || pathname === '/index.html' || pathname.startsWith('/api') || pathname === '/admin/engagement' || pathname === '/admin/analytics' || pathname === '/admin/login' || pathname === '/account' || pathname.startsWith('/_next') || pathname.startsWith('/tutorials/') || pathname.startsWith('/pages/') || pathname === '/favicon.ico' || pathname === '/robots.txt') {
         return NextResponse.next()
     }
 

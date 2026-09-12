@@ -1,4 +1,5 @@
 import type { SanityCustomField } from '@/lib/sanity-content'
+import Image from 'next/image'
 
 function safeHref(value: string) {
   return value.startsWith('/') || value.startsWith('https://') || value.startsWith('http://') || value.startsWith('mailto:') ? value : ''
@@ -13,7 +14,7 @@ function displayValue(field: SanityCustomField) {
   if (field.type === 'media') {
     const href = safeHref(String(field.value))
     if (!href) return String(field.value)
-    return /\.(?:avif|gif|jpe?g|png|webp)(?:\?|$)/i.test(href) ? <a href={href} target="_blank" rel="noreferrer"><img src={href} alt={field.label} className="mt-2 max-h-72 rounded-lg object-cover" /></a> : <a href={href} className="text-[var(--site-primary)] underline" target="_blank" rel="noreferrer">打开文件</a>
+    return /\.(?:avif|gif|jpe?g|png|webp)(?:\?|$)/i.test(href) ? <a href={href} target="_blank" rel="noreferrer"><Image src={href} alt={field.label} width={1200} height={800} className="mt-2 h-auto max-h-72 rounded-lg object-cover" /></a> : <a href={href} className="text-[var(--site-primary)] underline" target="_blank" rel="noreferrer">打开文件</a>
   }
   return String(field.value)
 }

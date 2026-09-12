@@ -26,9 +26,6 @@
         "./src/*"
       ]
     },
-    "types": [
-      "@cloudflare/workers-types"
-    ],
     "target": "ES2017"
   },
   "include": [

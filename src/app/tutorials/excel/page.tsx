@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export default function ExcelPage() {
-  redirect('/tutorials/word')
+  redirect('/excel-tutorial/index.html')
 }

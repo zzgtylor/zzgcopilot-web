@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -13,6 +13,8 @@ test('homepage retains the existing visual shell while reading navigation from S
   assert.match(home, /settings\.homepageSectionTitle/)
   assert.match(home, /settings\.homepageCtaLabel/)
   assert.match(home, /getSanityPublishedPostCount/)
+  assert.match(home, /getSanityCategories/)
+  assert.match(home, /aria-label="教程分类"/)
   assert.match(home, /name="q"/)
   assert.match(home, /pageHref/)
 })
@@ -24,12 +26,15 @@ test('unified Sanity settings center controls the homepage without changing its 
   const home = read('src/app/page.tsx')
   const css = read('src/app/globals.css')
   assert.match(read('sanity-studio/structure.ts'), /网站设置中心/)
-  for (const field of ['showHeaderSearch', 'showHeaderCta', 'postsPerPage', 'homepageMaxWidth', 'cardColumns', 'cardGap', 'cardImageHeight', 'showCardCategory', 'showCardDate', 'showCardReadingTime', 'showFooter']) {
+  for (const field of ['showHeaderSearch', 'showHeaderCta', 'showHomepageHero', 'homepageHeroTitle', 'homepageHeroDescription', 'homepageHeroImage', 'homepageHeroPrimaryLabel', 'homepageHeroSecondaryLabel', 'postsPerPage', 'homepageMaxWidth', 'cardColumns', 'cardGap', 'cardImageHeight', 'showCardCategory', 'showCardDate', 'showCardReadingTime', 'showFooter']) {
     assert.match(settings, new RegExp(`name: '${field}'`))
     assert.match(content, new RegExp(field))
   }
   assert.match(layout, /data-card-columns/)
   assert.match(home, /site-card-grid/)
+  assert.match(home, /id="latest-tutorials"/)
+  assert.match(css, /site-hero-orb/)
+  assert.match(css, /prefers-reduced-motion/)
   assert.match(css, /--site-card-image-height/)
 })
 
@@ -41,19 +46,18 @@ test('all public content routes use Sanity-only readers', () => {
   assert.doesNotMatch(read('src/lib/sanity-content.ts'), /view_count|getDb|getR2/)
 })
 
-test('extended editor experience covers SEO, design, redirects, engagement, and gated content', () => {
+test('lightweight editor keeps SEO, design, redirects, and public tutorials', () => {
   const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
   const post = read('sanity-studio/schemaTypes/postType.ts')
   const config = read('sanity-studio/sanity.config.ts')
   assert.match(settings, /primaryColor/)
-  assert.match(settings, /commentsEnabled/)
-  assert.match(settings, /membershipEnabled/)
-  assert.match(post, /accessLevel/)
+  assert.doesNotMatch(settings, /commentsEnabled|membershipEnabled|paidContentEnabled|analyticsEnabled/)
+  assert.doesNotMatch(post, /accessLevel|stripePriceId|commentsEnabled/)
   assert.match(post, /seoFields/)
   assert.match(config, /FeatureCenter/)
   assert.match(read('sanity-studio/schemaTypes/redirectType.ts'), /sourcePath/)
-  assert.match(read('migrations/0005_engagement_membership.sql'), /analytics_daily/)
-  assert.match(read('src/lib/platform.ts'), /TURNSTILE_SECRET_KEY/)
+  assert.doesNotMatch(read('src/app/layout.tsx'), /AnalyticsBeacon/)
+  assert.doesNotMatch(read('src/app/page.tsx'), /ContactForm/)
 })
 
 test('controlled theme and template center provides safe one-click presets without third-party code execution', () => {
@@ -96,6 +100,7 @@ test('template, module, and content-model centers provide reversible no-code ope
   assert.match(settings, /relatedPostsEnabled/)
   assert.match(article, /ArticleEnhancements/)
   assert.match(article, /相关文章/)
+  assert.match(article, /getSanityRelatedPosts/)
   assert.doesNotMatch(features, /eval\(|new Function|npm install/)
 })
 
@@ -149,42 +154,94 @@ test('service connection center reports readiness without returning secret value
   const route = read('src/app/api/integrations/status/route.ts')
   const config = read('sanity-studio/sanity.config.ts')
   assert.match(center, /服务连接/)
-  assert.match(center, /永远不读取或展示密钥内容/)
+  assert.match(center, /不会读取或展示密钥内容/)
   assert.match(center, /api\/integrations\/status/)
   assert.match(config, /ServiceConnectionCenter/)
   assert.match(route, /Boolean\(platformValue/)
+  assert.match(route, /comments: postgres && turnstile/)
+  assert.match(route, /memberLogin: postgres && turnstile && memberEmail/)
   assert.match(route, /Cache-Control.*no-store/)
   assert.doesNotMatch(route, /get-secret-value|secret\s*:/i)
 })
 
-test('analytics reporting includes privacy-safe events, protected reports, trends, and CSV export', () => {
-  const migration = read('migrations/0006_analytics_reporting.sql')
-  const beacon = read('src/components/AnalyticsBeacon.tsx')
-  const report = read('src/lib/analytics-report.ts')
-  const dashboard = read('src/app/admin/analytics/page.tsx')
-  const studio = read('sanity-studio/sanity.config.ts')
-  assert.match(migration, /analytics_daily_visitors/)
-  assert.match(migration, /analytics_events/)
-  assert.doesNotMatch(migration, /raw_ip|ip_address/)
-  assert.match(beacon, /page_view/)
-  assert.match(beacon, /search/)
-  assert.match(beacon, /external_click/)
-  assert.match(report, /热门页面/)
-  assert.match(report, /reportCsv/)
-  assert.match(dashboard, /浏览趋势/)
-  assert.match(dashboard, /adminEmail/)
-  assert.match(studio, /AnalyticsCenter/)
-  assert.match(read('src/app/api/reports/analytics.csv/route.ts'), /text\/csv/)
+test('lightweight runtime removes D1 and R2 bindings while retaining Sanity backups in Vercel Blob', () => {
+  const ci = read('.gitlab-ci.yml')
+  const platform = read('src/lib/platform.ts')
+  assert.equal(existsSync('wrangler.toml'), false)
+  assert.equal(existsSync('open-next.config.ts'), false)
+  assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
+  assert.match(ci, /monthly_sanity_backup/)
+  assert.doesNotMatch(ci, /deploy_sanity_studio/)
+  assert.match(read('package.json'), /backup:sanity/)
+  assert.match(read('scripts/backup-sanity.sh'), /backup-sanity-assets/)
+  assert.match(read('scripts/backup-sanity.sh'), /upload-backup-to-vercel-blob/)
+  assert.doesNotMatch(read('scripts/backup-sanity.sh'), /wrangler\s+r2/)
+  assert.doesNotMatch(read('src/app/tutorials/[slug]/page.tsx'), /Comments|CheckoutButton|currentMember|platformDb/)
+  assert.match(platform, /class PostgresDatabase/)
+  assert.doesNotMatch(platform, /getCloudflareContext|D1Database|binding/i)
+  assert.match(read('package.json'), /db:migrate/)
+  assert.match(read('scripts/migrate-postgres.mjs'), /schema_migrations/)
+  assert.match(read('migrations/postgres/0002_runtime_baseline.sql'), /CREATE TABLE IF NOT EXISTS members/)
+})
+
+test('Sanity revalidation is signed and invalidates narrow content tags', () => {
+  const route = read('src/app/api/revalidate/route.ts')
+  const content = read('src/lib/sanity-content.ts')
+  assert.match(route, /x-sanity-revalidate-secret/)
+  assert.match(route, /revalidateTag\(tag, 'max'\)/)
+  assert.match(route, /sanity:post:/)
+  assert.match(content, /next: \{ revalidate: 60, tags \}/)
+})
+
+test('production CI validates code while Vercel performs the production deployment', () => {
+  const ci = read('.gitlab-ci.yml')
+  assert.match(ci, /npm run build/)
+  assert.doesNotMatch(ci, /deploy_sanity_studio:/)
+  assert.doesNotMatch(ci, /deploy_cloudflare_pages|pages\.dev|wrangler pages deploy/)
+  assert.doesNotMatch(ci, /migrate_production_db|d1 migrations apply/)
+})
+
+test('protected health checks verify PostgreSQL and required service configuration without exposing secrets', () => {
+  const health = read('src/app/api/cron/health/route.ts')
+  assert.match(health, /postgresConfigured/)
+  assert.match(health, /SELECT 1 AS ok/)
+  assert.match(health, /status: ok \? 200 : 503/)
+  assert.match(health, /Cache-Control.*no-store/)
+  assert.doesNotMatch(health, /Response\.json\([^)]*DATABASE_URL/)
 })
 
 test('legacy admin and account entry points are retired in favor of Sanity Studio', () => {
-  const middleware = read('src/middleware.ts')
+  const middleware = read('src/proxy.ts')
   assert.match(middleware, /SANITY_STUDIO_URL/)
   assert.match(middleware, /pathname\.startsWith\('\/admin'\)/)
   assert.match(middleware, /pathname === '\/login'/)
   assert.match(middleware, /pathname\.startsWith\('\/api\/admin'\)/)
   assert.match(middleware, /status: 410/)
   assert.doesNotMatch(middleware, /pathname\.startsWith\('\/uploads'\)/)
+})
+
+test('administrator reports use a Vercel-compatible signed browser session', () => {
+  const auth = read('src/lib/admin-auth.ts')
+  const login = read('src/app/api/admin/login/route.ts')
+  const logout = read('src/app/api/admin/logout/route.ts')
+  const middleware = read('src/proxy.ts')
+  assert.match(auth, /ADMIN_ACCESS_TOKEN/)
+  assert.match(auth, /ADMIN_SESSION_COOKIE/)
+  assert.match(auth, /createAdminSession/)
+  assert.match(auth, /crypto\.subtle\.sign/)
+  assert.match(auth, /crypto\.subtle\.verify/)
+  assert.match(login, /httpOnly: true/)
+  assert.match(login, /isAllowedAdminEmail/)
+  assert.match(login, /sameSite: 'strict'/)
+  assert.match(login, /maxAge: 60 \* 60 \* 8/)
+  assert.match(logout, /maxAge: 0/)
+  assert.match(middleware, /'\/admin\/login'/)
+  assert.match(middleware, /'\/api\/admin\/login'/)
+  assert.doesNotMatch(auth, /cf-access-authenticated-user-email/)
+})
+
+test('GitHub does not retain a Cloudflare Pages deployment workflow', () => {
+  assert.equal(existsSync('.github/workflows/deploy-cloudflare-pages.yml'), false)
 })
 
 test('Sanity schemas own posts, settings, and image assets', () => {
@@ -199,6 +256,44 @@ test('Sanity schemas own posts, settings, and image assets', () => {
   assert.match(settings, /type: 'image'/)
   assert.match(settings, /name: 'homepageSectionTitle'/)
   assert.match(settings, /name: 'homepageFooterNote'/)
+})
+
+test('SEO uses a public sitemap and article recommendations prefer dynamic Sanity content', () => {
+  const content = read('src/lib/sanity-content.ts')
+  const sitemap = read('src/app/sitemap.ts')
+  const article = read('src/app/tutorials/[slug]/page.tsx')
+  assert.match(sitemap, /getSanitySitemapEntries/)
+  assert.match(sitemap, /changeFrequency/)
+  assert.match(content, /getSanityRelatedPosts/)
+  assert.match(content, /sameCategory/)
+  assert.match(article, /articleSection/)
+  assert.match(article, /keywords/)
+})
+
+test('homepage uses a 4 by 4 page and automatically groups Microsoft tutorials', () => {
+  const homepage = read('src/app/page.tsx')
+  assert.match(homepage, /export const revalidate = 60/)
+  assert.doesNotMatch(homepage, /dynamic\s*=\s*["']force-dynamic["']/)
+  const content = read('src/lib/sanity-content.ts')
+  const css = read('src/app/globals.css')
+  const settings = read('sanity-studio/schemaTypes/siteSettingsType.ts')
+  const importer = read('sanity-studio/scripts/import-word-tutorial-html.mjs')
+  assert.match(homepage, /lg:grid-cols-4/)
+  assert.match(homepage, /settings\.postsPerPage \|\| 16/)
+  assert.match(settings, /initialValue: 16/)
+  assert.match(settings, /4 列 × 4 行/)
+  assert.match(settings, /name: 'cardColumns'.*initialValue: 4/)
+  assert.match(importer, /postsPerPage: 16/)
+  assert.match(content, /MICROSOFT_CATEGORY_NAME = '微软办公软件'/)
+  assert.match(content, /MICROSOFT_CATEGORY_SLUG = 'microsoft-office'/)
+  assert.match(css, /aspect-ratio: 330 \/ 302/)
+  assert.match(css, /aspect-ratio: 16 \/ 9/)
+  assert.match(homepage, /line-clamp-2 text-\[16px\]/)
+  assert.doesNotMatch(homepage, /min-h-\[220px\]/)
+  for (const product of ['Word', 'Excel', 'PowerPoint', 'Microsoft 365', 'Microsoft Teams']) {
+    assert.match(content, new RegExp(product))
+  }
+  assert.match(content, /pt::text\(body\) match/)
 })
 
 test('WordPress-style editing tools include media, preview, scheduling, and review queues', () => {
@@ -223,12 +318,16 @@ test('WordPress-style editing tools include media, preview, scheduling, and revi
 })
 
 test('recovery backups include drafts, published documents, and image binaries', () => {
-  const backup = read('scripts/backup-cloudflare.sh')
+  const backup = read('scripts/backup-sanity.sh')
   assert.match(backup, /export-sanity-content\.mjs/)
   assert.match(backup, /backup-sanity-assets\.mjs/)
+  assert.match(backup, /upload-backup-to-vercel-blob\.mjs/)
   assert.match(read('scripts/backup-sanity-assets.mjs'), /cdn\.sanity\.io/)
   assert.match(read('scripts/backup-sanity-assets.mjs'), /bodyAssets/)
   assert.match(read('scripts/export-sanity-content.mjs'), /perspective', 'raw'/)
   assert.match(read('scripts/export-sanity-content.mjs'), /SANITY_AUTH_TOKEN/)
-  assert.match(read('.github/workflows/monthly-cloudflare-backup.yml'), /SANITY_BACKUP_TOKEN/)
+  const backupWorkflow = read('.github/workflows/monthly-vercel-blob-backup.yml')
+  assert.match(backupWorkflow, /SANITY_BACKUP_TOKEN/)
+  assert.match(backupWorkflow, /VERCEL_BLOB_READ_WRITE_TOKEN/)
+  assert.doesNotMatch(backupWorkflow, /CLOUDFLARE_API_TOKEN/)
 })

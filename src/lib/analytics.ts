@@ -1,4 +1,4 @@
-import { requestIp, sha256 } from './platform'
+import { requestIp, sha256, type AppDatabase } from './platform'
 
 export const ANALYTICS_EVENT_TYPES = ['page_view', 'search', 'cta_click', 'download', 'external_click', 'comment_submit', 'form_submit', 'member_register', 'member_login', 'checkout_start', 'subscription_started'] as const
 export type AnalyticsEventType = typeof ANALYTICS_EVENT_TYPES[number]
@@ -31,12 +31,12 @@ export async function requestAnalyticsContext(request: Request) {
   return {
     visitorHash: await sha256(rawIdentity),
     referrer: referrerHost(request.headers.get('referer') || ''),
-    country: (request.headers.get('cf-ipcountry') || 'XX').slice(0, 2).toUpperCase(),
+    country: (request.headers.get('x-vercel-ip-country') || 'XX').slice(0, 2).toUpperCase(),
     device: deviceFromUserAgent(request.headers.get('user-agent') || ''),
   }
 }
 
-export async function recordAnalyticsEvent(db: D1Database, event: { type: AnalyticsEventType; path?: string; label?: string; visitorHash?: string | null; referrer?: string | null; country?: string | null; device?: string | null; valueCents?: number; currency?: string | null }) {
+export async function recordAnalyticsEvent(db: AppDatabase, event: { type: AnalyticsEventType; path?: string; label?: string; visitorHash?: string | null; referrer?: string | null; country?: string | null; device?: string | null; valueCents?: number; currency?: string | null }) {
   const path = cleanPath(event.path || '/')
   await db.prepare('INSERT INTO analytics_events(event_type,path,label,visitor_hash,referrer_host,country,device,value_cents,currency) VALUES(?,?,?,?,?,?,?,?,?)')
     .bind(event.type, path, cleanLabel(event.label), event.visitorHash || null, event.referrer || null, event.country || null, event.device || null, Math.max(0, Math.floor(event.valueCents || 0)), event.currency?.toUpperCase().slice(0, 3) || null).run()

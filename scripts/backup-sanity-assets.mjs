@@ -30,18 +30,19 @@ async function query(groq) {
 const [postAssets, bodyDocuments, settingsAssets] = await Promise.all([
   query('*[_type == "post" && defined(coverImage.asset)] { "documentId": _id, "role": "post-cover", "url": coverImage.asset->url }'),
   query('*[_type in ["post", "page"] && defined(body)] { "documentId": _id, "bodyAssets": body[]{ _type == "image" => { "role": "body-image", "url": asset->url }, _type == "download" && defined(file.asset) => { "role": "download-file", "url": file.asset->url } } }'),
-  query('*[_type == "siteSettings" && defined(defaultCoverImage.asset)] { "documentId": _id, "role": "site-default-cover", "url": defaultCoverImage.asset->url }'),
+  query('*[_type == "siteSettings"] { "documentId": _id, "assets": [defined(defaultCoverImage.asset) => { "role": "site-default-cover", "url": defaultCoverImage.asset->url }, defined(homepageHeroImage.asset) => { "role": "homepage-hero", "url": homepageHeroImage.asset->url }] }'),
 ])
 
 const embeddedAssets = bodyDocuments.flatMap(document => (document.bodyAssets || [])
   .filter(item => item && item.url)
   .map(item => ({ documentId: document.documentId, role: item.role, url: item.url })))
+const siteAssets = settingsAssets.flatMap(document => (document.assets || []).filter(item => item && item.url).map(item => ({ documentId: document.documentId, role: item.role, url: item.url })))
 
 const directory = resolve(outputDir)
 await mkdir(directory, { recursive: true })
 const entries = []
 const seen = new Set()
-for (const item of [...postAssets, ...embeddedAssets, ...settingsAssets]) {
+for (const item of [...postAssets, ...embeddedAssets, ...siteAssets]) {
   if (typeof item.url !== 'string' || seen.has(item.url)) continue
   const url = new URL(item.url)
   if (url.protocol !== 'https:' || url.hostname !== 'cdn.sanity.io') {

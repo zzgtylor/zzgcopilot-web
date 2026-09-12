@@ -15,7 +15,6 @@ export const postType = defineType({
     { name: 'content', title: '内容', default: true },
     { name: 'publishing', title: '发布与审核' },
     { name: 'seo', title: 'SEO' },
-    { name: 'access', title: '互动与访问' },
     { name: 'custom', title: '自定义字段' },
   ],
   fields: [
@@ -40,10 +39,6 @@ export const postType = defineType({
       return true
     }).custom((value, context) => context.document?.status === 'scheduled' && value && Date.parse(String(value)) <= Date.now() ? '该时间已经到达，内容当前已在网站公开；建议将状态改为“已发布”' : true).warning() }),
     defineField({ name: 'expiresAt', title: '下线时间（可选）', description: '到达此时间后，网站、搜索和站点地图会自动隐藏内容。', type: 'datetime', validation: rule => rule.custom((value, context) => !value || !context.document?.publishedAt || Date.parse(String(value)) > Date.parse(String(context.document.publishedAt)) ? true : '下线时间必须晚于发布时间') }),
-    defineField({ name: 'commentsEnabled', title: '允许评论', type: 'boolean', initialValue: true, group: 'access' }),
-    defineField({ name: 'accessLevel', title: '阅读权限', type: 'string', initialValue: 'public', group: 'access', options: { list: [{ title: '公开', value: 'public' }, { title: '登录会员', value: 'member' }, { title: '付费会员', value: 'paid' }] } }),
-    defineField({ name: 'teaser', title: '受限内容预览文字', type: 'text', rows: 4, group: 'access', hidden: ({ document }) => !document?.accessLevel || document.accessLevel === 'public' }),
-    defineField({ name: 'stripePriceId', title: 'Stripe Price ID', description: '仅保存公开的价格编号，不要填写密钥。', type: 'string', group: 'access', hidden: ({ document }) => document?.accessLevel !== 'paid' }),
     customFieldsField(),
     ...seoFields,
   ],

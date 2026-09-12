@@ -1,199 +1,259 @@
-import Link from 'next/link'
-import { Search } from 'lucide-react'
-import { VisualSections } from '@/components/VisualSections'
-import { ContactForm } from '@/components/ContactForm'
-import { DEFAULT_NAVIGATION, getSanityNavigation, getSanityPublishedPostCount, getSanityPublishedPosts, getSanitySiteSettings, type SanityNavigationItem } from '@/lib/sanity-content'
+import Link from "next/link";
+import Image from "next/image";
 
-export const dynamic = 'force-dynamic'
+import { TylerFooter, TylerHeader } from "@/components/TylerSiteChrome";
+import {
+  MICROSOFT_CATEGORY_SLUG,
+  getSanityCategories,
+  getSanityNavigation,
+  getSanityPublishedPostCount,
+  getSanityPublishedPosts,
+  getSanitySiteSettings,
+} from "@/lib/sanity-content";
+import { getTutorialCover } from "@/lib/tutorial-covers";
 
-type PostCard = {
-  id: string
-  title: string
-  slug: string
-  cover_image: string | null
-  reading_time: number | null
-  created_at: string
-  published_at: string | null
-  category_name: string | null
+// Public homepage content is cached at the Vercel edge and refreshed by the
+// Sanity revalidation webhook. Draft preview requests remain uncached.
+export const revalidate = 60;
+
+type HomePageProps = {
+  searchParams?: Promise<{
+    page?: string;
+    q?: string;
+    category?: string;
+  }>;
+};
+
+const FALLBACK_TUTORIAL = {
+  id: "legacy-word-tutorial",
+  title: "Word 办公软件攻略解析",
+  slug: "word-software-complete-guide",
+  excerpt: "从基础操作到高效排版，系统掌握 Word 的核心功能与实用技巧。",
+  category_name: "微软办公软件",
+  published_at: "2026-08-06T00:00:00.000Z",
+  reading_time: 90,
+  cover_image: "",
+};
+
+const EXCEL_TUTORIAL = {
+  id: "excel-tutorial",
+  title: "Excel 从入门到精通",
+  slug: "excel",
+  excerpt: "从基础操作、函数公式到数据透视表、Power Query 与 VBA 的完整实战教程。",
+  category_name: "微软办公软件",
+  published_at: "2026-09-11T00:00:00.000Z",
+  reading_time: 120,
+  cover_image: getTutorialCover("excel"),
+};
+
+function formatDate(value?: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
 }
-type NavigationItem = SanityNavigationItem
 
-const legacyTutorial = {
-  title: 'Word软件使用全攻略教程',
-  href: '/word-tutorial/',
-  coverImage: '',
-  category: '入门基础',
-  date: '2026-07-03',
-  readingTime: 20,
+function CardArtwork({ index }: { index: number }) {
+  const backgrounds = ["#e9eef8", "#efe9df", "#e5eee8", "#eee8f1"];
+  return (
+    <div
+      aria-hidden="true"
+      className="relative h-full w-full overflow-hidden"
+      style={{ backgroundColor: backgrounds[index % backgrounds.length] }}
+    >
+      <div className="absolute left-[14%] top-[18%] h-[64%] w-[72%] border border-[#182533]/15 bg-white/80 shadow-[0_12px_30px_rgba(24,37,51,0.08)]" />
+      <div className="absolute left-[20%] top-[28%] h-2 w-[40%] bg-[#182533]/70" />
+      <div className="absolute left-[20%] top-[39%] h-1.5 w-[54%] bg-[#182533]/20" />
+      <div className="absolute left-[20%] top-[48%] h-1.5 w-[46%] bg-[#182533]/20" />
+      <div className="absolute bottom-[18%] right-[18%] h-9 w-9 rounded-full bg-[#1f52ad]" />
+    </div>
+  );
 }
 
-async function getNavigation(): Promise<NavigationItem[]> {
-  return getSanityNavigation()
-}
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = (await searchParams) ?? {};
+  const query = params.q?.trim() ?? "";
+  const requestedCategory = params.category?.trim() ?? "";
+  const category = requestedCategory === "word-tutorials" ? MICROSOFT_CATEGORY_SLUG : requestedCategory;
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const [settings, navigation, categories] = await Promise.all([
+    getSanitySiteSettings(),
+    getSanityNavigation(),
+    getSanityCategories(),
+  ]);
+  const pageSize = settings.postsPerPage || 16;
 
-function formatCardDate(value: string | null) {
-  if (!value) return ''
-  return value.slice(0, 10)
-}
+  const [sanityPosts, total] = await Promise.all([
+    getSanityPublishedPosts({
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+      search: query,
+      category,
+    }),
+    getSanityPublishedPostCount({ search: query, category }),
+  ]);
 
-function pageHref(page: number, query: string) {
-  const params = new URLSearchParams()
-  if (query) params.set('q', query)
-  if (page > 1) params.set('page', String(page))
-  const suffix = params.toString()
-  return suffix ? `/?${suffix}` : '/'
-}
+  const posts = sanityPosts.length > 0 || query || category ? sanityPosts : [FALLBACK_TUTORIAL];
+  const homepagePosts = !query && !category && page === 1 ? [EXCEL_TUTORIAL, ...posts] : posts;
+  const effectiveTotal = total > 0 || query || category ? total : posts.length;
+  const totalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
 
-export default async function HomePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
-  const resolvedSearchParams = await searchParams
-  const query = (Array.isArray(resolvedSearchParams?.q) ? resolvedSearchParams?.q[0] : resolvedSearchParams?.q || '').trim().slice(0, 80)
-  const requestedPage = Number(Array.isArray(resolvedSearchParams?.page) ? resolvedSearchParams?.page[0] : resolvedSearchParams?.page || '1')
-  const settings = await getSanitySiteSettings()
-  const pageSize = settings.postsPerPage
-  const totalPosts = await getSanityPublishedPostCount({ search: query })
-  const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize))
-  const currentPage = Math.min(Math.max(Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 1, 1), totalPages)
-  const [posts, navigation] = await Promise.all([
-    getSanityPublishedPosts({ limit: pageSize, offset: (currentPage - 1) * pageSize, search: query }),
-    getNavigation(),
-  ])
-  const tutorialHref = posts[0] ? `/tutorials/${posts[0].slug}` : legacyTutorial.href
-  const ctaHref = !settings.homepageCtaHref || settings.homepageCtaHref === '__latest_tutorial__' ? tutorialHref : settings.homepageCtaHref
-  const navItems = navigation.length ? navigation : DEFAULT_NAVIGATION
+  const pageHref = (target: number) => {
+    const search = new URLSearchParams();
+    if (query) search.set("q", query);
+    if (category) search.set("category", category);
+    if (target > 1) search.set("page", String(target));
+    const suffix = search.toString();
+    return suffix ? `/?${suffix}` : "/";
+  };
 
   return (
-    <div className="site-home min-h-screen overflow-x-hidden text-[#211e19]">
-      {/* NAV */}
-      <nav className="site-nav z-50 flex flex-wrap items-center justify-between gap-y-3 gap-x-6 border-b border-[#211e19]/10 px-5 py-4 sm:px-8">
-        <Link href="/" className="shrink-0 whitespace-nowrap font-serif text-2xl font-bold text-[#211e19] sm:text-3xl">
-          {settings.homepageBrandName}
-        </Link>
+    <div className="site-home min-h-screen bg-[#faf8f3] text-[#182533]">
+      <TylerHeader query={query} navigation={navigation} settings={settings} />
+      {settings.showHeaderSearch ? (
+        <form action="/" method="get" className="mx-4 mt-4 sm:hidden">
+          <input className="h-11 w-full rounded-full border border-[#dbdedb] bg-white px-5 text-sm outline-none focus:border-[#1f52ad]" defaultValue={query} name="q" placeholder={settings.homepageSearchPlaceholder} type="search" />
+        </form>
+      ) : null}
 
-        <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 whitespace-nowrap text-[13.5px] font-medium text-[#4a443b] md:flex">
-          {navItems.map(item => {
-            const href = item.href === '__latest_tutorial__' ? tutorialHref : item.href
-            return <Link key={item.id} href={href} target={item.open_new_tab ? '_blank' : undefined} rel={item.open_new_tab ? 'noreferrer' : undefined} className={href === '/' ? 'font-bold text-[var(--site-primary)]' : 'hover:text-[var(--site-primary)]'}>{item.label}</Link>
-          })}
-        </div>
+      {!query ? (
+        <section className="tyler-cover tyler-shell mt-10 flex min-h-[360px] items-center border border-[#ded7cc] bg-[#f3eee5] px-8 py-16 sm:mt-12 sm:px-12 lg:px-16">
+          <h1 className="tyler-wordmark max-w-3xl whitespace-pre-line text-[44px] font-semibold leading-[1.18] tracking-[-0.04em] sm:text-[56px] lg:text-[64px]">
+            {settings.homepageHeroTitle || "记录技术，\n也记录生活。"}
+          </h1>
+        </section>
+      ) : null}
 
-        <div className="flex shrink-0 items-center gap-3.5">
-          {settings.showHeaderSearch ? <form action="/" method="get" className="relative hidden sm:block">
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              aria-label="搜索教程"
-              placeholder={settings.homepageSearchPlaceholder}
-              className="h-[38px] w-[180px] rounded-full border border-[#211e19]/15 bg-white pl-[34px] pr-3.5 text-[13px] outline-none transition focus:border-[var(--site-primary)]"
-            />
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#a39a8a]" />
-          </form> : null}
-
-          {settings.showHeaderCta ? <Link
-            href={ctaHref}
-            data-analytics-event="cta"
-            data-analytics-label={settings.homepageCtaLabel}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm bg-[var(--site-primary)] px-[18px] py-2.5 text-[13.5px] font-medium text-white transition hover:bg-[var(--site-secondary)]"
-          >
-            {settings.homepageCtaLabel}
-          </Link> : null}
-        </div>
-      </nav>
-
-      {/* 主体：网格 + 侧边栏。默认保持现有首页，只有手动关闭时才隐藏。 */}
-      {settings.showDefaultLatestPosts ? <div className="site-shell mx-auto grid items-start gap-12 px-5 py-11 sm:px-8 lg:grid-cols-[1fr_320px] lg:px-10 lg:py-[44px]">
-        {/* 左：主内容区 */}
-        <main>
-          <div className="mb-[26px] flex flex-wrap items-baseline justify-between gap-2.5">
-            <h1 className="font-serif text-2xl font-bold text-[#1a160f]">{settings.homepageSectionTitle}</h1>
-            {settings.homepageIntroText ? <p className="w-full max-w-3xl text-sm leading-6 text-[#797266]">{settings.homepageIntroText}</p> : null}
+      <main id="latest-tutorials" className="tyler-shell py-14 sm:py-16 lg:py-20">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-xs tracking-[0.22em] text-[#6c7783]">
+              {query ? "SEARCH" : "LATEST"}
+            </p>
+            <h2 className="tyler-wordmark text-3xl font-semibold tracking-[-0.03em]">
+              {query ? `“${query}”的搜索结果` : settings.homepageSectionTitle}
+            </h2>
           </div>
-
-          <div className="site-card-grid grid grid-cols-1 sm:grid-cols-2">
-            {posts.length > 0
-              ? posts.map((post) => (
-                  <Link
-                    key={post.id}
-                    href={`/tutorials/${post.slug}`}
-                    className="site-card flex flex-col"
-                  >
-                    <div className="site-card-image relative bg-[#f5f5f7]">
-                      <img
-                        src={post.cover_image || settings.defaultCoverImageUrl || legacyTutorial.coverImage}
-                        alt={post.title}
-                        className="h-full w-full object-cover"
-                        loading="eager"
-                      />
-                      {settings.showCardCategory ? <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
-                        {post.category_name || legacyTutorial.category}
-                      </span> : null}
-                    </div>
-
-                    <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
-                      <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{post.title}</h3>
-                      {settings.showCardDate || settings.showCardReadingTime ? <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
-                        {settings.showCardDate ? <span className="whitespace-nowrap font-mono">{formatCardDate(post.published_at || post.created_at)}</span> : null}
-                        {settings.showCardReadingTime ? <span className="whitespace-nowrap">{post.reading_time || legacyTutorial.readingTime} 分钟</span> : null}
-                      </div> : null}
-                    </div>
-                  </Link>
-                ))
-              : query ? (
-                  <div className="col-span-full rounded-md border border-[#211e19]/[0.07] bg-white px-6 py-12 text-center text-sm text-[#797266]">
-                    没有找到与“{query}”相关的教程
-                  </div>
-                ) : (
-                  <Link
-                    href={legacyTutorial.href}
-                    className="site-card flex flex-col"
-                  >
-                    <div className="site-card-image relative bg-[#f5f5f7]">
-                      {settings.defaultCoverImageUrl ? <img src={settings.defaultCoverImageUrl} alt={legacyTutorial.title} className="h-full w-full object-cover" loading="eager" /> : null}
-                      {settings.showCardCategory ? <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-[var(--site-primary)] shadow-sm">
-                        {legacyTutorial.category}
-                      </span> : null}
-                    </div>
-
-                    <div className="flex flex-1 flex-col gap-2.5 p-[18px] pb-5">
-                      <h3 className="line-clamp-2 font-serif text-[16.5px] font-bold leading-normal text-[#1a160f]">{legacyTutorial.title}</h3>
-                      {settings.showCardDate || settings.showCardReadingTime ? <div className="mt-auto flex items-center justify-between gap-2 text-xs text-[#a39a8a]">
-                        {settings.showCardDate ? <span className="whitespace-nowrap font-mono">{legacyTutorial.date}</span> : null}
-                        {settings.showCardReadingTime ? <span className="whitespace-nowrap">{legacyTutorial.readingTime} 分钟</span> : null}
-                      </div> : null}
-                    </div>
-                  </Link>
-                )}
-          </div>
-
-          {totalPosts > 0 ? (
-            <nav aria-label="教程分页" className="mt-12 flex flex-wrap items-center justify-center gap-2 font-mono text-[13px]">
-              {currentPage > 1
-                ? <Link href={pageHref(currentPage - 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">← 上一页</Link>
-                : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">← 上一页</span>}
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => page === currentPage
-                ? <span key={page} aria-current="page" className="cursor-default select-none rounded border border-[var(--site-primary)] bg-[var(--site-primary)] px-3.5 py-2 text-white">{page}</span>
-                : <Link key={page} href={pageHref(page, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">{page}</Link>)}
-              {currentPage < totalPages
-                ? <Link href={pageHref(currentPage + 1, query)} className="rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#4a443b] hover:border-[var(--site-primary)] hover:text-[var(--site-primary)]">下一页 →</Link>
-                : <span className="cursor-default select-none rounded border border-[#211e19]/[0.12] px-3.5 py-2 text-[#a39a8a]">下一页 →</span>}
-            </nav>
+          {query ? (
+            <Link className="text-sm text-[#1f52ad] hover:underline" href="/">
+              清除搜索
+            </Link>
           ) : null}
-        </main>
-
-        {/* 右：侧边栏（预留位，暂无内容） */}
-        <aside className="sticky top-[88px] hidden flex-col gap-7 lg:flex" />
-      </div> : null}
-
-      {settings.homepageSections.length > 0 ? <VisualSections sections={settings.homepageSections} className="site-shell mx-auto px-5 py-11 sm:px-8 lg:px-10 lg:py-[44px]" /> : null}
-      {settings.contactFormEnabled ? <ContactForm siteKey={settings.turnstileSiteKey} /> : null}
-
-      {/* FOOTER */}
-      {settings.showFooter ? <footer className="site-footer border-t border-[#211e19]/10 px-5 py-8 text-[#1a160f] sm:px-10 sm:py-9">
-        <div className="site-shell mx-auto flex flex-wrap items-center justify-between gap-4">
-          <span className="text-[13px] text-[#797266]">{settings.homepageFooterBrand}</span>
-          <span className="font-mono text-xs text-[#a39a8a]">{settings.homepageFooterNote}</span>
+          {settings.showHeaderCta && settings.homepageCtaHref ? (
+            <Link className="text-sm font-medium text-[#1f52ad] hover:underline" href={settings.homepageCtaHref}>
+              {settings.homepageCtaLabel}
+            </Link>
+          ) : null}
         </div>
-      </footer> : null}
+
+        {categories.length ? (
+          <nav aria-label="教程分类" className="mb-8 flex flex-wrap gap-2">
+            <Link className={`rounded-full border px-4 py-2 text-xs ${!category ? 'border-[#1f52ad] bg-[#1f52ad] text-white' : 'border-[#d8d1c6] bg-white'}`} href={query ? `/?q=${encodeURIComponent(query)}` : '/'}>全部</Link>
+            {categories.map(item => <Link className={`rounded-full border px-4 py-2 text-xs ${category === item.slug ? 'border-[#1f52ad] bg-[#1f52ad] text-white' : 'border-[#d8d1c6] bg-white hover:border-[#1f52ad]'}`} href={`/?category=${encodeURIComponent(item.slug)}${query ? `&q=${encodeURIComponent(query)}` : ''}`} key={item.id}>{item.name}</Link>)}
+          </nav>
+        ) : null}
+
+        {homepagePosts.length > 0 ? (
+          <div className="site-card-grid grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {homepagePosts.map((post, index) => {
+              const coverImage = getTutorialCover(post.slug, post.cover_image || "");
+              const href =
+                post.id === EXCEL_TUTORIAL.id
+                  ? "/tutorials/excel"
+                  : post.id === FALLBACK_TUTORIAL.id
+                  ? "/word-tutorial/"
+                  : `/tutorials/${post.slug}`;
+              return (
+                <Link
+                  className="site-card tyler-tutorial-card group flex flex-col overflow-hidden border border-[#e3ddd3] bg-white transition duration-200 hover:-translate-y-1 hover:border-[#cfc6b9] hover:shadow-[0_16px_34px_rgba(24,37,51,0.08)]"
+                  href={href}
+                  key={post.id}
+                >
+                  <div className="tyler-tutorial-card-media relative overflow-hidden border-b border-[#e8e2d8]">
+                    {coverImage ? (
+                      <Image
+                        alt={post.title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.015]"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        src={coverImage}
+                      />
+                    ) : (
+                      <CardArtwork index={index} />
+                    )}
+                    {settings.showCardCategory && post.category_name ? (
+                      <span className="absolute bottom-3 left-3 max-w-[85%] truncate rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-[#1f52ad] shadow-sm backdrop-blur-sm">
+                        {post.category_name}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="tyler-tutorial-card-body flex min-h-0 flex-1 flex-col px-4 py-3.5 sm:px-5 sm:py-4">
+                    <h3 className="line-clamp-2 text-[16px] font-semibold leading-6 tracking-[-0.01em] text-[#25313d] transition group-hover:text-[#1f52ad]" title={post.title}>
+                      {post.title}
+                    </h3>
+                    {settings.showCardDate || settings.showCardReadingTime ? (
+                      <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-xs text-[#8a9095]">
+                        {settings.showCardDate ? <time>{formatDate(post.published_at)}</time> : <span />}
+                        {settings.showCardReadingTime ? <span>{post.reading_time || 10} 分钟</span> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="border border-[#e3ddd3] bg-white px-6 py-16 text-center text-[#66717b]">
+            没有找到匹配的教程。
+          </div>
+        )}
+
+        {totalPages > 1 ? (
+          <nav aria-label="教程分页" className="mt-12 flex justify-center gap-2">
+            <Link
+              aria-disabled={page <= 1}
+              className={`border px-4 py-2 text-sm ${
+                page <= 1
+                  ? "pointer-events-none border-[#e5dfd5] text-[#aaa49b]"
+                  : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"
+              }`}
+              href={pageHref(Math.max(1, page - 1))}
+            >
+              ← 上一页
+            </Link>
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((number) => (
+              <Link
+                aria-current={number === page ? "page" : undefined}
+                className={`min-w-10 border px-3 py-2 text-center text-sm ${
+                  number === page
+                    ? "border-[#1f52ad] bg-[#1f52ad] text-white"
+                    : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"
+                }`}
+                href={pageHref(number)}
+                key={number}
+              >
+                {number}
+              </Link>
+            ))}
+            <Link
+              aria-disabled={page >= totalPages}
+              className={`border px-4 py-2 text-sm ${
+                page >= totalPages
+                  ? "pointer-events-none border-[#e5dfd5] text-[#aaa49b]"
+                  : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"
+              }`}
+              href={pageHref(Math.min(totalPages, page + 1))}
+            >
+              下一页 →
+            </Link>
+          </nav>
+        ) : null}
+      </main>
+
+      {settings.showFooter ? <TylerFooter settings={settings} /> : null}
     </div>
-  )
+  );
 }

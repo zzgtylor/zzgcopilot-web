@@ -1,4 +1,3 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { cookies } from 'next/headers'
 import { perspectiveCookieName } from '@sanity/preview-url-secret/constants'
 
@@ -16,6 +15,7 @@ export type SanityPost = {
   status: 'published'
   category_name: string | null
   category_slug: string | null
+  tags: string[]
   meta_title: string | null
   meta_description: string | null
   og_image: string | null
@@ -55,6 +55,51 @@ export type SanityCategory = {
   description: string
 }
 
+export const MICROSOFT_CATEGORY_NAME = '微软办公软件'
+export const MICROSOFT_CATEGORY_SLUG = 'microsoft-office'
+
+const MICROSOFT_CATEGORY_LEGACY_SLUG = 'word-tutorials'
+const MICROSOFT_CATEGORY_ID = 'category-word-tutorials'
+const MICROSOFT_PRODUCT_TERMS = [
+  'Microsoft',
+  '微软',
+  'Word',
+  'Excel',
+  'PowerPoint',
+  'Power Point',
+  'PPT',
+  'Outlook',
+  'OneNote',
+  'OneDrive',
+  'SharePoint',
+  'Microsoft Teams',
+  'Microsoft Access',
+  'Microsoft Visio',
+  'Microsoft Project',
+  'Microsoft Publisher',
+  'Microsoft 365',
+  'Office 365',
+  'Windows',
+  'Microsoft Edge',
+  'Azure',
+  'Visual Studio',
+  'GitHub Copilot',
+  'Microsoft Copilot',
+] as const
+
+const microsoftProductExpression = `(
+  category->_id == "${MICROSOFT_CATEGORY_ID}" ||
+  category->slug.current in ["${MICROSOFT_CATEGORY_SLUG}", "${MICROSOFT_CATEGORY_LEGACY_SLUG}"] ||
+  ${MICROSOFT_PRODUCT_TERMS.map(term => {
+    const pattern = `*${term}*`
+    return `(title match "${pattern}" || excerpt match "${pattern}" || tags match "${pattern}" || content match "${pattern}" || pt::text(body) match "${pattern}")`
+  }).join(' ||\n  ')}
+)`
+
+function isMicrosoftCategory(category?: string): boolean {
+  return category === MICROSOFT_CATEGORY_SLUG || category === MICROSOFT_CATEGORY_LEGACY_SLUG
+}
+
 export type SanityPage = {
   id: string
   title: string
@@ -79,6 +124,15 @@ export type PublicSiteSettings = {
   seoDefaultOgImage: string
   defaultCoverImageUrl: string
   homepageBrandName: string
+  showHomepageHero: boolean
+  homepageHeroEyebrow: string
+  homepageHeroTitle: string
+  homepageHeroDescription: string
+  homepageHeroPrimaryLabel: string
+  homepageHeroPrimaryHref: string
+  homepageHeroSecondaryLabel: string
+  homepageHeroSecondaryHref: string
+  homepageHeroImageUrl: string
   homepageSectionTitle: string
   homepageSearchPlaceholder: string
   homepageCtaLabel: string
@@ -142,6 +196,15 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   seoDefaultOgImage: '',
   defaultCoverImageUrl: '',
   homepageBrandName: 'Tyler博客',
+  showHomepageHero: true,
+  homepageHeroEyebrow: 'WORD · OFFICE · PRODUCTIVITY',
+  homepageHeroTitle: '把 Word 学明白，\n也把工作做轻松',
+  homepageHeroDescription: '从基础操作到专业排版，用清晰、可执行的中文教程解决真实办公问题。',
+  homepageHeroPrimaryLabel: '开始学习 Word',
+  homepageHeroPrimaryHref: '__latest_tutorial__',
+  homepageHeroSecondaryLabel: '浏览全部教程',
+  homepageHeroSecondaryHref: '#latest-tutorials',
+  homepageHeroImageUrl: '',
   homepageSectionTitle: '最新教程',
   homepageSearchPlaceholder: '搜索教程…',
   homepageCtaLabel: '从零开始学习 →',
@@ -153,9 +216,9 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   homepageFooterNote: '本站内容独立编写整理，非 Microsoft 官方文档',
   showFooter: true,
   showDefaultLatestPosts: true,
-  postsPerPage: 9,
+  postsPerPage: 16,
   homepageMaxWidth: 1480,
-  cardColumns: 3,
+  cardColumns: 4,
   cardGap: 24,
   cardImageHeight: 150,
   showCardCategory: true,
@@ -173,7 +236,7 @@ export const DEFAULT_PUBLIC_SITE_SETTINGS: PublicSiteSettings = {
   bodyFont: 'system',
   headingFont: 'serif',
   contentWidth: 768,
-  cardRadius: 6,
+  cardRadius: 10,
   imageQuality: 82,
   analyticsEnabled: false,
   commentsEnabled: false,
@@ -209,14 +272,7 @@ export const DEFAULT_NAVIGATION: SanityNavigationItem[] = [
 export type SanityConfig = { projectId: string; dataset: string; apiVersion: string; token: string }
 
 function valueFromEnvironment(key: string): string {
-  const fromProcess = process.env[key]
-  if (fromProcess) return fromProcess
-  try {
-    const value = (getCloudflareContext().env as Record<string, unknown>)[key]
-    return typeof value === 'string' ? value : ''
-  } catch {
-    return ''
-  }
+  return process.env[key] || ''
 }
 
 function safePublicHref(value: string | undefined): string {
@@ -248,6 +304,7 @@ type SanityResponse = {
   publishedAt?: string
   categoryName?: string
   categorySlug?: string
+  tags?: string[]
   metaTitle?: string
   metaDescription?: string
   ogImage?: string
@@ -260,6 +317,7 @@ type SanityResponse = {
   teaser?: string
   stripePriceId?: string
   customFields?: Array<Record<string, unknown>>
+  isMicrosoftProduct?: boolean
 }
 
 type SanityPageResponse = {
@@ -289,6 +347,7 @@ function toCustomFields(items: Array<Record<string, unknown>> | undefined): Sani
 
 function toPost(item: SanityResponse): SanityPost | null {
   if (!item.title || !item.slug) return null
+  const microsoftProduct = item.isMicrosoftProduct === true
   return {
     id: item._id,
     title: item.title,
@@ -301,8 +360,9 @@ function toPost(item: SanityResponse): SanityPost | null {
     created_at: item._createdAt || new Date(0).toISOString(),
     published_at: item.publishedAt || item._createdAt || null,
     status: 'published',
-    category_name: item.categoryName || null,
-    category_slug: item.categorySlug || null,
+    category_name: microsoftProduct ? MICROSOFT_CATEGORY_NAME : item.categoryName || null,
+    category_slug: microsoftProduct ? MICROSOFT_CATEGORY_SLUG : item.categorySlug || null,
+    tags: Array.isArray(item.tags) ? item.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0) : [],
     meta_title: item.metaTitle || null,
     meta_description: item.metaDescription || null,
     og_image: item.ogImage || null,
@@ -327,7 +387,7 @@ async function isDraftPreview(): Promise<boolean> {
   }
 }
 
-async function query<T>(groq: string, params: Record<string, string | number> = {}): Promise<T | null> {
+async function query<T>(groq: string, params: Record<string, string | number> = {}, tags: string[] = ['sanity']): Promise<T | null> {
   const config = getSanityConfig()
   if (!config) return null
   const preview = await isDraftPreview()
@@ -341,7 +401,7 @@ async function query<T>(groq: string, params: Record<string, string | number> = 
   try {
     const response = await fetch(url, preview
       ? { cache: 'no-store', headers: { authorization: `Bearer ${config.token}` } }
-      : { next: { revalidate: 60 } })
+      : { next: { revalidate: 60, tags } })
     if (!response.ok) return null
     const body = await response.json() as { result?: T }
     return body.result ?? null
@@ -385,6 +445,8 @@ const projection = `{
   publishedAt,
   "categoryName": category->title,
   "categorySlug": category->slug.current,
+  "isMicrosoftProduct": ${microsoftProductExpression},
+  tags,
   metaTitle,
   metaDescription,
   ogImage,
@@ -413,36 +475,57 @@ export async function getSanityPublishedPosts({ limit = 20, offset = 0, category
   const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 100)
   const safeOffset = Math.max(Math.floor(offset), 0)
   const preview = await isDraftPreview()
-  const categoryFilter = category ? ' && category->slug.current == $category' : ''
+  const categoryFilter = isMicrosoftCategory(category)
+    ? ` && ${microsoftProductExpression}`
+    : category ? ' && category->slug.current == $category' : ''
   const cleanedSearch = searchPattern(search)
   const searchFilter = cleanedSearch ? ' && (title match $search || excerpt match $search || pt::text(body) match $search || content match $search)' : ''
   const params: Record<string, string> = {}
-  if (category) params.category = category
+  if (category && !isMicrosoftCategory(category)) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
   const visibility = preview ? 'true' : publicVisibility
-  const data = await query<SanityResponse[]>(`*[_type == "post" && ${visibility}${categoryFilter}${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, params)
+  const data = await query<SanityResponse[]>(`*[_type == "post" && ${visibility}${categoryFilter}${searchFilter}] | order(coalesce(publishedAt, _createdAt) desc)[${safeOffset}...${safeOffset + safeLimit}] ${projection}`, params, ['sanity', 'sanity:posts'])
   return (data || []).map(toPost).filter((post): post is SanityPost => Boolean(post))
 }
 
 export async function getSanityPublishedPostCount({ category, search }: { category?: string; search?: string } = {}): Promise<number> {
   const preview = await isDraftPreview()
-  const categoryFilter = category ? ' && category->slug.current == $category' : ''
+  const categoryFilter = isMicrosoftCategory(category)
+    ? ` && ${microsoftProductExpression}`
+    : category ? ' && category->slug.current == $category' : ''
   const cleanedSearch = searchPattern(search)
   const searchFilter = cleanedSearch ? ' && (title match $search || excerpt match $search || pt::text(body) match $search || content match $search)' : ''
   const params: Record<string, string> = {}
-  if (category) params.category = category
+  if (category && !isMicrosoftCategory(category)) params.category = category
   if (cleanedSearch) params.search = `*${cleanedSearch}*`
-  return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params) || 0
+  return await query<number>(`count(*[_type == "post" && ${preview ? 'true' : publicVisibility}${categoryFilter}${searchFilter}])`, params, ['sanity', 'sanity:posts']) || 0
+}
+
+/** Prefer tutorials in the same category, then fill the remaining cards with newer tutorials. */
+export async function getSanityRelatedPosts(post: Pick<SanityPost, 'slug'> & { category_slug?: string | null }, limit = 3): Promise<SanityPost[]> {
+  const safeLimit = Math.min(Math.max(Math.floor(limit), 1), 6)
+  const sameCategory = post.category_slug
+    ? (await getSanityPublishedPosts({ limit: safeLimit + 1, category: post.category_slug })).filter(item => item.slug !== post.slug)
+    : []
+  if (sameCategory.length >= safeLimit) return sameCategory.slice(0, safeLimit)
+
+  const selected = new Map(sameCategory.map(item => [item.slug, item]))
+  const latest = await getSanityPublishedPosts({ limit: safeLimit + 6 })
+  for (const item of latest) {
+    if (item.slug !== post.slug && !selected.has(item.slug)) selected.set(item.slug, item)
+    if (selected.size >= safeLimit) break
+  }
+  return Array.from(selected.values()).slice(0, safeLimit)
 }
 
 export async function getSanityPost(slug: string): Promise<SanityPost | null> {
   const preview = await isDraftPreview()
-  const data = await query<SanityResponse | null>(`*[_type == "post" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] ${projection}`, { slug })
+  const data = await query<SanityResponse | null>(`*[_type == "post" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] ${projection}`, { slug }, ['sanity', `sanity:post:${slug}`])
   return data ? toPost(data) : null
 }
 
 export async function getSanityNavigation(): Promise<SanityNavigationItem[]> {
-  const data = await query<Array<{ _id: string; label?: string; href?: string; isVisible?: boolean; openNewTab?: boolean }>>(`*[_type == "navigationItem" && isVisible != false] | order(sortOrder asc, _createdAt asc) { _id, label, href, isVisible, openNewTab }`)
+  const data = await query<Array<{ _id: string; label?: string; href?: string; isVisible?: boolean; openNewTab?: boolean }>>(`*[_type == "navigationItem" && isVisible != false] | order(sortOrder asc, _createdAt asc) { _id, label, href, isVisible, openNewTab }`, {}, ['sanity', 'sanity:navigation'])
   const navigation = (data || [])
     .filter(item => item.label && item.href)
     .map(item => ({ id: item._id, label: item.label!, href: item.href!, is_visible: 1, open_new_tab: item.openNewTab ? 1 : 0 }))
@@ -450,15 +533,18 @@ export async function getSanityNavigation(): Promise<SanityNavigationItem[]> {
 }
 
 export async function getSanityCategories(): Promise<SanityCategory[]> {
-  const data = await query<Array<{ _id: string; title?: string; slug?: string; description?: string }>>(`*[_type == "category" && defined(slug.current)] | order(title asc) { _id, title, "slug": slug.current, description }`)
-  return (data || [])
+  const data = await query<Array<{ _id: string; title?: string; slug?: string; description?: string }>>(`*[_type == "category" && defined(slug.current)] | order(title asc) { _id, title, "slug": slug.current, description }`, {}, ['sanity', 'sanity:categories'])
+  const categories = (data || [])
     .filter(item => item.title && item.slug)
-    .map(item => ({ id: item._id, name: item.title!, slug: item.slug!, description: item.description || '' }))
+    .map(item => item._id === MICROSOFT_CATEGORY_ID || isMicrosoftCategory(item.slug)
+      ? { id: item._id, name: MICROSOFT_CATEGORY_NAME, slug: MICROSOFT_CATEGORY_SLUG, description: item.description || '微软产品与办公软件教程。' }
+      : { id: item._id, name: item.title!, slug: item.slug!, description: item.description || '' })
+  return Array.from(new Map(categories.map(item => [item.slug, item])).values())
 }
 
 export async function getSanityPage(slug: string): Promise<SanityPage | null> {
   const preview = await isDraftPreview()
-  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, ${customFieldsProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug })
+  const item = await query<SanityPageResponse | null>(`*[_type == "page" && ${preview ? 'true' : publicVisibility} && slug.current == $slug][0] { _id, title, "slug": slug.current, excerpt, content, body[]${portableProjection}, sections[]${sectionProjection}, ${customFieldsProjection}, _createdAt, _updatedAt, publishedAt, metaTitle, metaDescription }`, { slug }, ['sanity', `sanity:page:${slug}`])
   if (!item?.title || !item.slug || (!item.content && !item.body?.length && !item.sections?.length)) return null
   return {
     id: item._id,
@@ -479,7 +565,7 @@ export async function getSanityPage(slug: string): Promise<SanityPage | null> {
 }
 
 export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
-  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`)
+  const item = await query<Partial<PublicSiteSettings> & { primaryColor?: { hex?: string }; secondaryColor?: { hex?: string }; headerBackgroundColor?: { hex?: string }; surfaceColor?: { hex?: string }; cardBackgroundColor?: { hex?: string } } | null>(`*[_id == "site-settings"][0] { siteName, seoDefaultTitle, seoDefaultDescription, seoDefaultOgImage, "defaultCoverImageUrl": defaultCoverImage.asset->url, homepageBrandName, showHomepageHero, homepageHeroEyebrow, homepageHeroTitle, homepageHeroDescription, homepageHeroPrimaryLabel, homepageHeroPrimaryHref, homepageHeroSecondaryLabel, homepageHeroSecondaryHref, "homepageHeroImageUrl": homepageHeroImage.asset->url, homepageSectionTitle, homepageSearchPlaceholder, homepageCtaLabel, homepageCtaHref, showHeaderSearch, showHeaderCta, homepageIntroText, homepageFooterBrand, homepageFooterNote, showFooter, showDefaultLatestPosts, postsPerPage, homepageMaxWidth, cardColumns, cardGap, cardImageHeight, showCardCategory, showCardDate, showCardReadingTime, homepageSections[]${sectionProjection}, canonicalBaseUrl, organizationName, twitterHandle, primaryColor, secondaryColor, headerBackgroundColor, surfaceColor, cardBackgroundColor, bodyFont, headingFont, contentWidth, cardRadius, imageQuality, analyticsEnabled, commentsEnabled, commentsRequireApproval, contactFormEnabled, membershipEnabled, paidContentEnabled, turnstileSiteKey, themePreset, cardStyle, navigationStyle, breadcrumbsEnabled, shareButtonsEnabled, readingProgressEnabled, backToTopEnabled, relatedPostsEnabled, authorBoxEnabled, newsletterEnabled, newsletterTitle, newsletterText, newsletterButtonLabel, newsletterHref }`, {}, ['sanity', 'sanity:settings'])
   return {
     siteName: item?.siteName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.siteName,
     seoDefaultTitle: item?.seoDefaultTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.seoDefaultTitle,
@@ -487,6 +573,15 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
     seoDefaultOgImage: item?.seoDefaultOgImage?.trim() || '',
     defaultCoverImageUrl: item?.defaultCoverImageUrl?.trim() || '',
     homepageBrandName: item?.homepageBrandName?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageBrandName,
+    showHomepageHero: item?.showHomepageHero !== false,
+    homepageHeroEyebrow: item?.homepageHeroEyebrow?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroEyebrow,
+    homepageHeroTitle: item?.homepageHeroTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroTitle,
+    homepageHeroDescription: item?.homepageHeroDescription?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroDescription,
+    homepageHeroPrimaryLabel: item?.homepageHeroPrimaryLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroPrimaryLabel,
+    homepageHeroPrimaryHref: safePublicHref(item?.homepageHeroPrimaryHref) || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroPrimaryHref,
+    homepageHeroSecondaryLabel: item?.homepageHeroSecondaryLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroSecondaryLabel,
+    homepageHeroSecondaryHref: safePublicHref(item?.homepageHeroSecondaryHref) || DEFAULT_PUBLIC_SITE_SETTINGS.homepageHeroSecondaryHref,
+    homepageHeroImageUrl: item?.homepageHeroImageUrl?.trim() || '',
     homepageSectionTitle: item?.homepageSectionTitle?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSectionTitle,
     homepageSearchPlaceholder: item?.homepageSearchPlaceholder?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageSearchPlaceholder,
     homepageCtaLabel: item?.homepageCtaLabel?.trim() || DEFAULT_PUBLIC_SITE_SETTINGS.homepageCtaLabel,
@@ -545,13 +640,13 @@ export async function getSanitySiteSettings(): Promise<PublicSiteSettings> {
 }
 
 export async function getSanityRedirect(path: string): Promise<{ target: string; status: 307 | 308 } | null> {
-  const item = await query<{ targetPath?: string; statusCode?: number } | null>(`*[_type == "redirect" && enabled == true && sourcePath == $path][0] { targetPath, statusCode }`, { path })
+  const item = await query<{ targetPath?: string; statusCode?: number } | null>(`*[_type == "redirect" && enabled == true && sourcePath == $path][0] { targetPath, statusCode }`, { path }, ['sanity', 'sanity:redirects'])
   if (!item?.targetPath) return null
   return { target: item.targetPath, status: item.statusCode === 307 ? 307 : 308 }
 }
 
 export async function getSanitySitemapEntries(): Promise<Array<{ path: string; updatedAt: string }>> {
-  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && ${publicVisibility} && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`)
+  const data = await query<Array<{ type?: string; slug?: string; updatedAt?: string }>>(`*[_type in ["post", "page"] && ${publicVisibility} && defined(slug.current)] | order(_updatedAt desc) { "type": _type, "slug": slug.current, "updatedAt": _updatedAt }`, {}, ['sanity', 'sanity:sitemap'])
   return (data || [])
     .filter(item => item.slug && (item.type === 'post' || item.type === 'page'))
     .map(item => ({ path: item.type === 'post' ? `/tutorials/${encodeURIComponent(item.slug!)}` : `/pages/${encodeURIComponent(item.slug!)}`, updatedAt: item.updatedAt || new Date().toISOString() }))
