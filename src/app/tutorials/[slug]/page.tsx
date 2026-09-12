@@ -10,6 +10,7 @@ import { ArticleEnhancements } from '@/components/ArticleEnhancements'
 import { CustomFieldDisplay } from '@/components/CustomFieldDisplay'
 import { TylerFooter, TylerHeader } from '@/components/TylerSiteChrome'
 import type { SanityCustomField } from '@/lib/sanity-content'
+import { getTutorialCover } from '@/lib/tutorial-covers'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,7 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const settings = await getSanitySiteSettings()
   const title = post.meta_title || post.title
   const description = post.meta_description || post.excerpt || settings.seoDefaultDescription
-  const ogImage = post.og_image || post.cover_image || settings.seoDefaultOgImage || undefined
+  const ogImage = post.og_image || getTutorialCover(post.slug, post.cover_image) || settings.seoDefaultOgImage || undefined
 
   return {
     title: title + ' - ' + settings.siteName,
@@ -84,10 +85,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const post = await getPost(slug)
   if (!post) notFound()
   const settings = await getSanitySiteSettings()
+  const coverImage = getTutorialCover(post.slug, post.cover_image)
   const relatedPosts = settings.relatedPostsEnabled
     ? await getSanityRelatedPosts(post, 3)
     : []
-  const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, dateModified: post.published_at || post.created_at, image: post.og_image || post.cover_image || undefined, articleSection: post.category_name || undefined, keywords: post.tags?.join(', ') || undefined, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, publisher: { '@type': 'Organization', name: settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
+  const structuredData = { '@context': 'https://schema.org', '@type': post.schema_type || 'Article', headline: post.title, description: post.excerpt, datePublished: post.published_at || post.created_at, dateModified: post.published_at || post.created_at, image: post.og_image || coverImage || undefined, articleSection: post.category_name || undefined, keywords: post.tags?.join(', ') || undefined, author: { '@type': 'Person', name: post.author_name || settings.organizationName }, publisher: { '@type': 'Organization', name: settings.organizationName }, mainEntityOfPage: `${settings.canonicalBaseUrl}/tutorials/${post.slug}` }
 
   return (
     <div className="min-h-screen bg-[#faf8f3] text-[#182533]">
@@ -110,8 +112,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           </div>
         </header>
 
-        {post.cover_image && (
-          <Image src={post.cover_image} alt={post.title} width={1600} height={900} className="mb-10 h-auto w-full rounded-2xl object-cover" />
+        {coverImage && (
+          <Image src={coverImage} alt={post.title} width={1600} height={900} className="mb-10 h-auto w-full rounded-2xl object-cover" />
         )}
 
         <CustomFieldDisplay fields={post.custom_fields} placement="beforeContent" />

@@ -10,6 +10,7 @@ import {
   getSanityPublishedPosts,
   getSanitySiteSettings,
 } from "@/lib/sanity-content";
+import { getTutorialCover } from "@/lib/tutorial-covers";
 
 // Public homepage content is cached at the Vercel edge and refreshed by the
 // Sanity revalidation webhook. Draft preview requests remain uncached.
@@ -42,7 +43,7 @@ const EXCEL_TUTORIAL = {
   category_name: "微软办公软件",
   published_at: "2026-09-11T00:00:00.000Z",
   reading_time: 120,
-  cover_image: "/excel-tutorial/figs/01_excel_interface.png",
+  cover_image: getTutorialCover("excel"),
 };
 
 function formatDate(value?: string) {
@@ -158,6 +159,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {homepagePosts.length > 0 ? (
           <div className="site-card-grid grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {homepagePosts.map((post, index) => {
+              const coverImage = getTutorialCover(post.slug, post.cover_image || "");
               const href =
                 post.id === EXCEL_TUTORIAL.id
                   ? "/tutorials/excel"
@@ -171,13 +173,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   key={post.id}
                 >
                   <div className="tyler-tutorial-card-media relative overflow-hidden border-b border-[#e8e2d8]">
-                    {post.cover_image ? (
+                    {coverImage ? (
                       <Image
                         alt={post.title}
                         className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.015]"
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                        src={post.cover_image}
+                        src={coverImage}
                       />
                     ) : (
                       <CardArtwork index={index} />
