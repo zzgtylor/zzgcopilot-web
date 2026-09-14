@@ -79,12 +79,15 @@ export default async function TutorialsIndexPage({ searchParams }: TutorialsInde
   };
 
   return (
-    <div className="site-home min-h-screen bg-[#faf8f3] text-[#182533]">
+    <div className="site-home min-h-screen text-[#16233f]">
       <TylerHeader query={query} navigation={navigation} settings={settings} />
 
       <section className="tyler-shell mt-10 sm:mt-12">
-        <p className="mb-2 text-xs tracking-[0.22em] text-[#6c7783]">TUTORIALS</p>
-        <h1 className="tyler-wordmark text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
+        <span className="site-hero-tag mb-4">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#e8a33d]" />
+          TUTORIALS
+        </span>
+        <h1 className="tyler-wordmark text-3xl font-semibold tracking-[-0.03em] text-[#16233f] sm:text-4xl">
           全部教程
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#66717b]">
@@ -93,7 +96,7 @@ export default async function TutorialsIndexPage({ searchParams }: TutorialsInde
 
         <form action="/tutorials" method="get" className="mt-6 max-w-md">
           <input
-            className="h-11 w-full rounded-full border border-[#dbdedb] bg-white px-5 text-sm outline-none focus:border-[#1f52ad]"
+            className="h-11 w-full rounded-full border border-[#e1e4ec] bg-white px-5 text-sm outline-none focus:border-[#16233f]"
             defaultValue={query}
             name="q"
             placeholder="搜索教程..."
@@ -102,16 +105,16 @@ export default async function TutorialsIndexPage({ searchParams }: TutorialsInde
         </form>
 
         {categories.length ? (
-          <nav aria-label="教程分类" className="mt-6 flex flex-wrap gap-2">
+          <nav aria-label="教程分类" className="site-tab-row mt-6 flex flex-wrap gap-1">
             <Link
-              className={`rounded-full border px-4 py-2 text-xs ${!category ? "border-[#1f52ad] bg-[#1f52ad] text-white" : "border-[#d8d1c6] bg-white"}`}
+              className={`site-tab ${!category ? "site-tab-active" : ""}`}
               href={query ? `/tutorials?q=${encodeURIComponent(query)}` : "/tutorials"}
             >
               全部
             </Link>
             {categories.map((item) => (
               <Link
-                className={`rounded-full border px-4 py-2 text-xs ${category === item.slug ? "border-[#1f52ad] bg-[#1f52ad] text-white" : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"}`}
+                className={`site-tab ${category === item.slug ? "site-tab-active" : ""}`}
                 href={`/tutorials?category=${encodeURIComponent(item.slug)}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
                 key={item.id}
               >
@@ -212,7 +215,7 @@ export default async function TutorialsIndexPage({ searchParams }: TutorialsInde
           <nav aria-label="教程分页" className="mt-12 flex justify-center gap-2">
             <Link
               aria-disabled={page <= 1}
-              className={`border px-4 py-2 text-sm ${page <= 1 ? "pointer-events-none border-[#e5dfd5] text-[#aaa49b]" : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"}`}
+              className={`border px-4 py-2 text-sm ${page <= 1 ? "pointer-events-none border-[#e1e4ec] text-[#a7acb8]" : "border-[#e1e4ec] bg-white hover:border-[#16233f]"}`}
               href={pageHref(Math.max(1, page - 1))}
             >
               ← 上一页
@@ -220,7 +223,7 @@ export default async function TutorialsIndexPage({ searchParams }: TutorialsInde
             {Array.from({ length: totalPages }, (_, index) => index + 1).map((number) => (
               <Link
                 aria-current={number === page ? "page" : undefined}
-                className={`min-w-10 border px-3 py-2 text-center text-sm ${number === page ? "border-[#1f52ad] bg-[#1f52ad] text-white" : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"}`}
+                className={`min-w-10 border px-3 py-2 text-center text-sm ${number === page ? "border-[#e8a33d] bg-[#e8a33d] text-[#16233f]" : "border-[#e1e4ec] bg-white hover:border-[#16233f]"}`}
                 href={pageHref(number)}
                 key={number}
               >
@@ -229,7 +232,7 @@ export default async function TutorialsIndexPage({ searchParams }: TutorialsInde
             ))}
             <Link
               aria-disabled={page >= totalPages}
-              className={`border px-4 py-2 text-sm ${page >= totalPages ? "pointer-events-none border-[#e5dfd5] text-[#aaa49b]" : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"}`}
+              className={`border px-4 py-2 text-sm ${page >= totalPages ? "pointer-events-none border-[#e1e4ec] text-[#a7acb8]" : "border-[#e1e4ec] bg-white hover:border-[#16233f]"}`}
               href={pageHref(Math.min(totalPages, page + 1))}
             >
               下一页 →

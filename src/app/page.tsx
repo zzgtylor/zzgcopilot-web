@@ -90,19 +90,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   };
 
   return (
-    <div className="site-home min-h-screen bg-[#faf8f3] text-[#182533]">
+    <div className="site-home min-h-screen text-[#16233f]">
       <TylerHeader query={query} navigation={navigation} settings={settings} />
       {settings.showHeaderSearch ? (
         <form action="/" method="get" className="mx-4 mt-4 sm:hidden">
-          <input className="h-11 w-full rounded-full border border-[#dbdedb] bg-white px-5 text-sm outline-none focus:border-[#1f52ad]" defaultValue={query} name="q" placeholder={settings.homepageSearchPlaceholder} type="search" />
+          <input className="h-11 w-full rounded-full border border-[#e1e4ec] bg-white px-5 text-sm outline-none focus:border-[#16233f]" defaultValue={query} name="q" placeholder={settings.homepageSearchPlaceholder} type="search" />
         </form>
       ) : null}
 
       {!query ? (
-        <section className="tyler-cover tyler-shell mt-10 flex min-h-[360px] items-center border border-[#ded7cc] bg-[#f3eee5] px-8 py-16 sm:mt-12 sm:px-12 lg:px-16">
-          <h1 className="tyler-wordmark max-w-3xl whitespace-pre-line text-[44px] font-semibold leading-[1.18] tracking-[-0.04em] sm:text-[56px] lg:text-[64px]">
-            {settings.homepageHeroTitle || "记录技术，\n也记录生活。"}
-          </h1>
+        <section className="site-hero tyler-shell relative mt-10 flex min-h-[360px] items-center border border-[#e1e4ec] px-8 py-16 sm:mt-12 sm:px-12 lg:px-16">
+          <span aria-hidden="true" className="site-hero-bracket site-hero-bracket-tl" />
+          <span aria-hidden="true" className="site-hero-bracket site-hero-bracket-br" />
+          <div className="site-hero-copy relative z-10 max-w-3xl">
+            <span className="site-hero-tag mb-6">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[#e8a33d]" />
+              A1:Z99 · 办公技巧笔记
+            </span>
+            <h1 className="tyler-wordmark whitespace-pre-line text-[44px] font-semibold leading-[1.18] tracking-[-0.04em] text-[#16233f] sm:text-[56px] lg:text-[64px]">
+              {settings.homepageHeroTitle || "记录技术，\n也记录生活。"}
+            </h1>
+          </div>
         </section>
       ) : null}
 
@@ -117,21 +125,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </h2>
           </div>
           {query ? (
-            <Link className="text-sm text-[#1f52ad] hover:underline" href="/">
+            <Link className="text-sm text-[#16233f] hover:underline" href="/">
               清除搜索
             </Link>
           ) : null}
           {settings.showHeaderCta && settings.homepageCtaHref ? (
-            <Link className="text-sm font-medium text-[#1f52ad] hover:underline" href={settings.homepageCtaHref}>
+            <Link className="text-sm font-medium text-[#16233f] hover:underline" href={settings.homepageCtaHref}>
               {settings.homepageCtaLabel}
             </Link>
           ) : null}
         </div>
 
         {categories.length ? (
-          <nav aria-label="教程分类" className="mb-8 flex flex-wrap gap-2">
-            <Link className={`rounded-full border px-4 py-2 text-xs ${!category ? 'border-[#1f52ad] bg-[#1f52ad] text-white' : 'border-[#d8d1c6] bg-white'}`} href={query ? `/?q=${encodeURIComponent(query)}` : '/'}>全部</Link>
-            {categories.map(item => <Link className={`rounded-full border px-4 py-2 text-xs ${category === item.slug ? 'border-[#1f52ad] bg-[#1f52ad] text-white' : 'border-[#d8d1c6] bg-white hover:border-[#1f52ad]'}`} href={`/?category=${encodeURIComponent(item.slug)}${query ? `&q=${encodeURIComponent(query)}` : ''}`} key={item.id}>{item.name}</Link>)}
+          <nav aria-label="教程分类" className="site-tab-row mb-8 flex flex-wrap gap-1">
+            <Link className={`site-tab ${!category ? 'site-tab-active' : ''}`} href={query ? `/?q=${encodeURIComponent(query)}` : '/'}>全部</Link>
+            {categories.map(item => <Link className={`site-tab ${category === item.slug ? 'site-tab-active' : ''}`} href={`/?category=${encodeURIComponent(item.slug)}${query ? `&q=${encodeURIComponent(query)}` : ''}`} key={item.id}>{item.name}</Link>)}
           </nav>
         ) : null}
 
@@ -196,8 +204,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               aria-disabled={page <= 1}
               className={`border px-4 py-2 text-sm ${
                 page <= 1
-                  ? "pointer-events-none border-[#e5dfd5] text-[#aaa49b]"
-                  : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"
+                  ? "pointer-events-none border-[#e1e4ec] text-[#a7acb8]"
+                  : "border-[#e1e4ec] bg-white hover:border-[#16233f]"
               }`}
               href={pageHref(Math.max(1, page - 1))}
             >
@@ -208,8 +216,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 aria-current={number === page ? "page" : undefined}
                 className={`min-w-10 border px-3 py-2 text-center text-sm ${
                   number === page
-                    ? "border-[#1f52ad] bg-[#1f52ad] text-white"
-                    : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"
+                    ? "border-[#e8a33d] bg-[#e8a33d] text-[#16233f]"
+                    : "border-[#e1e4ec] bg-white hover:border-[#16233f]"
                 }`}
                 href={pageHref(number)}
                 key={number}
@@ -221,8 +229,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               aria-disabled={page >= totalPages}
               className={`border px-4 py-2 text-sm ${
                 page >= totalPages
-                  ? "pointer-events-none border-[#e5dfd5] text-[#aaa49b]"
-                  : "border-[#d8d1c6] bg-white hover:border-[#1f52ad]"
+                  ? "pointer-events-none border-[#e1e4ec] text-[#a7acb8]"
+                  : "border-[#e1e4ec] bg-white hover:border-[#16233f]"
               }`}
               href={pageHref(Math.min(totalPages, page + 1))}
             >
