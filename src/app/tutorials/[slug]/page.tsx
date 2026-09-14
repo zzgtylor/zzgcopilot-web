@@ -9,10 +9,14 @@ import { PortableContent } from '@/components/PortableContent'
 import { ArticleEnhancements } from '@/components/ArticleEnhancements'
 import { CustomFieldDisplay } from '@/components/CustomFieldDisplay'
 import { TylerFooter, TylerHeader } from '@/components/TylerSiteChrome'
+import { CheckoutButton } from '@/components/CheckoutButton'
+import { currentMember } from '@/lib/member-auth'
 import type { SanityCustomField } from '@/lib/sanity-content'
 import { getTutorialCover } from '@/lib/tutorial-covers'
 
-export const dynamic = 'force-dynamic'
+// Published tutorial content is cached at the Vercel edge and refreshed by the
+// Sanity revalidation webhook, matching the homepage's caching strategy.
+export const revalidate = 60
 
 type Post = {
   id: string
@@ -85,6 +89,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const post = await getPost(slug)
   if (!post) notFound()
   const settings = await getSanitySiteSettings()
+  const member = settings.membershipEnabled ? await currentMember() : null
   const coverImage = getTutorialCover(post.slug, post.cover_image)
   const relatedPosts = settings.relatedPostsEnabled
     ? await getSanityRelatedPosts(post, 3)
@@ -115,6 +120,16 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         {coverImage && (
           <Image src={coverImage} alt={post.title} width={1600} height={900} className="mb-10 h-auto w-full rounded-2xl object-cover" />
         )}
+
+        {settings.membershipEnabled && !member ? (
+          <section className="mb-10 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e3ddd3] bg-white p-6">
+            <div>
+              <h2 className="text-base font-bold text-[#182533]">解锁完整会员权益</h2>
+              <p className="mt-1 text-sm leading-6 text-[#66717b]">订阅会员即可阅读全部进阶教程与更新内容。</p>
+            </div>
+            <CheckoutButton slug={post.slug} />
+          </section>
+        ) : null}
 
         <CustomFieldDisplay fields={post.custom_fields} placement="beforeContent" />
 

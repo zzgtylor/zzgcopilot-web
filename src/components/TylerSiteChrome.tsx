@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Menu, Search } from 'lucide-react'
+import { Menu, Search, User } from 'lucide-react'
 import type { PublicSiteSettings, SanityNavigationItem } from '@/lib/sanity-content'
 
 function navigationHref(href: string) {
@@ -25,15 +25,22 @@ export function TylerHeader({ query = '', navigation, settings }: { query?: stri
           {items.map(item => <Link href={navigationHref(item.href)} key={item.id} target={item.open_new_tab ? '_blank' : undefined} className="hover:text-[#1f52ad]">{item.label}</Link>)}
         </nav>
 
-        <form action="/" method="get" className={`relative hidden sm:block ${settings?.showHeaderSearch === false ? 'sm:hidden' : ''}`}>
-          <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6f7782]" />
-          <input type="search" name="q" defaultValue={query} aria-label="搜索教程" placeholder={settings?.homepageSearchPlaceholder || '搜索教程'} className="h-10 w-[156px] rounded-full border border-[#dbdedb] bg-white pl-10 pr-4 text-[13px] text-[#182533] outline-none transition focus:border-[#1f52ad]" />
-        </form>
+        <div className="hidden items-center gap-3 sm:flex">
+          <form action="/" method="get" className={`relative ${settings?.showHeaderSearch === false ? 'hidden' : ''}`}>
+            <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6f7782]" />
+            <input type="search" name="q" defaultValue={query} aria-label="搜索教程" placeholder={settings?.homepageSearchPlaceholder || '搜索教程'} className="h-10 w-[156px] rounded-full border border-[#dbdedb] bg-white pl-10 pr-4 text-[13px] text-[#182533] outline-none transition focus:border-[#1f52ad]" />
+          </form>
+          <Link href="/account" className="flex h-10 items-center gap-1.5 rounded-full border border-[#dbdedb] px-4 text-[13px] font-medium text-[#182533] transition hover:border-[#1f52ad] hover:text-[#1f52ad]">
+            <User aria-hidden="true" className="h-3.5 w-3.5" />
+            登录
+          </Link>
+        </div>
 
         <details className="group relative sm:hidden">
           <summary aria-label="打开导航菜单" className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-[#dbdedb] bg-white text-[#182533] [&::-webkit-details-marker]:hidden"><Menu className="h-5 w-5" /></summary>
           <nav aria-label="手机导航" className="absolute right-0 top-12 z-50 flex w-40 flex-col overflow-hidden rounded-xl border border-[#dbdedb] bg-white py-2 text-sm shadow-xl">
             {items.map(item => <Link href={navigationHref(item.href)} key={item.id} className="px-4 py-2.5 hover:bg-[#faf8f3]">{item.label}</Link>)}
+            <Link href="/account" className="border-t border-[#dbdedb] px-4 py-2.5 font-medium text-[#1f52ad] hover:bg-[#faf8f3]">登录 / 会员</Link>
           </nav>
         </details>
       </div>

@@ -11,6 +11,7 @@ import {
   getSanitySiteSettings,
 } from "@/lib/sanity-content";
 import { getTutorialCover } from "@/lib/tutorial-covers";
+import { EXCEL_TUTORIAL, FALLBACK_TUTORIAL } from "@/lib/featured-tutorials";
 
 // Public homepage content is cached at the Vercel edge and refreshed by the
 // Sanity revalidation webhook. Draft preview requests remain uncached.
@@ -22,28 +23,6 @@ type HomePageProps = {
     q?: string;
     category?: string;
   }>;
-};
-
-const FALLBACK_TUTORIAL = {
-  id: "legacy-word-tutorial",
-  title: "Word 办公软件攻略解析",
-  slug: "word-software-complete-guide",
-  excerpt: "从基础操作到高效排版，系统掌握 Word 的核心功能与实用技巧。",
-  category_name: "微软办公软件",
-  published_at: "2026-08-06T00:00:00.000Z",
-  reading_time: 90,
-  cover_image: "",
-};
-
-const EXCEL_TUTORIAL = {
-  id: "excel-tutorial",
-  title: "Excel 从入门到精通",
-  slug: "excel",
-  excerpt: "从基础操作、函数公式到数据透视表、Power Query 与 VBA 的完整实战教程。",
-  category_name: "微软办公软件",
-  published_at: "2026-09-11T00:00:00.000Z",
-  reading_time: 120,
-  cover_image: getTutorialCover("excel"),
 };
 
 function formatDate(value?: string) {
@@ -162,9 +141,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               const coverImage = getTutorialCover(post.slug, post.cover_image || "");
               const href =
                 post.id === EXCEL_TUTORIAL.id
-                  ? "/tutorials/excel"
+                  ? EXCEL_TUTORIAL.href
                   : post.id === FALLBACK_TUTORIAL.id
-                  ? "/word-tutorial/"
+                  ? FALLBACK_TUTORIAL.href
                   : `/tutorials/${post.slug}`;
               return (
                 <Link
